@@ -1,0 +1,11 @@
+include ../../../settings.mk
+
+OBJDIR=obj/
+TARGET=libstsoundplugin
+EXT=.a
+
+DIRS := StSoundLibrary StSoundLibrary/LZH
+OBJS := StSoundPlugin.o
+CFLAGS := $(CFLAGS) -I$(UTILS) -Wall -I. -I../..
+
+include $(UTILS)/Makefile.inc

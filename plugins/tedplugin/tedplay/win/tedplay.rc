@@ -1,0 +1,369 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include <windows.h>
+#include <atlres.h>
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_FORMVIEW DIALOGEX 0, 0, 280, 133
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_ACCEPTFILES
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    LTEXT           "Module:",IDC_STATIC,7,9,38,8
+    LTEXT           "Author:",IDC_STATIC,7,28,38,8
+    LTEXT           "Released:",IDC_STATIC,7,47,38,8
+    LTEXT           "Subsong:",IDC_STATIC,7,65,38,8
+    EDITTEXT        IDC_EDIT_MODULE,47,7,114,13,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_EDIT_AUTHOR3,47,26,114,13,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_EDIT_COPYRIGHT,47,44,114,13,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_EDIT_SUBSONG,47,63,40,13,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Channels",IDC_STATIC,98,65,31,8
+    CONTROL         "1",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | BS_LEFTTEXT | BS_PUSHLIKE | BS_FLAT | WS_TABSTOP,134,64,13,10
+    CONTROL         "2",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | BS_LEFTTEXT | BS_PUSHLIKE | BS_FLAT | WS_TABSTOP,147,64,14,10
+    CONTROL         "3",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | BS_LEFTTEXT | BS_PUSHLIKE | BS_FLAT | WS_TABSTOP,161,64,14,10
+    LTEXT           "Volume:",IDC_STATIC,181,5,78,12
+    CONTROL         "",IDC_SLIDER_VOLUME,"msctls_trackbar32",TBS_AUTOTICKS | TBS_BOTH | WS_TABSTOP,181,18,78,24
+    LTEXT           "Speed:",IDC_STATIC,181,45,78,12
+    CONTROL         "",IDC_SLIDER_SPEED,"msctls_trackbar32",TBS_BOTH | WS_TABSTOP,181,57,78,24
+    PUSHBUTTON      "Prev",IDC_BUTTON_PREV,6,99,50,14
+    PUSHBUTTON      "Next",IDC_BUTTON_NEXT,59,99,50,14
+    PUSHBUTTON      "Play",IDC_BUTTON_PLAY,113,99,50,14
+    PUSHBUTTON      "Pause",IDC_BUTTON_PAUSE,167,99,50,14
+    PUSHBUTTON      "Stop",IDC_BUTTON_STOP,222,99,50,14
+    LTEXT           "Time:",IDC_STATIC,7,84,38,8
+    EDITTEXT        IDC_EDIT_TIME,47,84,40,13,ES_AUTOHSCROLL | ES_READONLY | NOT WS_BORDER
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_FORMVIEW, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 272
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 127
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Dutch (Netherlands) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_NLD)
+#ifdef _WIN32
+LANGUAGE LANG_DUTCH, SUBLANG_DUTCH
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_TOOLS_OPTIONS_AUDIO DIALOGEX 0, 0, 192, 183
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Audio"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LTEXT           "Replay frequency",IDC_STATIC,7,8,127,12
+    COMBOBOX        IDC_COMBO_SAMPLEFREQ,137,8,48,30,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Resampling filter order",IDC_STATIC,7,27,127,12
+    EDITTEXT        IDC_EDIT_FILTERORDER,137,26,37,11,ES_AUTOHSCROLL
+    CONTROL         "",IDC_SPIN_FILTERORDER,"msctls_updown32",UDS_SETBUDDYINT | UDS_AUTOBUDDY | UDS_ARROWKEYS,173,26,12,12
+    LTEXT           "Playback buffer length (in millisec)",IDC_STATIC,7,47,127,12
+    EDITTEXT        IDC_EDIT_BUFLEN,137,45,38,12,ES_AUTOHSCROLL
+    CONTROL         "",IDC_SPIN_BUFLEN,"msctls_updown32",UDS_SETBUDDYINT | UDS_AUTOBUDDY | UDS_ARROWKEYS,174,45,12,12
+    LTEXT           "Autoskip in seconds (0: none)",IDC_STATIC,7,67,127,12
+    EDITTEXT        IDC_EDIT_AUTOSKIPTIME,137,65,38,12,ES_AUTOHSCROLL
+    CONTROL         "",IDC_SPIN_AUTOSKIPTIME,"msctls_updown32",UDS_SETBUDDYINT | UDS_AUTOBUDDY | UDS_ARROWKEYS,174,65,12,12
+    PUSHBUTTON      "&Default",IDDEFAULT,135,162,50,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_TOOLS_OPTIONS_AUDIO, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 185
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 176
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Dutch (Netherlands) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// English (Ireland) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENI)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_EIRE
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOGEX 0, 0, 223, 197
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,86,176,50,14
+    ICON            IDI_APPICON,IDC_STATIC,7,34,20,20
+    LTEXT           "Commodore 264 TED C8M/PSID/RSID/PRG format player",IDC_STATIC,34,8,180,13,SS_CENTERIMAGE
+    LTEXT           "Copyright 2012-2014 Attila Grósz",IDC_STATIC,69,26,117,13
+    LTEXT           "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License, or (at your option) any later version.",IDC_STATIC,40,46,176,42
+    LTEXT           "This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.",IDC_STATIC,40,90,176,43
+    LTEXT           "You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/",IDC_STATIC,40,137,176,30
+END
+
+IDD_DIALOG_PROPERTIES DIALOGEX 0, 0, 316, 184
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Properties"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,133,163,50,14
+    EDITTEXT        IDC_EDIT_PROPERTIES,7,7,302,153,ES_MULTILINE | ES_AUTOHSCROLL | ES_READONLY | WS_VSCROLL | WS_HSCROLL
+END
+
+IDD_DLG_PLAYLIST DIALOGEX 65530, 128, 357, 159
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+EXSTYLE WS_EX_ACCEPTFILES | WS_EX_TOOLWINDOW
+CAPTION "Playlist"
+FONT 8, "MS Shell Dlg", 0, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_LSV1,"SysListView32",LVS_LIST | LVS_SHOWSELALWAYS | WS_TABSTOP,0,0,357,138,WS_EX_CLIENTEDGE
+    PUSHBUTTON      "..",IDC_BTN_ADDFOLDER,7,140,18,16
+    PUSHBUTTON      "+",IDC_BTN_ADD,28,140,18,16
+    PUSHBUTTON      "-",IDC_BTN_REMOVE,49,140,18,16
+    PUSHBUTTON      "",IDC_BTN_LOADPL,72,140,18,16,BS_ICON
+    PUSHBUTTON      "",IDC_BTN_SAVEPL,93,140,18,16,BS_ICON
+    PUSHBUTTON      "",IDC_BTN_PREVMODULE,277,140,18,16,BS_ICON
+    PUSHBUTTON      "",IDC_BTN_PLAYSELECTION,297,140,18,16,BS_ICON
+    PUSHBUTTON      "",IDC_BTN_NEXTMODULE,317,140,18,16,BS_ICON
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 216
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 190
+    END
+
+    IDD_DIALOG_PROPERTIES, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 309
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 177
+    END
+
+    IDD_DLG_PLAYLIST, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 156
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MENU MENU 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Open...\tCtrl+O",            IDM_FILE_OPEN
+        MENUITEM SEPARATOR
+        MENUITEM "&Save to WAV\tCtrl+S",        IDM_FILE_CREATEWAV
+        MENUITEM "&Memory dump",                ID_FILE_MEMORYDUMP
+        MENUITEM SEPARATOR
+        POPUP "&Control"
+        BEGIN
+            MENUITEM "&Play",                       ID_CONTROL_PLAY
+            MENUITEM "P&ause",                      ID_CONTROL_PAUSE
+            MENUITEM "St&op",                       ID_CONTROL_STOP
+            MENUITEM SEPARATOR
+            MENUITEM "Previous &subtune",           ID_CONTROL_PREVIOUSSUBTUNE
+            MENUITEM "&Next subtune",               ID_CONTROL_NEXTSUBTUNE
+        END
+        MENUITEM SEPARATOR
+        MENUITEM "&Properties...\tCtrl+E",      IDM_FILE_PROPERTIES
+        MENUITEM SEPARATOR
+        MENUITEM "&Exit\tAlt+F4",               IDM_FILE_EXIT
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "Show &playlist",              IDM_VIEW_PLAYLIST, GRAYED
+    END
+    POPUP "&Tools"
+    BEGIN
+        POPUP "TED channel &1"
+        BEGIN
+            MENUITEM "&Square wave",                ID_TEDCHANNEL1_SQUAREWAVE
+            MENUITEM "S&awtooth-ish wave",          ID_TEDCHANNEL1_SAWTOOTHWAVE
+            MENUITEM "&Triangle-ish wave",          ID_TEDCHANNEL1_TRIANGLEWAVE
+            MENUITEM "S&quare+sawtooth",            ID_TEDCHANNEL1_SQUARESAW
+            MENUITEM "Sq&uare+triangle",            ID_TEDCHANNEL1_SQUARETRIAN
+            MENUITEM "Sa&wtooth+triangle",          ID_TEDCHANNEL1_SAWTOOTHTRI
+            MENUITEM "Squa&re+sawtooth+triangle",   ID_TEDCHANNEL1_SQUSAWTRIAN
+        END
+        POPUP "TED channel &2"
+        BEGIN
+            MENUITEM "&Square wave",                ID_TEDCHANNEL2_SQUAREWAVE
+            MENUITEM "S&awtooth-ish wave",          ID_TEDCHANNEL2_SAWTOOTHWAVE
+            MENUITEM "&Triangle-ish wave",          ID_TEDCHANNEL2_TRIANGLEWAVE
+            MENUITEM "S&quare+sawtooth",            ID_TEDCHANNEL2_SQUARESAW
+            MENUITEM "Sq&uare+triangle",            ID_TEDCHANNEL2_SQUARETRIAN
+            MENUITEM "Sa&wtooth+triangle",          ID_TEDCHANNEL2_SAWTOOTHTRI
+            MENUITEM "Squa&re+sawtooth+triangle",   ID_TEDCHANNEL2_SQUSAWTRIAN
+        END
+        MENUITEM "Disable &SID",                ID_TOOLS_DISABLESID
+        MENUITEM SEPARATOR
+        MENUITEM "&Options...",                 IDM_TOOLS_OPTIONS
+        MENUITEM SEPARATOR
+        MENUITEM "&Reset player",               ID_TOOLS_RESETPLAYER
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About...",                   IDM_HELP_ABOUT
+    END
+END
+
+IDR_POPUPMENU_PLIST MENU 
+BEGIN
+    POPUP "Root"
+    BEGIN
+        MENUITEM "&Play",                       40018
+        MENUITEM "&Open file location",         ID_ROOT_OPENFILELOCATION
+        MENUITEM SEPARATOR
+        MENUITEM "&Add folder...",              IDC_BTN_ADDFOLDER
+        MENUITEM "&Add item(s)...",             IDC_BTN_ADD
+        MENUITEM "&Remove",                     IDC_BTN_REMOVE
+        MENUITEM SEPARATOR
+        MENUITEM "Select &all",                 ID_PLAYLIST_SELECTALL
+    END
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include <windows.h>\r\n"
+    "#include <atlres.h>\r\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_APPICON             ICON                    "chip.ico"
+IDI_ICON_OPEN           ICON                    "open.ico"
+IDI_ICON_SAVE           ICON                    "save.ico"
+IDI_ICON_PLAY           ICON                    "play.ico"
+IDI_ICON_PAUSE          ICON                    "pause.ico"
+IDI_ICON_PREV           ICON                    "prev.ico"
+IDI_ICON_NEXT           ICON                    "next.ico"
+IDI_ICON_STOP           ICON                    "stop.ico"
+IDI_PROPPAGEAUDIO       ICON                    "audio.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_ACCELERATORS ACCELERATORS 
+BEGIN
+    "O",            IDM_FILE_OPEN,          VIRTKEY, CONTROL, NOINVERT
+    "A",            ID_PLAYLIST_SELECTALL,  VIRTKEY, CONTROL, NOINVERT
+    "S",            IDM_FILE_CREATEWAV,     VIRTKEY, CONTROL, NOINVERT
+END
+
+IDR_ACCELERATORS_PLAYLIST ACCELERATORS 
+BEGIN
+    "A",            ID_PLAYLIST_SELECTALL,  VIRTKEY, CONTROL, NOINVERT
+END
+
+#endif    // English (Ireland) resources
+/////////////////////////////////////////////////////////////////////////////
+
+

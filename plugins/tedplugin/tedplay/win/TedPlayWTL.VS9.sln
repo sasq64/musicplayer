@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TedPlayWTL", "TedPlayWTL.VS9.vcproj", "{98F8E553-2072-4A34-8152-D73A149331D1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Profiler|Win32 = Profiler|Win32
+		Profiler|x64 = Profiler|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Debug|Win32.Build.0 = Debug|Win32
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Debug|x64.ActiveCfg = Debug|x64
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Debug|x64.Build.0 = Debug|x64
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Profiler|Win32.ActiveCfg = Profiler|Win32
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Profiler|Win32.Build.0 = Profiler|Win32
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Profiler|x64.ActiveCfg = Profiler|x64
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Profiler|x64.Build.0 = Profiler|x64
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Release|Win32.ActiveCfg = Release|Win32
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Release|Win32.Build.0 = Release|Win32
+		{98F8E553-2072-4A34-8152-D73A149331D1}.Release|x64.ActiveCfg = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

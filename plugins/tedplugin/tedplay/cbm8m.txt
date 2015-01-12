@@ -1,0 +1,173 @@
+# Commodore 8-bit music format, and manipulator.
+# First prototype of both.
+# (C) 2012 Levente Hársfalvi
+# Although no precise license notice is given at this time,
+# you should consider both of them to be under the GPL.
+
+# This material is going to be separated into 3 parts later.
+# - The document describing the format
+# - The perl module doing file manipulation
+# - This simple tool to do command line file manipulation
+# Sometime later, producing an editor GUI wouldn't hurt either...
+
+# Thanks and acknowledgements:
+
+# LaLa : for letting me use, analyze, take inspirations from his excellent psid
+#	 editor tool and perl module.
+
+# Michael Schwendt, Dag Lem, Simon White, the HVSC crew et. al: lots of
+#	inspirations, conventions and practices.
+
+# Attila Grósz: suggesting me to go for a multi-platform (rather than a single
+#	platform) file format, and most probably for being the first person ever
+#	to implement it in an emulator based player...
+
+=pod
+
+Commodore 8 bit music file format
+
+Version 0.1 alpha.   2012.03.10
+
+**** Very much a development version. Everything is still subject to change. Shouldn't be published yet (...not that it should be kept in secret, just in order to avoid confusion). *****
+
+At this point, only the CBM 264 specific flags and fields are detailed. More platform specific versions to be considered and defined later.
+
+
+Basic principles.
+
+Cbm8m is a binary container format. It encapsulates native Commodore program files that play music and provides additional information about them. It's been designed to (supposedly) ease the work of yet-to-be-programmed native cbm8m format players (--> purposely selected file structure and presumably small size) and at the same time, provide high general flexibility.
+
+The file is arranged around a three level "global parameters - subtunes - binaries" structure. Amongst other things, this makes it possible to merge all tunes of a product together, without having to merge data on the binary code level.
+
+The great majority of fields are optional. Whether they're defined, is indicated by header flags. If absent, they either default to "undefined", or some reasonable default values.
+
+All textual fields are UTF-8 encoded null terminated strings. (From that on, there's only a practical limit on the lenght of textual fields). Whilst UTF-8 is a little bit harder to deal with than ASCII is, that choice makes sure that, say, Zalka Ernő's name can be stored in the author field correctly ;-) (...let alone rising Japanese composers' names... =-D ).
+
+Speaking of textual fields, the format shamelessly takes HVSC's well established foundations on what and how one is supposed to store about some particular tune. Most of the textual / the majority of binary fields are equivalents of respective psid/rsid / STIL / songlength database fields. This'd also indicate that cbm8m can be off with containing all data, including exteded tune info all by itself. (Time will tell, whether that's just a good idea).
+
+It's assumed that the environment, in which the binary data is to be loaded and run, is a mostly complete machine. Speaking of the 264 series, the emulated machine is a stock 264 series machine with 64k of ram. Defaults (unless noted otherwise) are assumed to be the state after a machine has been reset and booted up to Basic. Raster interrupts, timers, IRQ logic, ROM/RAM paging, basic TED screen timing and open / blank screen logic can be assumed to be present. Support for dynamic TED screen timing (ie. forced badlines and general timing modifications by TED register tricks), ROM/ROM paging, the presence of the ACIA, and such, are not implied. SID and DigiBlaster are supported / required as hw flags suggest.
+
+
+File structure. Field functions; size. Explanations between **s. Conditional fields between []s.
+
+All reserved flags should be set to 0.
+
+
+* Global fields *
+
+00 - File magic ( "CBM8M" ); 5 byte header
+
+05 - File version; 1 byte.
+
+  * High/Low nibble: Major/Minor version. *
+
+06 - Platform; 1 byte
+
+  * Enumerated. Let the 264 series a.k.a C16, C116. Plus/4 be 0, and 1, 2, 3... the rest in an arbitrary order. Player and file manipulating software will both need to know the list of platforms all by themself, just in order to be able to identify platform specific fields of the file. *
+
+07 - Global Hardware Flags; 1 byte. 1 bit - 1 flag.  * Platform dependent, only 264 series assignment is detailed. *
+  - 0: PAL: 0. NTSC: 1
+  - 1..7: reserved
+
+  * flag 0 tells whether the tune has been composed with PAL or NTSC machines in mind. The emulated environment should boot up accordingly. *
+
+08 - Global "Field Defined" Flags; 1 byte. 1 bit - 1 flag.
+  - 0: Number of subtunes field is defined.
+  - 1: Default subtune field is defined.
+  - 2: Number of binary dumps field is defined.
+  - 3: Global tune COMMENT field is defined.
+  - 4..7: reserved
+
+  * Indicates the presence of the respective fields, see below. *
+
+- NAME; null terminated string
+- AUTHOR; null terminated string
+- RELEASED; null terminated string
+- [Number of subtunes; 1 byte]
+- [Default subtune; 1 byte]
+- [Number of binary dumps; 1 byte]
+- [Global COMMENT; null terminated string]
+
+* The number of subtunes, default subtune and number of binary dumps fields are technically all 0-based, ie. 0 indicates 1 subtune / first subtune / 1 binary. If either of them are undefined, they default to 1 subtune / the first subtune / 1 binary respectively. There's no theoretical limitation on the field lengths of the textual fields (however, it's suggested to keep their size below some practical limit); second, for the time being, please refer to HVSC's excellent guidelines about the fields supposed formatting and content). *
+
+* Subtune specific headers *
+* One description for each subtune. Amongst others, this creates a mapping between subtunes and init calls. *
+
+  - Subtune "Field Defined" Flags; 1 byte. 1 bit - 1 flag
+    - 0: Binary selector number is defined.
+    - 1: Init parameter number is defined.
+    - 2: Subtune time field is defined.
+    - 3: Subtune NAME field is defined.
+    - 4: Subtune AUTHOR field is defined.
+    - 5: Subtune TITLE field is defined.
+    - 6: Subtune ARTIST field is defined.
+    - 7: Subtune COMMENT field is defined.
+
+  - [In which binary does the subtune reside; 1 byte]
+  - [In the binary, which init parameter is used to init this subtune; 1 byte]
+  - [Subtune time in frames; 1 dword]
+  - [Subtune NAME; null terminated string]
+  - [Subtune AUTHOR; null terminated string]
+  - [Subtune TITLE; null terminated string]
+  - [Subtune ARTIST; null terminated string]
+  - [Subtune COMMENT; null terminated string]
+
+  * Now.
+  Flag 0 indicates the number of binary dump where this subtune is residing. 0-based, as usual. Defaults to 0 (1 binary) if absent. 
+  Flag 1 tells the init parameter (which is usually loaded to the Accumulator - here it's going to be loaded into X and Y as well) with which to call the init of the respective binary to init this subtune. This effectively creates a way to re-map subtunes even if there is only a single binary in the file. Defaults to the number of this subtune. (So that when no remapping is neccessary, the default is the usual, "# of subtune = # to use to call tune init with" scenario).
+  Flag 2 is the equivalent of HVSC's "songlength" parameter, but is given in frames instead (either PAL or NTSC, according to the global setting of the tune). Defaults to "undef" - which should be interpreted as "infinite" in practice. This field is not expected to be edited "by hand"; it should be handled by some automation (to be done later) instead.
+  The rest should be learnt from HVSC's STIL guidelines ATM. All default to "undef".
+  *
+
+* Binary dump specific headers *
+* One description for each binary dump *
+
+00  - Binary Hardware Flags; 1 byte. 1 bit - 1 flag. * Platform dependent, only 264 series assignment is detailed here. *
+    - 0: $8000 and above: ROM is mapped in: 0. RAM is mapped in: 1
+    - 1: Tune requires SID.
+    - 2: Tune requires DigiBlaster
+    - 3..7: reserved
+
+    * Flag 0: the code is supposed to run with rom or ram mapped in. It's probably a good idea to set that if the music code is residing - in part or in whole - under the ROM area. Also, generally speaking, a prospective native (on-plus/4) cbm8m player could be given great advantage if the code was inited and ran with rom mapped out / ram mapped in (refer to "largest unused memory area"). When this flag is set, the emulated machine is supposed to disable interrupts and map ram in before attempting to call the init routine.
+    Flag 1 and 2 speak for themself. 8580 SID, clocked from the CPU single clock is assumed, available at $FD40. *
+
+01  - Binary "Field Defined" Flags; 1 byte. 1 bit - 1 flag.
+    - 0: Init address is defined.
+    - 1: Play address is defined.
+    - 2: "Largest unused memory area" field is defined.
+    - 3..7: reserved
+
+  - Length of binary dump in bytes; 1 word.
+  - [Init address; 1 word]
+  - [Play address; 1 word]
+  - [Largest unused memory area; 2 bytes]
+
+  * Init address defaults to the first (loaded-in) address of the binary dump, unless defined here. *
+
+  * If play address is defined, it is called once per frame (default), or once per whatever IRQ source the init routine has enabled.* 
+
+  * Not defining play address means that the init routine is expected to install an IRQ routine (which then supposedly calls the player). Returning from the init routine is strongly suggested, but - say, if the tune needs to do busy looping, or the tune is in Basic - is also not strictly required. The init routine is also responsible of enabling interrupts.*
+
+  * It's a good idea to pay attention to the rom/ram config, if installing an IRQ handler. * 
+
+  * Paying attention of using reasonable load / init / play addresses should be a wise move. Binary dumps generally shouldn't load below $0fe8. Init and play entry points must not reside under ROM, unless RAM memory config has been set. *
+
+  * To play Basic tunes, ROM memory config must be selected, init address must be defined and init address be set to 0, play address must be undefined. Players should execute a Basic RUN command for this scenario (and expect control never to be given back from init.) *
+
+  * "Largest unused memory area" is an aid to prospective cbm8m players to determine free memory areas (which can be used to relocate themself if neccessary). Both parameters are in "256 byte pages"; the first parameter is the number of first page of the area, the second is its length in pages. This field is supposed to be generated by some to-be-done-later automatism. Note that the result is going to depend on the ROM/RAM mapping flag (see binary hw flags). With ram mapped in, the largest useable free area is presumably much larger than with rom mapped in. Value should default to the largest unused area in RAM (keeping ROM/RAM mapping flag in mind) not occupied by the loaded binary dump itself (if it's ever to be used before the generator automatism would be invented). *
+
+  * The moral of this story - ie. defining hw flags per binary dumps - is this: hw usage, memory footprint etc. are properties of the players and tune datas contained by binaries, rather than subtunes. *
+  
+* Binary dumps *
+
+- Binary dump 1; Commodore loadable file with start address, "dump size 1" bytes.
+- Binary dump 2; Commodore loadable file with start address, "dump size 2" bytes.
+.
+. 
+
+
+* End *
+
+
+=cut
+
