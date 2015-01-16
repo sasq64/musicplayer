@@ -20,7 +20,7 @@ SET(SOURCE_FILES
 	uade/src/frontends/common/vparray.c
 	uade/src/frontends/common/support.c
 	uade/src/frontends/common/fifo.c
-#	uade/compat/strlrep.c
+	uade/compat/strlrep.c
 	bencodetools/bencode.c
 )
 include_directories(. uade/src uade/src/include uade/src/frontends/include uade/src/frontends/common)
@@ -48,7 +48,7 @@ set(SOURCE_FILES ${SOURCE_FILES}
 	uade/src/uadeipc.c 
 	uade/src/uadeutils.c 
 	uade/src/unixatomic.c 
-	uade/src/ossupport.c
+#	uade/src/ossupport.c
 	uade/src/uademain.c 
 	uade/src/sinctable.c 
 	uade/src/text_scope.c

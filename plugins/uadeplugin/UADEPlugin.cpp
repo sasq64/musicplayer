@@ -7,7 +7,7 @@
 #include <coreutils/file.h>
 #include <coreutils/log.h>
 #include <uade/uade.h>
-
+#include <unistd.h>
 #include <set>
 #include <unordered_map>
 
@@ -44,6 +44,15 @@ public:
 	}
 
 	bool load(string fileName) {
+
+		char currdir[2048];
+		if(!getcwd(currdir, sizeof(currdir)))
+			return false;
+
+		auto path = current_exe_path() + ":" + File::getAppDir();
+		File ff = File::findFile(path, "data/uade/uaerc");
+		LOGD("Found %s", ff.getDirectory());
+		int ok = chdir(ff.getDirectory().c_str());
 
 		struct uade_config *config = uade_new_config();
 		uade_config_set_option(config, UC_ONE_SUBSONG, NULL);
@@ -82,7 +91,10 @@ public:
 			);
 			//printf("UADE:%s %s\n", songInfo->playerfname, songInfo->playername);
 			valid = true;
-		} 
+		}
+
+		ok = chdir(currdir);
+
 		return valid;
 
 	}
