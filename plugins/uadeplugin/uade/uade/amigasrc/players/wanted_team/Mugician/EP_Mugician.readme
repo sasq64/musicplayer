@@ -1,0 +1,60 @@
+Short:    EaglePlayer "Mugician" external player
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  2
+Type:     mus/play
+Replaces: mus/play/EP_Mugician.lha
+
+This is a new version of a different external "Mugician" module player
+for EaglePlayer 1.54/2.00+. It's a player for all known "Mugician" modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- SubSong
+- Balance
+- PatternJump
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Save
+- as a bonus, an EagleRipper for Mugician (II) modules is included
+
+Version 2
+
+- changed Analyzer code
+- added PatternScroll
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This version of the "Mugician" player was based on the "Mugician II"
+   replay code.
+
+2. Damaged and/or poorly ripped Mugician modules (e.g. some Mugician
+   module(s) from the "MODS Anthology" CD) from the games "Hoi" and
+   "Borobodur" can crash the Mugician player!!!
+
+3. ModuleInfo works/looks better for EaglePlayer 1.54.
+
+4. Now you can choose your preferred player version for use with EP 2.00+.
+
+   The sound output of the Amplifier version in Fast RAM Amplifier mode
+   is sometimes very poor. I'm not sure why but perhaps it is another EP2
+   bug. Sources for both player versions are available on the WT page.
+
+5. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to members of Team Hoi:
+
+- Metin Seven
+- Reinier "Rhino" van Vliet
+= Ramon Braumuller
+
+Merry Christmas and Happy New Year 2002 for all Amiga users!!!

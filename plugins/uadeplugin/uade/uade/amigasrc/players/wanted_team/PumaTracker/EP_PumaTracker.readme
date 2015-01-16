@@ -1,0 +1,55 @@
+Short:    EaglePlayer "PumaTracker" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  1
+Type:     mus/play
+
+This is a different version of the external "PumaTracker" replay
+for EaglePlayer 1.54/2.00+. It's a player for all known "PumaTracker"
+(Amiga and Atari ST) modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- PatternJump
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Save
+- Duration (+/- 1sec)
+- PatternScroll
+- as a bonus, an EagleRipper for PumaTracker modules is included
+- special Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. The "PumaTracker" soundformat was created by Jean-Charles Meyrignac for
+   the Atari ST and ported to the Amiga by Pierre-Eric Loriaux.
+
+2. For correct playback of some "PumaTracker" modules from the Atari ST
+   (for example, from "Toki ST") you must disable the 4th (last) voice in
+   the EaglePlayer GUI because otherwise you might hear some wrong sounds
+   (Atari ST replay can handle three voices only).
+
+3. You can choose your preferred player version for use with EP 2.00+.
+
+   The sound output of the Amplifier version in the Fast RAM Amplifier mode
+   is sometimes very poor. I'm not sure why but perhaps it is another EP2
+   bug. Sources for both player versions are available on the WT page.
+
+4. The loaded module must always be at least as many bytes long as the
+   calculated size. This is why some modules will give you an error
+   with this player.
+
+5. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- MCoder <euler@free.fr> for help

@@ -1,0 +1,9 @@
+Package: {PACKAGE}
+Version: {VERSION}-1
+Section: user/extras
+Priority: extra
+Architecture: {ARCHITECTURE}
+Depends: {DEPENDS}
+Installed-Size: 
+Maintainer: Heikki Orsila <heikki.orsila@iki.fi>
+Description: uade plays Amiga music formats

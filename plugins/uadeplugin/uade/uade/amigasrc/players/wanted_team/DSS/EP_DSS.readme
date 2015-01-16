@@ -1,0 +1,45 @@
+Short:    EaglePlayer "Digital Sound Studio" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  3
+Type:     mus/play
+Replaces: mus/play/EP_DSS.lha
+
+This is a new version of the external "Digital Sound Studio" replay for
+EaglePlayer 1.54/2.00+. It's a player for all known DSS 1.0-3.0 modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- PatternJump
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Save
+- capable of finding the author's name with the EP FindAuthor routine
+
+Version 2
+
+- fixed a stupid bug in the InitSound routine, now all DSS 3.0 songs work
+  correctly
+
+Version 3
+
+- added PatternScroll
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This soundformat was created by CIS for use with GVP (Great Valley Products)
+   samplers.
+
+2. Now you can choose your preferred player version for use with EP 2.00+.
+
+3. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html

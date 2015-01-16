@@ -1,0 +1,58 @@
+Short:        EaglePlayer "MultiMedia Sound" external replayer
+Author:       Wanted Team
+Uploader:     Don Adan <DonAdan@wp.pl>
+Version:      2
+Type:         mus/play
+Replaces:     mus/play/EP_MMSound.lha
+Architecture: m68k-amigaos
+
+This is a new version of a different external "MultiMedia Sound" replay
+for EaglePlayer 1.54/2.00+.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- PatternJump
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Save
+- capable of finding the author's name with the EP FindAuthor routine
+- PatternScroll
+- SubSong
+- special Amplifier version (EP 2.00+ only)
+
+Version 2
+
+- fixed Amplifier version
+
+Notes:
+
+1. This player plays songs created or edited with MultiMedia Sound editor
+   and SoundFX V1.99x editor. Both editors created by Christian Haller,
+   Christian A. Weber and Rene Straub.
+
+2. This player uses the replay routine ripped from the MMS library V6.4
+   used by MultiMedia Sound editor and perhaps plays all SoundFX (31 samples)
+   and MultiMedia Sound songs correctly.
+
+3. You can choose your preferred player version for use with EP 2.00+.
+
+4. The loaded module must always be at least as many bytes long as the
+   calculated size. This is why some modules will give you an error
+   with this player.
+
+5. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- Roman Werner for help and support
+
+Merry Christmas and Happy New Year 2008 for all Amiga users!!!

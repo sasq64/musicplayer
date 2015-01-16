@@ -1,0 +1,22 @@
+WB.BallGame                    127780  Wally Beben
+WB.CircusGames                  41428  Wally Beben
+WB.ColossusChessX 1024K         85698  Wally Beben
+WB.ColossusChessX 512K          14778  Wally Beben
+WB.DarkSide                     62650  Wally Beben
+WB.Elite                        66082  Wally Beben
+WB.Foundation'sWaste            73026  Wally Beben
+WB.FutureSport                  47038  Wally Beben
+WB.HammerFist                   79558  Wally Beben
+WB.Hawkeye                      50526  Wally Beben
+WB.HyperDrome                   49176  Wally Beben
+WB.Lancaster                   104830  Wally Beben, onefiled version by Don Adan/WT
+WB.Mr.Do!RunRun                 19220  Wally Beben, ripped by Don Adan/WT
+WB.Phantasm                     63412  Wally Beben
+WB.Quartz                       45038  Wally Beben
+WB.SummerOlympiad               60694  Wally Beben
+WB.Superman                     38026  Wally Beben
+WB.TimeMachine ingame           46246  Wally Beben
+WB.TimeMachine title            60826  Wally Beben
+WB.TotalEclipse                 60192  Wally Beben
+WB.UltimateRide                 63466  Wally Beben
+WB.Wicked                       54076  Richard Joseph (?)

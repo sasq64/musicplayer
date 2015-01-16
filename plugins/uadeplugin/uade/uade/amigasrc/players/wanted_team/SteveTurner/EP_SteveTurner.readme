@@ -1,0 +1,64 @@
+Short:    EaglePlayer "Steve Turner" external replayer
+Author:   Czeslaw Maron (Mr.Larmer/Wanted Team)
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  4
+Type:     mus/play
+Replaces: mus/play/EP_JasonPageO.lha
+
+This is a new version of the external "Steve Turner" module replay for
+EaglePlayer 1.54/2.00+. It's a player for all known modules which
+used the first Graftgold Amiga music format.
+
+Version 1
+
+- initial release
+
+Version 2
+
+- added Analyzer
+- added SongEnd
+- updated ModuleInfo
+
+Version 3
+
+- added Voices
+- added SampleInfo with SampleSaver (EP 2.0x only)
+- added Balance
+- updated ModuleInfo
+- added Volume
+- added Position Counter
+- enabled last (protected) subsong for "Rainbow Islands"
+- added Save
+- added PlaySpeed
+
+Version 4
+
+- changed the player name from "Jason Page Old" to "Steve Turner"
+- changed Analyzer code
+- changed interrupt type
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This soundformat was mostly used by Jason Page in the Graftgold games
+   from the years 1989-90 (see SteveTurner.txt).
+
+2. If you have, or know of, unsupported "Steve Turner" modules please
+   contact Wanted Team.
+
+3. Now you can choose your preferred player version for use with EP 2.00+.
+
+   The sound output of the Amplifier version in 8-bit and 14-bit Amplifier
+   modes is sometimes very poor. I'm not sure why but perhaps it is another
+   EP2 bug. Sources for both player versions are available on the WT page.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to:
+
+- Steve Turner for help
+- Jason Page for help
+
+

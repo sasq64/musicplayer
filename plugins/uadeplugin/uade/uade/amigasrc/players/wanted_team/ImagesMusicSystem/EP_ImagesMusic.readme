@@ -1,0 +1,71 @@
+Short:    EaglePlayer "Images Music System" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  3
+Type:     mus/play
+Replaces: mus/play/EP_ImagesMusic.lha
+
+This is a new version of the external "Images Music System" module player for
+EaglePlayer 1.54/2.00+. It's a player for all (?) known "Images Music System"
+(Amiga) modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- Save
+- SubSong
+
+Version 2
+
+- changed Analyzer code
+- added PatternJump
+- added PatternScroll
+- capable of finding the author's name with the EP FindAuthor routine
+- added an Amplifier version (EP 2.00+ only)
+
+Version 3
+
+- changed DMA wait from scanline wait to WaitAudioDMA function, thanks
+  to Gaelan Griffin for the report
+
+Notes:
+
+1. In order to use this "Images Music System" player you must first disable
+   the internal Unic-Tracker player in the EaglePlayer manager menu, because
+   the Unic-Tracker recognition code isn't perfect and may incorrectly
+   identify "Images Music System" songs.
+
+2. This player uses the WaitAudioDMA function so you can change the wait
+   method in the EP Timing submenu and set the correct values for your
+   particular Amiga CPU and/or screen mode. EP's "Automatic Wait" option
+   does not work correctly for Amigas with some of the more advanced screen
+   modes (DblPAL, Productivity, etc) and some graphics card screen modes.
+   Therefore, it is best to use the "Raster Wait" mode and set the raster
+   value to at least 16 and save this wait mode as the default. Without
+   these changes the player can "miss" some notes depending on the active
+   screen mode. The "DBF Loops" method can also be used, but the correct
+   value depends on your Amiga CPU speed and it is therefore not recommended.
+
+3. "Images Music System" is a tracker clone (perhaps from Atari ST) that was
+   used for a few games (for example: "Shadow Dancer") that were converted
+   to the Amiga by Images Software in the year 1990. Most (if not all) songs
+   for Images Design games were made by Matthew Simmonds (Matthew Symmons)
+   aka 4-MAT/Anarchy and Jolyon Myers aka JVM Design/Share and Enjoy.
+
+4. If you have (or know of) unsupported "Images Music System" modules
+   please contact Wanted Team.
+
+5. Now you can choose your preferred player version for use with EP 2.00+.
+
+6. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+

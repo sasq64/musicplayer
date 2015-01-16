@@ -1,0 +1,52 @@
+	SECTION	RailRoadTycoon,Code_C
+
+Start
+	moveq	#-1,D0			; security
+	rts
+
+	dc.b	'UNCLEART'		; ID string
+	dc.l	Init			; pointer to InitSound routine
+					; (must exist)
+	dc.l	Play			; pointer to Interrupt routine
+					; (must exist)
+	dc.l	End			; pointer to EndSound routine
+					; (must exist or 0)
+	dc.l	SubsongCtr		; pointer to Subsong Counter label
+					; (must exist)
+	dc.l	SampleInfo		; pointer to SampleInfo label
+					; (must exist or 0)
+	dc.l	EndSampleInfo		; pointer to end of SampleInfo label
+					; (must exist or 0)
+	dc.l	0			; pointer to optional second InitSound
+					; routine (must exist or 0)
+	dc.l	0			; pointer to optional InitPlayer
+					; routine (must exist or 0)
+	dc.l	FirstSubsong		; pointer to first subsong label
+					; (must exist or 0)
+	dc.l	ModuleName		; pointer to module name label
+					; (must exist or 0)
+	dc.l	AuthorName		; pointer to module author label
+					; (must exist or 0)
+	dc.l	SpecialInfo		; pointer to special text label
+					; (must exist or 0)
+
+	dc.l	ModuleEnd-Start		; size of loaded file
+	dc.l	ModuleEnd-ModuleStart	; size of loaded module
+	dc.l	SampleEnd-SampleStart	; size of samples
+	dc.l	(ModuleEnd-ModuleStart)-(SampleEnd-SampleStart)
+					; size of songdata (with replayer)
+	dc.l	0			; private
+
+ModuleName
+	dc.b	'RailRoad Tycoon',0
+AuthorName
+	dc.b	'Dave Lowe',0
+SpecialInfo
+	dc.b	'(c) 1990 by MicroProse Software',10,10
+	dc.b	'Ripped and adapted by Don Adan/Wanted Team !',0
+	even
+ModuleStart
+
+	<put here the disassembled module>
+
+ModuleEnd

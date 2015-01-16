@@ -1,0 +1,49 @@
+	SECTION	CoreDesign,Code_C
+
+Start
+	moveq	#-1,D0			; security
+	rts
+
+	dc.b	'S.PHIPPS'		; ID string
+
+	dc.l	Play			; pointer to Interrupt routine
+					; (must exist)
+	dc.l	Audio			; pointer to Audio Interrupt routine
+					; (must exist)
+	dc.l	InitSong		; pointer to InitSong routine
+					; (must exist)
+	dc.l	EndSong			; pointer to EndSong routine
+					; (must exist)
+	dc.l	24			; number of subsongs (must exist)
+	dc.l	SampleInfo		; pointer to SampleInfo label
+					; (must exist or 0)
+	dc.l	EndSampleInfo		; pointer to end of SampleInfo label
+					; (must exist or 0)
+	dc.l	ModuleName		; pointer to module name label
+					; (must exist or 0)
+	dc.l	AuthorName		; pointer to module author label
+					; (must exist or 0)
+	dc.l	SpecialInfo		; pointer to special text label
+					; (must exist or 0)
+
+	dc.l	ModuleEnd-Start		; size of loaded file
+	dc.l	ModuleEnd-ModuleStart	; size of loaded module
+	dc.l	SampleEnd-SampleStart	; size of samples
+	dc.l	(ModuleEnd-ModuleStart)-(SampleEnd-SampleStart)
+					; size of songdata (with replayer)
+	dc.l	0			; private
+
+ModuleName
+	dc.b	'Action Fighter',0
+AuthorName
+	dc.b	'Benn Daglish',0
+SpecialInfo
+	dc.b	'(c) 1989 by Core Design/Firebird/SEGA',10,10
+	dc.b	'Ripped and adapted by Don Adan/Wanted Team !',0
+	even
+
+ModuleStart
+
+	<put here the disassembled module>
+
+ModuleEnd

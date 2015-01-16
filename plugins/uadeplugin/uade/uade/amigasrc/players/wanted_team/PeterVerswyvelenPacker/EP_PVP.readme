@@ -1,0 +1,49 @@
+Short:    EaglePlayer "Peter Verswyvelen Packer" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  2
+Type:     mus/play
+Replaces: mus/play/EP_PVP.lha
+
+This is a new version of external "Peter Verswyvelen Packer" replay for
+EaglePlayer 1.54/2.00+. It's a replayer for all known Soundtracker
+(15/31 samples) modules packed with Peter Verswyvelen Packer.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- PatternJump
+- Save
+
+Version 2
+
+- some fixes/changes
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This player plays mods from games "Ziriax" and "ZaraThrusta".  All
+   songs for these games were composed by Tomas Dahlgren. 
+
+2. Now you can choose your preferred player version for use with EP 2.00+.
+
+3. This player uses the WaitAudioDMA function so you can change the wait
+   mode in the EP Timing submenu and set the correct values for your
+   particular Amiga CPU and/or screen mode.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- Peter Verswyvelen <peter.verswyvelen@advalvas.be> for help.
+

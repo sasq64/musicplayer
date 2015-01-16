@@ -1,0 +1,44 @@
+Short:        EaglePlayer "UFO" external replayer
+Author:       meynaf & Wanted Team
+Uploader:     Don Adan <DonAdan@wp.pl>
+Version:      1
+Type:         mus/play
+Architecture: m68k-amigaos
+
+This is a new external "UFO" module player for EaglePlayer 1.54/2.00+.
+It's a player for all known "UFO" modules.
+
+Version 1
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- ModuleleInfo
+- Volume
+- SongEnd
+- special Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This soundformat was only (?) used in "UFO" (AGA and CD32) game.
+
+2. Default (original) file suffixes:
+
+   Songdata - .MUS  (for example: Inter.MUS)
+   Samples  - .BANK (for example: Inter.BANK)
+
+   You can use also "SMP.set" for the sample file name, which is useful
+   for songs that share this same sample file.
+
+3. You can choose your preferred player version for use with EP 2.00+.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://wt.exotica.org.uk
+
+Special greetings go to:
+
+- Phil "meynaf" G. for source
+- Jan Krolzig for betatesting
+- Mai for support

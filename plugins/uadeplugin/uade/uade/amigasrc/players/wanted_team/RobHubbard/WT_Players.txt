@@ -1,0 +1,53 @@
+
+Archive name        Size     Date   Std. Req.   AMP  Format name
+                                    ver.  DT    ver.
+                                         ver.
+EP_AMComposer.lha   5789 20-03-2000 v1.2 2.27  v2.0  A.M. Composer 1.2
+EP_BeathovenSS.lha  6388 03-06-2001 v1.0 2.32   N/A  Beathoven Synthesizer
+EP_BennDaglish.lha  5012 29-03-1999 v1.1 2.27   N/A  Benn Daglish
+EP_ChipTracker.lha  5050 18-12-2000 v1.0 2.27   N/A  ChipTracker
+EP_DaveLowe.lha     8426 09-06-2001 v1.2 2.32   N/A  Dave Lowe
+EP_DaveLoweNew.lha 12963 08-06-2001 v1.1 2.27  v2.0  Dave Lowe New (binary)
+EP_DWhittaker.lha   6721 11-11-2000 v1.0 2.32   N/A  David Whittaker
+EP_DSS.lha          6766 20-04-2001 v1.1 2.27   N/A  Digital Sound Studio 1.0-3.0
+EP_DynamicSynt.lha  5596 24-04-2001 v1.1 2.32   N/A  Dynamic Synthesizer 1.34
+EP_FredGray.lha     5261 06-01-2001 v1.0 2.32   N/A  Fred Gray
+EP_HowieDavies.lha  5989 02-04-2001 v1.0 2.32   N/A  Howie Davies
+EP_ImagesMusic.lha  5252 23-11-2000 v1.0 2.27   N/A  Images Music System
+EP_JasonBrooke.lha  4588 07-01-2000 v1.0 2.32   N/A  Jason Brooke
+EP_JasonPage.lha   16956 26-06-2001 v1.3 2.27  v2.0  Jason Page
+EP_LME.lha          3674 10-06-1999 v1.0 2.27   N/A  Leggless Music Editor
+EP_MFP.lha         10309 10-09-2000 v1.1 2.27   N/A  Magnetic Fields Packer
+EP_MarkCooksey.lha  5073 11-04-2000 v1.0 2.32   N/A  Mark Cooksey
+EP_MWalker.lha	    4408 30-12-1999 v1.0 2.32   N/A  Martin Walker
+EP_MMDC.lha         5125 13-05-2000 v1.0 2.27   N/A  MED Packer
+EP_MikeDavies.lha   4767 30-09-2000 v1.0 2.32   N/A  Mike Davies (Tiertex Player)
+EP_Mugician.lha     6732 09-08-1999 v1.0 2.27   N/A  Mugician
+EP_Mugician2.lha    8526 22-07-1999 v1.0 2.27   N/A  Mugician II
+EP_PRobotham.lha    8233 31-05-2001 v1.0 2.27   N/A  Paul Robotham
+EP_PaulShields.lha  5719 09-06-2000 v1.1 2.27   N/A  Paul Shields
+EP_PaulSummers.lha  5514 08-10-2000 v1.0 2.27   N/A  Paul Summers
+EP_PVP.lha          4464 29-06-2000 v1.0 2.27   N/A  Peter Verswyvelen Packer
+EP_PSA.lha          5102 02-10-2000 v1.0 2.27   N/A  Professional Sound Artists
+EP_RJosephPlay.lha 10530 03-05-2001 v1.1 2.27  v2.0  Richard Joseph Player 1.7A
+EP_RiffRaff.lha     5680 03-01-2001 v1.0 2.32   N/A  Riff Raff
+EP_RobHubbard.lha   ---- 07-07-2001 v1.4 2.32  v2.1  Rob Hubbard
+EP_RobHubbardO.lha  2801 20-09-1999 v1.0 2.32   N/A  Rob Hubbard Old
+EP_SConnolly.lha    4601 29-10-1999 v1.1 2.32   N/A  Sean Connolly (EMS 3.01/3.18/5.xx)
+EP_SeanConran.lha   3503 15-01-2000 v1.1 2.32   N/A  Sean Conran
+EP_SoundImages.lha  5173 06-06-2000 v1.1 2.32   N/A  Sound Images (1 & 2)
+EP_SOPROL.lha       5629 14-12-2000 v1.0 2.32   N/A  Sound Programming Language
+EP_Soundcontr.lha  13251 19-03-2000 v1.1 2.27  v2.0  Soundcontrol 3.0/3.2/4.0/5.0
+EP_Soundfactor.lha  6715 11-06-2001 v1.0 2.27   N/A  Soundfactory 1.0
+EP_SpeedyA1Sys.lha  5821 16-11-2000 v1.0 2.27   N/A  Speedy A1 System
+EP_SpeedSystem.lha  7908 05-11-2000 v1.0 2.27   N/A  Speedy System 2.0-3.0/A
+EP_StevBarrett.lha  5132 10-01-2001 v1.0 2.32   N/A  Steve Barrett
+EP_SteveTurner.lha  9267 17-06-2001 v1.3 2.27  v2.0  Steve Turner
+EP_SynthDream.lha   6776 04-05-2000 v1.0 2.27   N/A  Synth Dream
+EP_SynthPack.lha    8129 20-06-2000 v1.1 2.27   N/A  Synth Pack
+EP_TFMX.lha         6827 07-09-1999 v1.1 2.27   N/A  TFMX 1.0-1.6
+EP_TFMXPro.lha     19257 27-04-2001 v1.1 2.27   N/A  TFMX Pro 1.0-2.2
+EP_TME.lha          6587 04-07-2001 v1.0 2.27   N/A  The Musical Enlightenment 2.0
+EP_THermann.lha     5508 26-05-2000 v1.0 2.32   N/A  Thomas Hermann
+EP_TomyTracker.lha  5595 04-04-2001 v1.0 2.27   N/A  Tomy Tracker
+EP_UniqueDevel.lha  7457 17-07-2000 v1.0 2.27   N/A  Unique Development

@@ -1,0 +1,70 @@
+Short:    EaglePlayer "Mugician II" external player
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  4
+Type:     mus/play
+Replaces: mus/play/EP_Mugician2.lha
+
+This is a new version of a different external "Mugician II" module player
+for EaglePlayer 1.54/2.00+. It's a player for all known "Mugician II" modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- SubSong
+- Balance
+- PatternJump
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Save
+- as a bonus, an EagleRipper for Mugician (II) modules is included
+
+Version 2
+
+- changed Analyzer code
+- no more (CPU speed) problems for Amigas which use the 68040.library
+- added PatternScroll
+
+Version 3
+
+- enforcer hits removed
+- changed interrupt source to Audio Interrupt
+- added Config (requires Kickstart V37+)
+- extended mixing routine up to 28kHz, original replay always used 17.6kHz
+
+Version 4
+
+- fixed the Config routine, now the Workbench screen is correctly unlocked
+  (Thanks to Luca 'Hexaae' Longone and 'Agony')
+
+Notes:
+
+1. The "Mugician II" replay is the third Amiga seven voice soundformat,
+   after the Jochen Hippel 7V and TFMX 7V soundformats.
+
+2. This version of the "Mugician II" player is configurable via the EP player
+   manager. You can set the mixing rate for the mixing channels (4th, 5th,
+   6th and 7th) to any integer value from 1 to 28kHz via a slider gadget.
+   The default mixing rate is 16kHz and higher rates are only recommended
+   for fast CPU's (MC68020+). The configuration will be saved to the
+   "EnvArc:EaglePlayer/" and/or "Configs/" directories. If none of these
+   directories exist then the configuration can not be saved.
+
+3. ModuleInfo works/looks better for EaglePlayer 1.54.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to:
+
+- Metin Seven
+- Reinier "Rhino" van Vliet
+= Ramon Braumuller
+- MCoder <euler@free.fr> for big help with optimizing the replay, especially
+  the mixing routine
+- Codetapper for help with the Config routine

@@ -1,0 +1,42 @@
+Short:        EaglePlayer "MIDI - Loriciel" external replayer
+Author:       Wanted Team
+Uploader:     Don Adan <DonAdan@wp.pl>
+Version:      1
+Type:         mus/play
+Architecture: m68k-amigaos
+
+This is a different version of the external "MIDI - Loriciel" module replayer
+for EaglePlayer 1.54/2.0x.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- Balance
+- SongEnd
+- ModuleInfo
+- special Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. Replayer for the MIDI sound format used in later Amiga and Atari ST
+   games published by "Loriciel".
+
+2. Default file prefixes:
+
+   Songdata - MIDI. (for example: MIDI.Bumpy'sArcadeFantasy)
+   Samples  - SMPL. (for example: SMPL.Bumpy'sArcadeFantasy)
+
+   also original file suffixes are supported:
+
+   Songdata - .MID (for example: Bumpy'sArcadeFantasy.MID)
+   Samples  - .BSP (for example: Bumpy'sArcadeFantasy.BSP)
+
+3. You can choose your preferred replayer version for use with EP 2.00+.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html

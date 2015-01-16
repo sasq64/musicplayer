@@ -1,0 +1,54 @@
+Short:        EaglePlayer "TFMX ST" external replayer
+Author:       Wanted Team
+Uploader:     Don Adan <DonAdan@wp.pl>
+Version:      1
+Type:         mus/play
+Architecture: m68k-amigaos
+
+This is a new external "TFMX ST" module replayer for EaglePlayer 1.54/2.00+.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- PatternJump
+- SubSong
+- LoadFast
+- capable of finding the author's name with the EP FindAuthor routine
+
+Notes:
+
+1. "TFMX ST" player plays Atari ST songs created with the TFMX editor by
+   Chris Huelsbeck and Rudolf Stember.
+
+2. This player uses Atari ST soundchip emulator written by Jochen Hippel.
+   Envelope emulation is not (fully ?) supported.
+
+3. If you have next Atari ST games (or music):
+
+   Mad TV (c) Rainbow Arts 
+   Kangarudy (c) CP Verlag 
+   Das schwarze Auge (c) Attic Entertainment 
+   BMWi (c) COMAD 
+
+   please contact Wanted Team.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to:
+
+- Philip 'Pepto' Timmermann for support
+- Jochen Hippel for Atari ST soundchip emulator
+- Peter Kunath for DMA waiting routine
+- Antti Lankila for help
+- Jan Krolzig for betatesting
+- Chris Huelsbeck for music
+- Rudolf Stember for music

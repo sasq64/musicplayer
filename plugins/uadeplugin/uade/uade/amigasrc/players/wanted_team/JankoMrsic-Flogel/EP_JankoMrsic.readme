@@ -1,0 +1,46 @@
+Short:    EaglePlayer "Janko Mrsic-Flogel" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  1
+Type:     mus/play
+
+This is a new external "Janko Mrsic-Flogel" module player for
+EaglePlayer 1.54/2.00+. It's a player for all (?) known
+Janko Mrsic-Flogel Amiga modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo
+- Balance
+- SongEnd
+- ModuleInfo
+- SubSong
+
+Notes:
+
+1. This soundformat was only (?) used in Paradox Software games ("Luxor",
+   "Bomb Jack", "War Zone", etc.) and was created by Janko Mrsic-Flogel
+   (a Croatian composer/coder).
+
+2. To play Janko Mrsic-Flogel music every module must first be adapted to
+   a special format that is very similar to EaglePlayer's "Dave Lowe"
+   format. For more information please contact Wanted Team.
+
+3. If you have an Amiga game called "Metropolis" (c) 1986 by Paradox
+   Software please contact Wanted Team.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Our special thanks go to the following people:
+
+- Chris Vella
+- Bernd Gmeineder
+
+

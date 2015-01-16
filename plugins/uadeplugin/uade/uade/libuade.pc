@@ -1,0 +1,14 @@
+libdir=/usr/lib
+includedir=/usr/include
+uadecore=/usr/lib/uade/uadecore
+data_directory=/usr/share/uade
+ipc_protocol_version=1
+
+Name: UADE (Unix Amiga Delitracker Emulator)
+Description: A music player for Amiga music formats
+Version: 2.13
+Requires:
+
+Libs: -L/usr/lib  -luade
+Cflags: -I/usr/include
+

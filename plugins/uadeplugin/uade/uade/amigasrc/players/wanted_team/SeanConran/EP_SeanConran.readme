@@ -1,0 +1,50 @@
+Short:    EaglePlayer "Sean Conran" external replayer
+Author:   Czeslaw Maron (Mr.Larmer/Wanted Team)
+Uploader: Don Adan <DonAdan@wp.pl>
+Version:  3
+Type:     mus/play
+Replaces: mus/play/EP_SeanConran.lha
+
+This is a new version of the external "Sean Conran" module replay for
+EaglePlayer 1.54/2.00+.  It's a replayer for all (?) known Sean Conran
+(Amiga) modules.
+
+Version 1
+
+- initial release
+
+Version 2
+
+New features:
+
+- added support for old Sean Conran modules
+- added Analyzer
+- added Voices
+- added Balance
+- added Volume
+
+Version 3
+
+- some fixes
+- lot of changes
+- added SongEnd
+- added Position Counter
+
+Notes:
+
+1. This is perhaps the strangest Amiga sound format. It uses lots of
+   self-modifying code and doesn't uses sample length ($DFF0A4/B4/C4/D4)
+   registers, except two voices in "Mega Twins" tune.
+
+2. If you have, or know of, unsupported "Sean Conran" modules please
+   contact Wanted Team.
+
+3. If you have the full version of "Defenders of the Earth" module with
+   last sample at $2AB12 (174866) offset, please contact Wanted Team.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Merry Christmas and Happy New Year 2004 for all Amiga users!!!
+

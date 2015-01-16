@@ -1,0 +1,60 @@
+Short:    EaglePlayer "Dave Lowe" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  3
+Type:     mus/play
+Replaces: mus/play/EP_DaveLowe.lha
+
+This is a new version of the external "Dave Lowe" module replay for
+EaglePlayer 1.54/2.00+. It's a player for all known modules which
+Dave Lowe has released for the Amiga.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- SubSong
+- as a bonus, an EagleRipper (finder only) for Dave Lowe modules is included
+
+Version 2
+
+- updated SongEnd. It now also works for songs with very long delays,
+  for example both "Beneath a Steel Sky" songs.
+
+Version 3
+
+- small changes/fixes
+- fixed (via an internal patch) songdata bugs in the "Midwinter 2" mod; now
+  soundquality has been improved for the second voice of the 3rd, 11th and
+  13th subsongs and there are no more enforcer hits (byte reads from the
+  zero page), thanks to Jan Krolzig for the report and his help.
+
+Notes:
+
+1. This soundformat was used mostly by Dave Lowe, who worked for
+   the "Uncle Art" company.
+
+2. To play Dave Lowe's music every module must first be adapted to a
+   special format. This format is very similar to EaglePlayer's "Ron Klaren"
+   sound format. For more info please contact Wanted Team.
+
+3. Included is a list of all available Dave Lowe modules that I know of
+   (see DaveLowe.txt). If you have, or know of, unsupported Dave Lowe
+   modules please contact Wanted Team.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+
+
+
+
+

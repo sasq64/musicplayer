@@ -1,0 +1,79 @@
+Short:    EaglePlayer "Jason Page" external replayer
+Author:   Czeslaw Maron (Mr.Larmer/Wanted Team)
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  6
+Type:     mus/play
+Replaces: mus/play/EP_JasonPage.lha
+
+This is a new version of the external "Jason Page" module replay for
+EaglePlayer 1.54/2.00+. It's a player for all known modules which
+used the second Graftgold Amiga music format.
+
+Supports: Analyzer, ModuleInfo, SubSong, Balance, SampleInfo, SongEnd,
+Voices and SampleSaver (only for EaglePlayer 2.00+).
+
+New features/updates:
+
+Version 3
+
+- better analyzer support, done by Mike Herrin (Thanks!)
+- fixed a bug in the External Loading routines, now the player works with
+  files that use a lower case prefix e.g. "jpn".
+- added Voices option
+- fixed replay song for modules type 1 (Realms)
+- enabled subsongs for modules type 1 (Realms)
+
+All other features done by PP/Union. Thanks!
+
+Version 4
+
+- enabled all subsongs for "Realms" ingame module
+- added Position Counter
+- cleared unused subsongs for ViroCop tunes
+
+Version 5
+
+- changed the player name from "Jason Page New" to "Jason Page"
+- small changes/fixes
+- updated SongEnd, now it also works for looping songs
+- added an Amplifier version (EP 2.00+ only)
+
+Version 6
+
+- updated the External Loading routine for the Amplifier player version, now
+  the sample file can also be loaded into Chip memory and the Chip RAM
+  Amplifier can be used
+
+Notes:
+
+1. This soundformat was created and used (mostly) by Jason Page in
+   Graftgold games from the years 1991-95 (see JasonPage.txt). Besides
+   the Amiga, the Jason Page format was also used on the Atari ST,
+   Megadrive, and SNES.
+
+2. This player plays three formats of Jason Page songs.
+
+3. Default file prefixes are:
+
+   Songdata - JPN. (for example: JPN.Fire&Ice title)
+   Samples  - SMP. (for example: SMP.Fire&Ice title)
+
+4. If you have, or know of, unsupported "Jason Page" modules please
+   contact Wanted Team.
+
+5. If you have the game "PowerGen" with Jason Page music please contact
+   Wanted Team.
+
+6. This player works only with uninitialized Jason Page mods ripped
+   directly from disks.
+
+7. Now you can choose your preferred player version for use with EP 2.00+.
+
+8. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to:
+
+- Jason Page for help
+- Steve Turner for help

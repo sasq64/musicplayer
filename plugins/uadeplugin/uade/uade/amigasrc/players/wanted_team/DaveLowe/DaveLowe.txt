@@ -1,0 +1,32 @@
+DL.AfterBurner                  91200  
+DL.AlteredBeast                116208  
+DL.BangkokKnights               83448  
+DL.BeneathASteelSky intro      158064  
+DL.BeneathASteelSky outro      182504  
+DL.Betrayal ingame              53192  
+DL.Betrayal title               42420  
+DL.CaliforniaGames2             71184  
+DL.Darius+                      54432  
+DL.Duckula2                     58404  
+DL.E-Swat                       87820  
+DL.FormulaOneGrandPrix          85000  
+DL.Frontier                    165224  
+DL.GalaxyForce2                 99568  
+DL.Garfield                     51800  
+DL.Ghostbusters2 ingame        127828  
+DL.Ghostbusters2 intro         191080  
+DL.Ghostbusters2 jingle        103744  
+DL.IncredibleShrinkingSphere   122564  
+DL.InternationalKarate+         51996  
+DL.LineOfFire                   58196  
+DL.Midwinter2                   82852  
+DL.NightShift                   35452  
+DL.PowerDrift                   89536  
+DL.Raffles                      92656  
+DL.RailRoadTycoon               81588  
+DL.SoldierOfLight               48204  
+DL.StreetFighter2              135572  
+DL.SummerCamp                  104300  
+DL.SummerGames                  81932  
+DL.TimeScanner                  45956  
+DL.TurboOutrun                  62276  

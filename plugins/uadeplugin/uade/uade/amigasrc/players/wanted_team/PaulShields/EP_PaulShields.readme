@@ -1,0 +1,47 @@
+Short:    EaglePlayer "Paul Shields" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  3
+Type:     mus/play
+Replaces: mus/play/EP_PaulShields.lha
+
+This is a new version of the external "Paul Shields" module replay for
+EaglePlayer 1.54/2.00+. It's a player for all known modules which
+Paul Shields released using the Paul Hunter music player (Amiga version).
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- Save
+
+Version 2
+
+- added support for a new version of Paul Shields songs used in the game "Amnios"
+
+Version 3
+
+- changed Analyzer code
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This player only correctly plays (i.e. no audible garbage) Paul Shields
+   songs in standard tracker format: songdata first, then samples.
+
+2. Now you can choose your preferred player version for use with EP 2.00+.
+
+3. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- Nicolas Pomarede for help

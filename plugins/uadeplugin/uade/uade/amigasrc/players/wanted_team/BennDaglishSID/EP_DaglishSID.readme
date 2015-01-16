@@ -1,0 +1,45 @@
+Short:    EaglePlayer 'Benn Daglish SID' external replayer
+Author:   Wanted Team
+Uploader: Don Adan <DonAdan@wp.pl>
+Version:  2
+Type:     mus/play
+Replaces: mus/play/EP_DaglishSID.lha
+
+
+This is an updated version of the 'Benn Daglish SID' module replay for 
+EaglePlayer 1.54/2.00+.
+
+
+Version 1
+
+Features:
+
+- Analyzer
+- SongEnd
+- ModuleInfo
+- SubSong
+
+Version 2
+
+- no more problems freeing audio channels when using DeliTracker
+
+
+Notes:
+
+1. This soundformat appears to be only used in early Teque games such as 
+   'Terramex' and 'The Flintstones'.  The replay routine is the Amiga version
+   of Ben Daglish's Commodore 64 routine.
+
+2. To play 'Benn Daglish SID' music every module must first be converted to
+   a special format which is very similar to EaglePlayer's 'Dave Lowe' format.
+   For more information please contact Wanted Team.
+
+3. Included is a list of all available 'Benn Daglish SID' modules that
+   I know of (see BennDaglishSID.txt).  If you have, or know of, unsupported
+   'Benn Daglish SID' modules please contact Wanted Team.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+

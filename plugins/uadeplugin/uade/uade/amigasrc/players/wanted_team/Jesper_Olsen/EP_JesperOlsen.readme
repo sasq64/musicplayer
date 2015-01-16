@@ -1,0 +1,50 @@
+Short:        EaglePlayer "Jesper Olsen" external player
+Author:       Wanted Team
+Uploader:     Don Adan <DonAdan@wp.pl>
+Version:      1
+Type:         mus/play
+Architecture: m68k-amigaos
+
+This is a different version of the external "Jesper Olsen" module player
+for EaglePlayer 1.54/2.00+. It's a player for all of Jesper Olsen's
+Amiga modules that are currently known.
+
+Version 1
+
+Features:
+
+- Analyzer
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- SubSong
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Voices
+
+Notes:
+
+1. This player plays all of Jesper Olsen's mods (three main types, with
+   mutations).
+
+2. For playing "two-filed" modules, the external replay code must be called
+   "WantedTeam.bin" and must be stored in the same directory as the module.
+
+3. External replay code routines are not compatible and if you use the wrong
+   routine for the wrong module then the module might play badly or even
+   crash your Amiga!!!
+
+4. ModuleInfo works/looks better for EaglePlayer 1.54.
+
+5. If you have unsupported or unknown Jesper Olsen's modules, please contact
+   Wanted Team.
+
+6. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to:
+
+- Jan Krolzig for inspiration, support and betatesting
+
+Merry Christmas and Happy New Year 2008 for all Amiga users!!!

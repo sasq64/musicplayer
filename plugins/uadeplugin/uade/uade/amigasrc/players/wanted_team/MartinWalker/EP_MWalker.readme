@@ -1,0 +1,60 @@
+Short:    EaglePlayer "Martin Walker" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  2
+Type:     mus/play
+Replaces: mus/play/EP_MWalker.lha
+
+This is a new version of a different external "Martin Walker" replay for
+EaglePlayer 1.54/2.00+. It's a player for all known Amiga Martin Walker
+modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- SubSong
+- as a bonus, included is an EagleRipper for Martin Walker modules (all formats)
+
+Version 2
+
+- changed Analyzer code
+- replaced all original DBF wait loop routines with scanline wait routines,
+  now all Martin Walker mods are correctly playable on all (?) Amiga configs
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This player plays all formats of Martin Walker Amiga modules and even
+   some modules with incomplete replays (ripped with Exotic Ripper),
+   but it is always better to use modules that contain the complete
+   replay code.
+
+2. Because Exotic Ripper has a very poor rip routine for Martin Walker
+   (aka Activision Pro) modules, it is best to re-rip all Martin Walker
+   modules with the included ripper.
+
+3. The included ripper for Martin Walker modules only rips complete
+   modules and can not create good modules from incompletely ripped
+   modules.
+
+4. Now you can choose your preferred player version for use with EP 2.00+.
+
+   The sound output of the Amplifier version in Fast RAM Amplifier mode
+   is sometimes very poor. I'm not sure why but perhaps it is another EP2
+   bug. Sources for both player versions are available on the WT page.
+
+5. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- Jan Krolzig for betatesting

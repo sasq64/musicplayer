@@ -1,0 +1,54 @@
+Short:    EaglePlayer "Soundcontrol" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  3
+Type:     mus/play
+Replaces: mus/play/EP_Soundcontr.lha
+
+This is a new version of a different external "Soundcontrol" module player
+for EaglePlayer 1.54/2.00+.
+It's a player for all known Soundcontrol 3.0/3.2/4.0/5.0 (Amiga) modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- SubSong
+- PatternJump
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Save
+- as a bonus, included is an EagleRipper for Soundcontrol modules
+
+Version 2
+
+- fixed (odd address check) recognition routines for player and ripper
+- added an Amplifier version (EP 2.00+ only)
+
+Version 3
+
+- some changes/fixes
+
+Notes:
+
+1. The Soundcontrol format was created by Holger Gehrmann in 1982 for
+   the VIC20, the first Soundcontrol songs were released for the C-64.
+   This format was also used on other platforms like Tandy and PC.
+
+2. ModuleInfo works/looks better for EaglePlayer 1.54.
+
+3. Now you can choose your preferred player version for use with EP 2.00+.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Our special thanks go to following people:
+
+- Holger Gehrmann for help
+- our german betatesters

@@ -1,0 +1,47 @@
+Short:    EaglePlayer "Jeroen Tel" external replayer
+Author:   Wanted Team
+Uploader: Don Adan <DonAdan@wp.pl>
+Version:  1
+Type:     mus/play
+
+This is a different version of the external "Jeroen Tel" replay
+for EaglePlayer 1.54/2.00+.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- SubSong
+- some bugs fixed
+- as a bonus, an UnrealRipper for WHDload is included
+- special Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This soundformat was mainly used by Jeroen Tel and sometimes 
+   by Charles Deenen, both from the group Maniacs Of Noise.
+
+2. If you have any/all demos/music disks from the Maniacs Of Noise,
+   please contact the Wanted Team.
+
+3. You can choose your preferred player version for use with EP 2.00+.
+
+   The sound output of the Amplifier version in the Fast RAM Amplifier mode
+   is sometimes very poor. I'm not sure why but perhaps it's another EP2
+   bug. Sources for both player versions are available on the WT page.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- Codetapper for UnrealRipper
+

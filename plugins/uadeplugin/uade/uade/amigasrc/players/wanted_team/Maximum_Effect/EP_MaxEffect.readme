@@ -1,0 +1,49 @@
+Short:        EaglePlayer "Maximum Effect" external replayer
+Author:       Wanted Team
+Uploader:     Don Adan <DonAdan@wp.pl>
+Version:      1
+Type:         mus/play
+Architecture: m68k-amigaos
+
+This is a new external module replay for EaglePlayer 1.54/2.00+.
+It's a player for all (?) known "Maximum Effect" modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- SubSong
+- special Amplifier version (EP 2.00+ only)
+- fixed some bugs in original replay code
+
+Notes:
+
+1. This soundformat was used (only ?) in some Alternative Software games.
+
+2. Default file prefixes for:
+
+   songdata - MAX. (for example: MAX.AlloAllo title)
+   samples  - SMP. (for example: SMP.AlloAllo title)
+
+   BTW. You can use also "SMP.set" for samples name.
+
+3. If you have, or know of unsupported or unknown "Maximum Effect" modules
+   please contact the Wanted Team.
+
+4. You can choose your preferred player version for use with EP 2.00+.
+
+5. You can get the latest versions of Wanted Team products from:
+
+   http://wt.exotica.org.uk
+
+Special greetings go to:
+
+- Phil "meynaf" G. for beta testing
+- Jan Krolzig for beta testing

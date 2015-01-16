@@ -1,0 +1,45 @@
+Short:    EaglePlayer "Soundfactory" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  2
+Type:     mus/play
+Replaces: mus/play/EP_Soundfactor.lha
+
+This is a new version of a different external "Soundfactory" replay for
+EaglePlayer 1.54/2.00+. It's a player for all known "Soundfactory" modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SubSong
+- Balance
+- ModuleInfo
+- Volume
+- SongEnd
+- Save
+
+Version 2
+
+- updated ModuleInfo
+- added SampleInfo with SampleSaver (EP 2.00+ only)
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This sound format was often used by Oliver Becker & Michael Volz,
+   musicians from the group "Master Control Program".
+
+2. Included is a list of all available Soundfactory modules that I know of
+   (see Soundfactory.txt). If you have, or know of, unsupported
+   Soundfactory modules please contact Wanted Team.
+
+3. Now you can choose your preferred player version for use with EP 2.00+.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+

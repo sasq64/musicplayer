@@ -1,0 +1,29 @@
+
+Archive name         Size  Ver. Module name
+
+Aaargh!.lha         35600   1   Aaargh! (c) 1987 by Arcadia Systems
+Bastards_intro.lha  20554   1   Bastards intro (199? year)
+BlueAngel69.lha     46257   2   Blue Angel 69 (c) 1989 by Magic Bytes
+CriticalsPromo.lha  32188   2   Critical's "Promotion" (1990 year)
+DickTracy.lha       33131   1   Dick Tracy (c) 1990 by Titus
+DoubleDragon2.lha    4534   2   Double Dragon II (c) 1989 by Binary Design/Virgin
+EnglandChamp.lha    51543   1   England Championship (c) 1991 by Grandslam
+Fire&Forget2.lha    52638   1   Fire & Forget II (c) 1990 by Titus
+Gluecksrad.lha      44217   1   Gluecksrad (c) 1991 (?) by GameTEK
+HQC_intro.lha       23409   1   High Quality Cracking intro (1988 (?) year)
+KarateKid2.lha       5136   1   Karate Kid II (c) 1987 by Microdeal
+Obitus.lha          81519   1   Obitus (c) 1990 Scenario Developments/Psygnosis
+PinkPanther.lha     39274   1   Pink Panther (c) 1988 by reLINE/Magic Bytes
+Projectyle.lha      89615   1   Projectyle (c) 1990 by Eldritch The Cat/Electronic Arts
+Protector.lha       31533   2   Protector (c) 1989 by PAL Developments/Virgin 
+RainbowWarrior.lha  54785   1   Rainbow Warriors (c) 1989 by MicroStyle
+SkiOrDie.lha       111594   1   Ski Or Die (c) 1990 by Electronic Arts
+SkyChase.lha         7163   1   SkyChase (c) 1988 by Maxis
+StarGoose.lha        6319   1   Star Goose (c) 1988 by Logotron
+SuperTetris.lha     85594   1   Super Tetris (c) 1992 by Spectrum HoloByte/Microprose
+TetraQuest.lha       6237   1   Tetra Quest (c) 1988 by Microdeal
+ThunderBlade.lha   259071   1   Thunder Blade (c) 1989 by Tiertex/US Gold/SEGA
+Tom&Jerry.lha       81507   1   Tom & Jerry (c) 1989 by Magic Bytes
+VictoryRoad.lha      6028   1   Victory Road (c) 1988 by Imagine/SNK Shin Nihon Kikau
+VirusKillerV2.lha   30179   1   VirusKiller V2.0 Professional 1988 (?) year
+WCF_intro.lha       59228   1   World Cracking Federation intro (1988 year)

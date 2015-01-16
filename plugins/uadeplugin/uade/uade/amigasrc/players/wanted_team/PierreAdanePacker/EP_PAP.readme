@@ -1,0 +1,63 @@
+Short:    EaglePlayer "Pierre Adane Packer" external player
+Author:   Czeslaw Maron (Mr.Larmer/Wanted Team)
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  3
+Type:     mus/play
+Replaces: mus/play/EP_PAP.lha
+
+This is a new version of the "Pierre Adane Packer" module replay for
+EaglePlayer 1.54/2.00+. It's a player for all known SoundTracker
+(15 samples) modules packed with Pierre Adane Packer.
+
+Version 1
+
+- initial release
+
+Version 2
+
+New features:
+
+- added Analyzer
+- added Voices
+- added SampleInfo with SampleSaver (EP 2.00+ only)
+- added Balance
+- updated ModuleInfo
+- added Volume
+- added Position Counter
+- added SongEnd
+- added PatternJump
+- added Save
+- fixed recognition routine and some other bugs
+- added an Amplifier version (EP 2.00+ only)
+
+Version 3
+
+- updated the External Loading routine for the Amplifier player version, now
+  the sample file can also be loaded into Chip memory and the Chip RAM
+  Amplifier can be used
+
+Notes:
+
+1. This soundformat was only (?) used in some Ocean games that were written
+   by French coders.
+
+2. Default file prefixes are:
+
+   Songdata - PAP. (for example: PAP.Pang 1)
+   Samples  - SMP. (for example: SMP.Pang 1)
+
+   You can use also "SMP.set" for the sample file name.
+
+3. Now you can choose your preferred player version for use with EP 2.00+.
+
+   The sound output of the Amplifier version in the Fast RAM Amplifier mode
+   is sometimes very poor. I'm not sure why but perhaps it is another EP2
+   bug. Sources for both player versions are available on the WT page.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- MCoder <euler@free.fr> for help

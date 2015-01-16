@@ -1,0 +1,104 @@
+Short:    EaglePlayer "TFMX" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  4
+Type:     mus/play
+Replaces: mus/play/EP_TFMX.lha
+
+This is a new version of the different external "TFMX" replay for EaglePlayer
+1.54/2.00+. It's a player for all (?) modules created with TFMX (see TFMX.txt).
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- SubSong
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- Save
+- PlaySpeed
+- PlayFaster
+
+Version 2
+
+- added support for the macro 1F (LastAddNote) used in "Apprentice" tunes
+- added support for all TFMX 1.0 trackstep commands:
+
+FA00 - stop the player command
+FA01 - looping command, used in the "R-Type" title tune, for example
+FA02 - set the tempo command
+
+Version 3
+
+- changed the Interrupt type
+- added PatternJump
+- updated SongEnd detection
+- capable of finding the author's name with the EP FindAuthor routine
+- extended the External Loading routine, now you can also use "SMPL.set"
+  for the sample file name, which is useful for songs from the game
+  "Einmal Kanzler sein"
+- as a bonus, attached is an EagleRipper for TFMX modules (all formats)
+
+Version 4
+
+- some changes/fixes in player/ripper
+
+Notes:
+
+1. Packed ("stripped") TFMX modules from Chris Huelsbeck's "Soundfactory"
+   CD are not supported. You can depack these modules with the TFMX editor
+   (Jon Pickard's version), but the original version from games is always
+   better.
+
+2. There exist some damaged and very poorly ripped versions of the MDAT
+   files from the game called "Apprentice". These files will crash the
+   TFMX player!!!
+   
+   Here is a list (with size) of these files:
+
+   mdat.Apprentice_Ingame2         10036
+   mdat.Apprentice_Ingame3          8500
+   mdat.Apprentice_Ingame4          9468
+   mdat.Apprentice_Ingame5          8660
+
+3. This player correctly plays/recognizes TFMX modules only!!! For TFMX Pro
+   songs use the TFMX Pro player (mus/play/EP_TFMXPro.lha).
+
+4. ModuleInfo works/looks better for EaglePlayer 1.54 because EaglePlayer
+   2.00+ doesn't refresh the ModuleInfo screen.
+
+5. Only for EP 1.54 users: (still the best Amiga modules player ever :-) )
+   "List of Samples" and "Number of Samples" are actually "List of
+   Instruments" and "Number of Instruments".
+
+6. If you have the Amiga games called "L&M Adventure" and/or "HB-Car Race",
+   please contact Wanted Team.
+
+7. For ripping sample files with the attached ripper the data file (mdat),
+   sample file (smpl), and initialized (!!!) replay file (tfmx.obj) must all
+   be stored inside the loaded file (which should be a file containing Chip
+   RAM that was saved to disk). You can save Chip RAM with Action Replay,
+   WHDload, JST, ChipSaver, Exotic Ripper, Thrill Kill, HrtMon or some other
+   Amiga monitor. Also, remember that sometimes more than one mdat file
+   exists inside saved Chip RAM (for example in the game "Apidya 2"). You
+   have to choose the right one or save all available mdat files if you want
+   to rip the correct smpl file. Besides, sometimes more than one initialized
+   replay exists inside saved Chip RAM. Then you have to clear the first
+   replay if wrong samples are saved. Also note that in "Pass 2" mode you
+   can rip some protected (without header) TFMX modules, for example
+   "Hard'N'Heavy" songs, the "Turrican 2" loading tune and the "Apidya 2"
+   loading tune.
+
+8. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Our special thanks go to following people:
+
+- Jan Krolzig for ideas and betatesting
+- our other betatesters

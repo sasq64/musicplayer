@@ -1,0 +1,50 @@
+Short:    EaglePlayer "Tomy Tracker" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  2
+Type:     mus/play
+Replaces: mus/play/EP_TomyTracker.lha
+
+This is a new version of an external "Tomy Tracker" module replay for
+EaglePlayer 1.54/2.00+. It's a player for all known "Tomy Tracker" modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- PatternJump
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Save
+
+Version 2
+
+- added PatternScroll
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This soundformat was used only (?) by Antti 'Stargazer' Oksanen and
+   is a tracker clone; the replay code is very similar to ChipTracker.
+
+2. This player was only tested with two "Tomy Tracker" songs.
+   If you have, or know of, unsupported "Tomy Tracker" modules please
+   contact Wanted Team.
+
+3. Also if you know the original name of this soundformat please contact
+   Wanted Team.
+
+4. Now you can choose your preferred player version for use with EP 2.00+.
+
+5. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- Crown for the modules

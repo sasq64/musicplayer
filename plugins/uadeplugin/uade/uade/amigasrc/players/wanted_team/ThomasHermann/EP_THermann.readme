@@ -1,0 +1,49 @@
+Short:    EaglePlayer "Thomas Hermann" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  2
+Type:     mus/play
+Replaces: mus/play/EP_THermann.lha
+
+This is a new version of the external "Thomas Hermann" replay for
+EaglePlayer 1.54/2.00+. It's a replayer for all (?) known modules
+which Thomas Hermann has released.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- SubSong
+- PatternJump
+
+Version 2
+
+- added Duration (+/- 1sec)
+
+Notes:
+
+1. Duration works only for the first subsong, because this is a stupid (?)
+   EP limitation.
+
+2. If you have, or know of, unsupported "Thomas Hermann" modules please
+   contact Wanted Team.
+
+3. Default file prefixes are:
+
+   Songdata - THM. (for example: THM.BlueAngel69)
+   Samples  - SMP. (for example: SMP.BlueAngel69)
+
+4. Except onefiled samples version this player can loads also splitted
+   (separated) samples, but all requested samples must be stored directly
+   into "Instruments/" subdirectory.
+
+5. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html

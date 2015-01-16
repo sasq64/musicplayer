@@ -1,0 +1,47 @@
+Short:    EaglePlayer "Kris Hatlelid" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  1
+Type:     mus/play
+
+This is a new external "Kris Hatlelid" module player for EaglePlayer
+1.54/2.00+. It's a player for all known Amiga Kris Hatlelid object (exe)
+modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- SubSong
+
+Notes:
+
+1. This player plays all types of Kris Hatlelid Amiga object modules.
+   There is support for both "one-filed" (with built-in replay code) and
+   "two-filed" modules (with external replay code).
+
+2. For playing "two-filed" modules, the external replay code must be called
+   "songplay" and must be stored in the same directory as the module.
+
+3. "songplay" routines are not compatible and if you use the wrong routine
+   for the wrong module then the module might play badly or even crash
+   your Amiga!!!
+
+4. If the "songplay" routine is integrated with game's main exe file (for
+   example: "Teenage Mutant Ninja Turtles"), then you must rip and convert
+   this routine to standard "songplay" format. This is not very hard, but
+   you must use DevPac only for assembling the "songplay" routine!!!
+
+5. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Merry Christmas and Happy New Year 2002 for all Amiga users!!!
+

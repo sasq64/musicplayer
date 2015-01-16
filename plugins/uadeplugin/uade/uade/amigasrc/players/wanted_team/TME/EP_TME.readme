@@ -1,0 +1,58 @@
+Short:    EaglePlayer "The Musical Enlightenment" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  3
+Type:     mus/play
+Replaces: mus/play/EP_TME.lha
+
+This is a new version of a different external "The Musical Enlightenment"
+replay for EaglePlayer 1.54/2.00+. It's a player for all known "The Musical
+Enlightenment" modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- PatternJump
+- SubSong
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Save
+- capable of finding the author's name with the EP FindAuthor routine
+- as a bonus, an EagleRipper for "The Musical Enlightenment" modules
+  is included
+
+Version 2
+
+- fixed a bug in the module recognition routine
+- added PatternScroll
+- added Duration
+- added an Amplifier version (EP 2.00+ only)
+
+Version 3
+
+- moved standard replay to fast memory
+
+Notes:
+
+1. Duration works only for the first subsong, because this is a stupid (?)
+   EP limitation.
+
+2. If you have, or know of, unsupported "The Musical Enlightenment" modules
+   please contact Wanted Team.
+
+3. Now you can choose your preferred player version for use with EP 2.00+.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- Promax for the modules and Amplifier support
+

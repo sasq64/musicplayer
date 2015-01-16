@@ -1,0 +1,55 @@
+Short:    EaglePlayer "A.M.Composer 1.2" external replayer
+Author:   Czeslaw Maron (Mr.Larmer/Wanted Team)
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  4
+Type:     mus/play
+Replaces: mus/play/EP_AMComposer.lha
+
+This is a new version of the external "A.M.Composer 1.2" module replay
+for EaglePlayer 1.54/2.00+. It's a player for all known "A.M.Composer 1.2"
+modules.
+
+Version 1
+
+- initial release
+
+Version 2
+
+New features:
+
+- added Analyzer
+- added Voices
+- added SampleInfo with SampleSaver (EP 2.00+ only)
+- added Balance
+- added ModuleInfo
+- added Volume
+- added Position Counter
+- added SongEnd
+- added PlaySpeed
+- added PlayFaster
+- as a bonus, included is an EagleRipper for "A.M.Composer 1.2" modules
+
+Version 3
+
+- changed the Interrupt type
+- added an Amplifier version (EP 2.00+ only)
+
+Version 4
+
+- some changes/fixes in players/ripper
+
+Notes:
+
+1. This player works only with uninitialized "A.M.Composer" mods ripped
+   directly from disks.
+
+2. If you have the A.M.Composer editor please contact Wanted Team.
+
+3. Now you can choose your preferred player version for use with EP 2.00+.
+
+4. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Merry Christmas and Happy New Year 2002 for all Amiga users!!!
+

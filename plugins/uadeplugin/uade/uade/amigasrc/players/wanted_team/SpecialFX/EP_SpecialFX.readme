@@ -1,0 +1,60 @@
+Short:        EaglePlayer "Special FX" external replayer
+Author:       Wanted Team
+Uploader:     Don Adan <DonAdan@wp.pl>
+Version:      2
+Type:         mus/play
+Replaces:     mus/play/EP_SpecialFX.lha
+Architecture: m68k-amigaos
+
+This is a new version of external "Special FX" module replay for EaglePlayer
+1.54/2.00+. It's a player for all (?) known "Special FX" (Amiga) modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd (for non-looping songs only)
+- ModuleInfo
+- SubSong
+- as a bonus, included is an IFF-HUFF depacker for the xfdmaster.library
+
+Version 2
+
+- added Position Counter
+- updated SongEnd
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This soundformat was used primarily by Jonathan Dunn, Matthew Cannon
+   and Keith Tinman. It was mainly used in games made by the Special FX 
+   team and published by Ocean.
+
+2. This player plays/recognizes only the original versions of "Special FX" 
+   mods. All non-standard mods, for instance, modified by game authors
+   (e.g. PC relative or uses word .W adressing), must be reconverted to the 
+   standard one-file format. Similar mods with separate sample data must 
+   also be converted to the one-file format.
+
+3. ModuleInfo works/looks better for EaglePlayer 1.54 because EaglePlayer
+   2.00+ doesn't refresh the ModuleInfo screen.
+
+4. Using the attached depacker you can easily rip "Special FX" mods from
+   certain Ocean games.
+
+5. If you have, or know of unsupported or unknown "Special FX" modules
+   please contact the Wanted Team.
+
+6. If you have the beta version of the game "Renegade III" with music by 
+   Jonathan Dunn, please contact the Wanted Team.
+
+7. Now you can choose your preferred player version for use with EP 2.00+.
+
+8. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html

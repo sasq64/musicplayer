@@ -1,0 +1,39 @@
+Short:    EaglePlayer "Fashion Tracker" external replayer
+Author:   Wanted Team
+Uploader: Don Adan <DonAdan@wp.pl>
+Version:  1
+Type:     mus/play
+
+This is a new external 'Fashion Tracker' replay for EaglePlayer 1.54/2.00+.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- PatternJump
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Save
+- PatternScroll
+- Duration (+/- 1sec)
+- special Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This player was used in some "Fashion" productions only (?).
+
+2. You can choose your preferred player version for use with EP 2.00+.
+
+3. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- Bernd Gmeineder for the inspiration and support
+

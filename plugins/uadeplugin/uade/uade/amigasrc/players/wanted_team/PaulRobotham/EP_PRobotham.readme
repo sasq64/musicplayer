@@ -1,0 +1,56 @@
+Short:    EaglePlayer "Paul Robotham" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  2
+Type:     mus/play
+Replaces: mus/play/EP_PRobotham.lha
+
+This is a new version of the "Paul Robotham" module replay for
+EaglePlayer 1.54/2.00+. It's a replayer for all (?) modules which were
+composed by Paul Robotham for the Amiga using Pete Barnett's music driver.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- ModuleInfo
+- Volume
+- SongEnd
+
+Version 2
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. The "Paul Robotham" soundformat is another 4 voice MIDI clone used on Amiga.
+
+2. SongEnd works only for modules which were originally designed to stop - but 
+   will now automatically restart.
+
+3. This player will only work with uninitialized Paul Robotham mods ripped
+   directly from disks.
+
+4. Default (original) file suffixes:
+
+   Songdata - .dat (for example: Space 1889.dat)
+   Samples  - .ssd (for example: Space 1889.ssd)
+
+   You can use also "mdtest.ssd" for the sample file name, which is useful
+   for songs that share this same sample file.
+
+5. If you have, or know of unsupported Paul Robotham modules please contact
+   the Wanted Team. (Standard player version will cause the screen to flash)
+
+6. If you have the beta version of the game "Daylight Robbery" with music
+   by Paul Robotham, please contact the Wanted Team.
+
+7. Now you can choose your preferred player version for use with EP 2.00+.
+
+8. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+

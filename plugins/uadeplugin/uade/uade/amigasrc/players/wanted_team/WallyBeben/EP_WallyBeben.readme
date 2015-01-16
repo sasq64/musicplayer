@@ -1,0 +1,49 @@
+Short:    EaglePlayer "Wally Beben" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  1
+Type:     mus/play
+
+This is a new external "Wally Beben" module replay for EaglePlayer 1.54/2.00+.
+It's a replayer for modules written by Wally Beben using the Ariston (Amiga)
+replay routine.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- SubSong
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+
+Notes:
+
+1. This player plays all Wally Beben mods created with Ariston (versions
+   higher than v4.1). Modules created in the Ariston v4.1 format can be 
+   played using the "Steve Barrett" player.
+
+2. This player plays/recognises only the original versions of "Wally Beben"
+   mods. All non-standard mods, for instance, modified by game authors
+   (e.g. PC relative or too much optimised), must be reconverted to
+   the standard one-file format. Similar mods with separate sample data
+   must also be converted to the one-file format.
+
+3. ModuleInfo works/looks better for EaglePlayer 1.54 because EaglePlayer
+   2.00+ doesn't refresh the ModuleInfo screen.
+
+4. If you have, or know of, unsupported Wally Beben modules please
+   contact the Wanted Team.
+
+5. A full list of all the Wally Beben mods that are known to me is
+   attached (WallyBeben.txt).
+
+6. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Merry Christmas and Happy New Year 2003 for all Amiga users!!!

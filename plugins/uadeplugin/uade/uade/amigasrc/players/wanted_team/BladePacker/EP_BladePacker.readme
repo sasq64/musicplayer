@@ -1,0 +1,61 @@
+Short:    EaglePlayer "Blade Packer" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  2
+Type:     mus/play
+Replaces: mus/play/EP_UniqueDevel.lha
+
+This is a new version of the "Blade Packer" module replay for
+EaglePlayer 1.54/2.00+. It's a player for all known modules packed
+with Blade Packer.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- SubSong
+
+Version 2
+
+- changed the player name from "Unique Development" to "Blade Packer"
+- some changes/fixes
+- added PatternJump
+- added Save
+- added PatternScroll
+- added an Amplifier version (EP 2.00+ only)
+- as a bonus, an EagleRipper for Blade Packer modules is included
+
+Notes:
+
+1. This soundformat was created by Tord Jansson on the Atari ST for playing
+   packed version of some tracker formats. As well as the Atari ST this
+   replay was also ported to the Amiga and PC.
+
+2. This player plays all known Blade Packer (4 voices) songs from the Amiga,
+   Atari ST and PC.
+
+3. Default file prefixes are:
+
+   Songdata - UDS. (for example: UDS.Obsession Menu)
+   Samples  - SMP. (for example: SMP.Obsession Menu)
+
+4. To rip both the songdata and correct samples, the files must be
+   stored in the loaded file at even addresses.
+
+5. Now you can choose your preferred player version for use with EP 2.00+.
+
+6. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to
+
+- Per Almered for help
+

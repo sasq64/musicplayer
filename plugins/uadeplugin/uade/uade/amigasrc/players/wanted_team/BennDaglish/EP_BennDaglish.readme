@@ -1,0 +1,56 @@
+Short:    EaglePlayer 'Benn Daglish' external replayer
+Author:   Czeslaw Maron (Mr.Larmer/Wanted Team)
+Uploader: Don Adan <DonAdan@wp.pl>
+Version:  3
+Type:     mus/play
+Replaces: mus/play/EP_BennDaglish.lha
+
+This is a new version of the 'Benn Daglish' module replay for EaglePlayer 
+1.54/2.00+.  It's a replayer for all known modules composed by Ben Daglish 
+for the Amiga using Colin Dooley's sound player.
+
+
+Version 1
+
+Features:
+
+- Analyzer
+- ModuleInfo
+- SubSong
+- Balance
+- Voices
+- SongEnd
+- Volume
+
+
+Version 2
+
+- new (better ?) Analyzer
+- added Voices option
+- added SampleInfo with SampleSaver (EP 2.00+ only)
+- calculated size of modules is always 100 % correct
+- as bonus attached is EagleRipper for 'Benn Daglish' modules
+- new SongEnd function
+
+
+Version 3
+
+- some fixes
+- lot of changes
+- changed Analyzer code
+- added Position Counter
+- fixed EagleRipper
+
+
+Notes:
+
+1. The replayer was only tested with non-initialised modules, i.e. ripped 
+   directly from disk.
+
+2. If you have, or know of unsupported 'Benn Daglish' modules please contact
+   the Wanted Team.
+
+3. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+

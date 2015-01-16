@@ -1,0 +1,54 @@
+Short:	  EaglePlayer "Dave Lowe New" external replayer
+Author:   Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  2
+Type:	  mus/play
+Replaces: mus/play/EP_DaveLoweNew.lha
+
+This is a new version of the external "Dave Lowe New" module replay for
+EaglePlayer 1.54/2.00+.  It's a replayer for all (?) known modules which
+Dave Lowe has released in binary format.
+
+Version 1
+
+Features:
+
+- Analyzer
+- Voices
+- Volume
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- Balance
+- SongEnd
+- ModuleInfo with Position Counter
+- SubSong
+- as a bonus, an EagleRipper for Dave Lowe New modules is included
+
+Version 2
+
+- small changes/fixes
+- fixed (via an internal patch) songdata bugs in one of the "Beneath
+  A Steel Sky" modules, which improves the sound quality.
+- added an Amplifier version (EP 2.00+ only)
+
+Notes:
+
+1. This player plays two formats of Dave Lowe binary songs and was
+   tested with Dave Lowe songs from the games: "Flink", "King's Quest VI",
+   "Super Street Fighter II: TNC" and "Beneath A Steel Sky".
+
+2. Sometimes not all samples are displayed in ModuleInfo, because sometimes
+   more than one sample info table exists inside Dave Lowe binary songs.
+   Only the first sample info table will be found.  Sorry, I'm lazy.
+
+3. Dave Lowe songs ripped with attached ripper are always a few bytes
+   too long (max 250 bytes).
+
+4. ModuleInfo works/looks better for EaglePlayer 1.54.
+
+5. Now you can choose your preferred player version for use with EP 2.00+.
+
+6. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+

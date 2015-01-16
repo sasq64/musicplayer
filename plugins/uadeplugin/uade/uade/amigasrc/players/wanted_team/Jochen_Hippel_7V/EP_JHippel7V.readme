@@ -1,0 +1,62 @@
+Short:        EaglePlayer "Jochen Hippel 7V" external player
+Author:       Wanted Team
+Uploader:     Don Adan <DonAdan@wp.pl>
+Version:      2
+Type:         mus/play
+Replaces:     mus/play/EP_JHippel7V.lha
+Architecture: m68k-amigaos
+
+This is a new version of a different external "Jochen Hippel 7V" module player
+for EaglePlayer 1.54/2.00+. It's a player for all known "Jochen Hippel 7V"
+modules.
+
+Version 1
+
+Features:
+
+- Analyzer
+- SampleInfo with SampleSaver (EP 2.00+ only)
+- SubSong
+- Balance
+- ModuleInfo with Position Counter
+- Volume
+- SongEnd
+- Save
+- Config (requires Kickstart V37+)
+- extended mixing routine up to 28 kHz, original replay had a 23 kHz limit
+- as a bonus, a COSO depacker for xfdmaster.library is included
+
+Version 2
+
+- loading configuration from "Configs/" directory is now fixed
+- highly optimised mixing routine, now 21kHz works for EP1.54 on MC68000
+- player now using over 8KB memory less
+
+Notes:
+
+1. The "Jochen Hippel 7V" replay is the first Amiga seven voices soundformat.
+
+2. This version of the "Jochen Hippel 7V" player is configurable via
+   the EP player manager. You can set the mixing rate for the mixing
+   channels (4th, 5th, 6th and 7th) to any integer value from 1 to 28 kHz
+   via a slider gadget. The default mixing rate is 16 kHz and higher rates
+   are only recommended for fast CPU's (MC68020+). The configuration will
+   be saved to the "EnvArc:EaglePlayer/" and/or "Configs/" directories. If
+   none of these directories exist then the configuration can not be saved.
+
+3. If you have "Jochen Hippel 7V" modules in COSO format, you can depack
+   them with the attached COSO depacker before playing.
+
+4. ModuleInfo works/looks better for EaglePlayer 1.54.
+
+5. You can get the latest versions of Wanted Team products from:
+
+   http://wt.exotica.org.uk
+
+Special greetings go to:
+
+- Codetapper for help with Config routine
+- MCoder <euler@free.fr> for big help with COSO depacker
+- Ronald van Dijk for big help with the COSO depacker
+- Phil "meynaf" G. for help
+- Jan Krolzig for betatesting

@@ -1,0 +1,81 @@
+Short:    EaglePlayer "Jochen Hippel ST" external player
+Author:   Jochen Hippel & Wanted Team
+Uploader: Don Adan <DonAdan@wp.pl>
+Version:  3
+Type:     mus/play
+
+This is a updated version of the external "Jochen Hippel ST" module player
+for EaglePlayer 1.54/2.00+.
+
+Versions 1-2
+
+- written by Jochen Hippel for DeliTracker
+
+Version 3
+
+Features:
+
+- converted to work with EaglePlayer
+- some fixes/changes
+- added Analyzer
+- added Balance
+- added ModuleInfo with Position Counter
+- added Volume
+- added Voices
+
+Notes:
+
+1. This player written by Jochen Hippel uses the best known (high quality)
+   Atari ST soundchip emulator on the Amiga.
+
+2. The following Atari ST song formats from Jochen Hippel's TFMXMMTEX-Editor
+   are supported:
+
+   - TFMX (The Final Musicsystem eXtended)
+   - MMME (Mad Max Music Editor)
+   - COSO (COmpressed SOng) for TFMX and MMME songfiles.
+
+  Unsupported/unrecognized is latest (MMME-MMME) Jochen Hippel's song 
+  format, which uses $EE (SID) command.
+
+3. Default file prefixes for two files (with external samples) format are:
+
+   Songdata - HST. (for example: HST.WingsOfDeath 1)
+   Samples  - SMP. (for example: SMP.WingsOfDeath 1)
+
+   You can use also "SMP.set" for the sample file name.
+
+4. Due to several different formats of TFMX replayers on the Atari ST,
+   the original PC relative replay code is often required in front
+   of the module in order to be correctly recognised and played.
+   For example, Turrican II songs. All Jochen Hippel songs in original 
+   (unchanged) format from the Wanted Team page were tested.
+
+5. Sometimes it's better to disable the Converter Genie in the DeliTracker
+   Genies menu, because some Jochen Hippel ST songs in TFMX format can crash
+   your Amiga.
+
+6. If you know of or have any other Jochen Hippel mods that are not 
+   available on the Wanted Team page, please contact Wanted Team. 
+   Both Amiga and Atari ST files are welcome.
+
+7. ModuleInfo works/looks better for EaglePlayer 1.54.
+
+8. The loaded module (for safety) must always be at least as many bytes
+   long as the calculated size. This is why some modules will give you
+   an error with this player. Some original songs are saved two bytes
+   too short. If this is the case, you can add a few (2-30) empty bytes
+   at end if you have the original songs or re-rip the tune again.
+
+9. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
+Special greetings go to:
+
+- MCoder for help
+- Peter Kunath for DMA waiting routine
+- Nicolas Pomarede for ideas
+- Alexander Holland for support
+
+Merry Christmas and Happy New Year 2007 for all Amiga users!!!

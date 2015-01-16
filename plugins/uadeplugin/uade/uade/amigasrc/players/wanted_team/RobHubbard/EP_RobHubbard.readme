@@ -1,0 +1,68 @@
+Short:    EaglePlayer "Rob Hubbard" external replayer
+Author:   Eagleeye/Defect & Wanted Team
+Uploader: wt@jho.pol.pl (Don Adan/Wanted Team)
+Version:  7
+Type:     mus/play
+Replaces: mus/play/EP_RobHubbard.lha
+
+This is a new version of the external "Rob Hubbard" module replay for
+EaglePlayer 1.54/2.00+. It's a replayer for all (?) known modules
+which were released using Rob Hubbard's and David Whittaker's Amiga
+replay routine.
+
+Supports: Analyzer, ModuleInfo, SubSong, Balance, SampleInfo, Voices,
+SongEnd, Volume and SampleSaver.
+
+New features/updates:
+
+Version 3
+
+- added subsong(s) range
+- added SampleInfo
+- added ModuleInfo
+- SampleSaver (only for EaglePlayer 2.00+)
+- fixed Analyzer, Voices, Volume, and Balance for the new Rob Hubbard type
+- as a bonus, included is an EagleRipper for Rob Hubbard (onefiled only) modules
+
+Version 4
+
+- added SongEnd
+- added Position Counter
+
+Version 5
+
+- changed Analyzer
+- changed SongEnd
+- changed Position Counter
+
+Version 6
+
+- added Amplifier version (EP 2.00+ only)
+
+Version 7
+
+- small changes/fixes
+- enforcer hits removed
+
+Notes:
+
+1. This player plays/recognizes only real Rob Hubbard modules (not SFX files).
+
+2. Rob Hubbard's soundsystem was based on David Whittaker's music format
+   and because of this it is sometimes best to disable the David Whittaker
+   player (Marley's version) in the EP Manager menu, because its recognition
+   procedure is not perfect.
+
+3. This player plays/recognizes only onefiled Rob Hubbard mods; mods
+   with separated samples (for example, "Populous") must be converted
+   to the standard onefile format.
+
+4. If you have, or know of, unsupported Rob Hubbard modules please
+   contact Wanted Team.
+
+5. Now you can choose your preferred player version for use with EP 2.00+.
+
+6. You can get the latest versions of Wanted Team products from:
+
+   http://amiga.emucamp.com/wt/wt.html
+
