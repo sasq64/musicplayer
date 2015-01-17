@@ -67,5 +67,10 @@ set(SOURCE_FILES
 	unice68/unice68_native.c
 )
 add_definitions(-DHAVE_CONFIG_H)
+
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
+
 include_directories(. libsc68/sc68 file68 file68/sc68 unice68 libsc68)
 add_library(sc68plugin ${SOURCE_FILES})
+target_link_libraries(sc68plugin ${ZLIB_LIBRARIES})

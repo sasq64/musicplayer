@@ -317,7 +317,7 @@ VicePlugin::VicePlugin(const string &dataDir) {
 }
 
 VicePlugin::VicePlugin(const unsigned char *data) {
-	mkdir("c64", 0777);
+	utils::makedir("c64");
 
 	FILE *fp;
 	fp = fopen("c64/basic", "wb");

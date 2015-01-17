@@ -28,4 +28,8 @@ include_directories(he)
 
 
 
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
+
 add_library(heplugin ${SOURCE_FILES})
+target_link_libraries(heplugin ${ZLIB_LIBRARIES})

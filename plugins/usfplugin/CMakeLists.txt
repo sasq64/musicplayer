@@ -40,6 +40,10 @@ set(SOURCE_FILES
 ##-DARCH_MIN_ARM_NEON -mfpu=neon 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-typedef-redefinition")
 
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
+
 include_directories(. lazyusf lazyusf/rsp_hle)
 
 add_library(usfplugin ${SOURCE_FILES})
+target_link_libraries(usfplugin ${ZLIB_LIBRARIES})

@@ -174,5 +174,8 @@ if (NOT TARGET crypto)
 	endif()
 endif()
 
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
+
 add_library(viceplugin ${SOURCE_FILES})
-target_link_libraries(viceplugin crypto z)
+target_link_libraries(viceplugin crypto ${ZLIB_LIBRARIES})

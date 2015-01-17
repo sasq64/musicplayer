@@ -22,4 +22,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-pointer-sign -Wno-incompatible-pointer-
 include_directories(.)
 add_definitions(-DEMU_COMPILE -DEMU_LITTLE_ENDIAN -DUSE_M68K -DHAVE_STDINT_H -DLSB_FIRST -DHAVE_MPROTECT)
 
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
+
 add_library(htplugin ${SOURCE_FILES})
+target_link_libraries(htplugin ${ZLIB_LIBRARIES})

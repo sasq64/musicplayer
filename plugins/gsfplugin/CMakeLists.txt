@@ -30,4 +30,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -Wno-inco
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-parentheses-equality -Wno-dangling-else")
 
 
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
 add_library(gsfplugin ${SOURCE_FILES})
+target_link_libraries(gsfplugin ${ZLIB_LIBRARIES})

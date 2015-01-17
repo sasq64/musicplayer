@@ -387,7 +387,9 @@
 /* #undef WANT_WIN32_FIFO */
 
 /* Define to use Win32 sockets */
-/* #undef WANT_WIN32_SOCKETS */
+#ifdef _WIN32
+#define WANT_WIN32_SOCKETS
+#endif
 
 /* Define to use Unicode for Windows */
 /* #undef WANT_WIN32_UNICODE */

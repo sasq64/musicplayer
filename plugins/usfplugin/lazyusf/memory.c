@@ -43,7 +43,7 @@ void * large_alloc(size_t);
 void large_free(void *, size_t);
 
 #ifdef _WIN32
-#include <Windows.h>
+#include <windows.h>
 
 void * large_alloc(size_t size)
 {
