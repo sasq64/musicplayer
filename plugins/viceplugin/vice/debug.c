@@ -53,7 +53,9 @@ inline static void debug_history_step(const char *st);
 
 static int set_do_core_dumps(int val, void *param)
 {
-    debug.do_core_dumps = val;
+  // NOTE: WEIRD CRASH ON MAC PREVENTED BY COMMENTING OUT THIS!
+  // VERY BAD! SHOULD BE LOOKED INTO MORE! -- SASQ
+   // debug.do_core_dumps = val;
     return 0;
 }
 

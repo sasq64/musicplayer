@@ -793,6 +793,7 @@ int resources_set_defaults(void)
     unsigned int i;
 
     for (i = 0; i < num_resources; i++) {
+
         switch (resources[i].type) {
           case RES_INTEGER:
             if ((*resources[i].set_func_int)(vice_ptr_to_int(resources[i].factory_value),

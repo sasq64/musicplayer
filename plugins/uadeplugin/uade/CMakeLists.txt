@@ -20,9 +20,15 @@ SET(SOURCE_FILES
 	uade/src/frontends/common/vparray.c
 	uade/src/frontends/common/support.c
 	uade/src/frontends/common/fifo.c
-	uade/compat/strlrep.c
 	bencodetools/bencode.c
 )
+
+if(NOT APPLE)
+	SET(SOURCE_FILES ${SOURCE_FILES}
+		uade/compat/strlrep.c
+	)
+endif()
+
 include_directories(. uade/src uade/src/include uade/src/frontends/include uade/src/frontends/common)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sizeof-pointer-memaccess")

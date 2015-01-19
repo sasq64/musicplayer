@@ -5,9 +5,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
 file(GLOB SOURCE_FILES gme/*.cpp)
 add_definitions(-DBLARGG_LITTLE_ENDIAN -DHAVE_ZLIB_H)
-#find_library(Z_LIBRARY z)
+
 find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
-add_library(gmeplugin GMEPlugin.cpp ${SOURCE_FILES})
 
+add_library(gmeplugin GMEPlugin.cpp ${SOURCE_FILES})
 target_link_libraries(gmeplugin ${ZLIB_LIBRARIES})

@@ -22,11 +22,11 @@ set(SOURCE_FILES
 add_definitions(-DEMU_COMPILE -DEMU_LITTLE_ENDIAN)
 
 #htplugin_LDFLAGS := -Wl,--fix-cortex-a8
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-pointer-sign -Wno-implicit-function-declaration -Wno-incompatible-pointer-types")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-pointer-sign -Wno-implicit-function-declaration -Wno-incompatible-pointer-types")
+endif()
 
 include_directories(he)
-
-
 
 find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
