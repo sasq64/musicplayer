@@ -51,16 +51,36 @@ public:
 			mpg123_id3v1 *v1;
 			mpg123_id3v2 *v2;
 			if(meta & MPG123_ID3 && mpg123_id3(mp3, &v1, &v2) == MPG123_OK) {
-				if(v2) {
+
+				int length = mpg123_length(mp3);
+				if(length == MPG123_ERR)
+					length = 0;
+				else {
+					 ;
+					LOGD("L %d T %f S %d", length, mpg123_tpf(mp3), mpg123_spf(mp3));
+					length = length / mpg123_spf(mp3) * mpg123_tpf(mp3);
+				}
+
+				if(v2 && v2->title) {
+
 					setMeta("title", v2->title->p,
-						"composer", v2->artist->p,
+						"composer", v2->artist ? v2->artist->p : "",
+						"message", v2->comment ? v2->comment->p : "",
 						"format", "MP3",
+						"length", length,
 						"channels", channels);
 				} else
 				if(v1) {
-					setMeta("title", v1->title,
-						"composer", v1->artist,
+					setMeta("title", v1->title ? v1->title : "",
+						"composer", v1->artist ? v1->artist : "",
+						"message", v1->comment ? v1->comment : "",
 						"format", "MP3",
+						"length", length,
+						"channels", channels);
+				} else {
+					setMeta(
+						"format", "MP3",
+						"length", length,
 						"channels", channels);
 				}
 			}
