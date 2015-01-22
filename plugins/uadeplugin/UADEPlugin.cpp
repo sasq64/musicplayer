@@ -37,6 +37,9 @@ public:
 		if(path_suffix(fileName) == "music") {
 			fileName = path_directory(fileName) + "/" + up->baseName + "." + path_prefix(fileName);
 			LOGD("Translated back to '%s'", fileName);
+		} else if(up->currentFileName.find(fileName) == 0) {
+			LOGD("Restoring filename %s back to '%s'", fileName, up->currentFileName);
+			fileName = up->currentFileName;
 		}
 
 		struct uade_file *f = uade_load_amiga_file(fileName.c_str(), playerdir, state);
@@ -58,12 +61,13 @@ public:
 		uade_config_set_option(config, UC_ONE_SUBSONG, NULL);
 		uade_config_set_option(config, UC_IGNORE_PLAYER_CHECK, NULL);
 		uade_config_set_option(config, UC_NO_EP_END, NULL);
+		//uade_config_set_option(config, UC_VERBOSE, "true");
 		state = uade_new_state(config);
 	
 		musicStopped = false;
 
+		uade_set_amiga_loader(UADEPlayer::amigaloader, this, state);
 		if(path_suffix(fileName) == "mdat") {
-			uade_set_amiga_loader(UADEPlayer::amigaloader, this, state);
 			baseName = path_basename(fileName);
 			string uadeFileName = path_directory(fileName) + "/" + path_extension(fileName) + "." + "music";
 			LOGD("Translated %s to %s", fileName, uadeFileName);
@@ -72,8 +76,7 @@ public:
 			file.copyFrom(file2);
 			file.close();
 			fileName = uadeFileName;
-		} else
-			uade_set_amiga_loader(nullptr, this, state);
+		} 
 
 		currentFileName = fileName;
 
@@ -113,13 +116,16 @@ public:
 		//int rc = get_samples((uint8_t*)target, noSamples * 2);
 		ssize_t rc = uade_read(target, noSamples*2, state);
 		struct uade_notification nf;
-		if(uade_read_notification(&nf, state)) {
+		while(uade_read_notification(&nf, state)) {
 			if(nf.type == UADE_NOTIFICATION_SONG_END) {
 				LOGD("UADE SONG END: %d %d %d %s", nf.song_end.happy, nf.song_end.stopnow, nf.song_end.subsong, nf.song_end.reason);
 				setMeta("song", nf.song_end.subsong+1);
 				if(nf.song_end.stopnow)
 					musicStopped = true;
-			}
+			} else if(nf.type == UADE_NOTIFICATION_MESSAGE) {
+				LOGD("Amiga message: %s\n", nf.msg);
+			} else
+				LOGD("Unknown notification: %d\n", nf.type);
 			uade_cleanup_notification(&nf);
 		}
 		if(rc > 0)
