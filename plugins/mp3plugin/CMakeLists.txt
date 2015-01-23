@@ -19,11 +19,7 @@ endif()
 message("MP3 " ${MPG123_LIBRARY})
 
 if(NOT TARGET crypto)
-	if(${CPP_MODS})
-		add_subdirectory(${CPP_MODS}/crypto crypto)
-	else()
-		add_subdirectory(../../../crypto crypto)
-	endif()
+	add_subdirectory(../../../crypto crypto)
 endif()
 
 find_library(CURL_LIBRARY curl REQUIRED)

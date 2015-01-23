@@ -166,12 +166,8 @@ include_directories(
 )
 
 #vice_CFLAGS := -Wno-array-bounds
-if (NOT TARGET crypto)
-	if (${CPP_MODS})
-		add_subdirectory(${CPP_MODS}/crypto crypto)
-	else()
-		add_subdirectory(../../../crypto crypto)
-	endif()
+if(NOT TARGET crypto)
+	add_subdirectory(../../../crypto crypto)
 endif()
 
 find_package(ZLIB REQUIRED)
