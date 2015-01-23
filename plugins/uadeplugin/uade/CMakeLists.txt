@@ -33,7 +33,10 @@ include_directories(. uade/src uade/src/include uade/src/frontends/include uade/
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sizeof-pointer-memaccess")
 
-set(SOURCE_FILES ${SOURCE_FILES}
+add_library(uade ${SOURCE_FILES})
+
+set(SOURCE_FILES
+	uade/src/main.c
 	uade/src/newcpu.c 
 	uade/src/memory.c 
 	uade/src/custom.c 
@@ -54,15 +57,21 @@ set(SOURCE_FILES ${SOURCE_FILES}
 	uade/src/uadeipc.c 
 	uade/src/uadeutils.c 
 	uade/src/unixatomic.c 
-#	uade/src/ossupport.c
+	uade/src/ossupport.c
 	uade/src/uademain.c 
 	uade/src/sinctable.c 
 	uade/src/text_scope.c
 )
 
+if(NOT APPLE)
+	SET(SOURCE_FILES ${SOURCE_FILES}
+		uade/compat/strlrep.c
+	)
+endif()
+
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fomit-frame-pointer -Wall -Wno-unused -Wno-format -Wmissing-prototypes -Wstrict-prototypes -fno-exceptions")
 
-
-add_library(uade ${SOURCE_FILES})
+add_executable(uadecore ${SOURCE_FILES})
+target_link_libraries(uadecore m)
 
