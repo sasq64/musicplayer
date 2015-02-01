@@ -63,16 +63,23 @@ public:
 
 				if(v2 && v2->title) {
 
-					setMeta("title", v2->title->p,
-						"composer", v2->artist ? v2->artist->p : "",
-						"message", v2->comment ? v2->comment->p : "",
+					string msg;
+					for(int i=0; i<v2->comments; i++) {
+						if(msg.length())
+							msg = msg + " ";
+						msg = msg + v2->comment_list[i].text.p;
+					}
+
+					setMeta("title", htmldecode(v2->title->p),
+						"composer", v2->artist ? htmldecode(v2->artist->p) : "",
+						"message", msg,
 						"format", "MP3",
 						"length", length,
 						"channels", channels);
 				} else
 				if(v1) {
-					setMeta("title", v1->title ? v1->title : "",
-						"composer", v1->artist ? v1->artist : "",
+					setMeta("title", v1->title ? htmldecode(v1->title) : "",
+						"composer", v1->artist ? htmldecode(v1->artist) : "",
 						"message", v1->comment ? v1->comment : "",
 						"format", "MP3",
 						"length", length,
