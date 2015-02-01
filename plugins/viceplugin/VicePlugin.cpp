@@ -496,32 +496,19 @@ unordered_map<string, VicePlugin::STILSong> VicePlugin::stilSongs;
 vector<uint16_t> VicePlugin::findLengths(uint32_t key) {
 
 	vector<uint16_t> songLengths;
-	//long key = ((md5[0]&0xff) << 24) | ((md5[1]&0xff) << 16) | ((md5[2]&0xff) << 8) | (md5[3] & 0xff);
-	//key &= 0xffffffffL;
 
 	int first = 0;
 	int upto = mainHash.size() / 6;
-	//int found = -1;
-	
-
-	//short lens [] = new short [128];
-	
-	//Log.d(TAG, "MD5 %08x", key);
 	while (first < upto) {
 		int mid = (first + upto) / 2;  // Compute mid point.
 
 		uint32_t hash = get<uint32_t>(mainHash, mid*6);
-		//long hash = ((mainHash[mid*6]&0xff) << 24) | ((mainHash[mid*6+1]&0xff) << 16) | ((mainHash[mid*6+2]&0xff) << 8) | (mainHash[mid*6+3] & 0xff);
-		//hash &= 0xffffffffL;
 
-		//Log.d(TAG, "offs %x, hash %08x", mid, hash);
 		if (key < hash) {
 			upto = mid;     // repeat search in bottom half.
 		} else if (key > hash) {
 			first = mid + 1;  // Repeat search in top half.
 		} else {
-			//found = mid;
-			//int len = ((mainHash[mid*6+4]&0xff)<<8) | (mainHash[mid*6+5]&0xff);
 			uint16_t len = get<uint16_t>(mainHash, mid*6+4);
 			LOGD("LEN: %x", len);
 			if((len & 0x8000) != 0) {
@@ -530,11 +517,7 @@ vector<uint16_t> VicePlugin::findLengths(uint32_t key) {
 				while((xl & 0x8000) == 0) {
 					xl = extraLengths[len++];
 					songLengths.push_back(xl & 0x7fff);
-				}
-				
-				//for(int i=0; i<n; i++) {
-				//	Log.d(TAG, "LEN: %02d:%02d", songLengths[i]/60, songLengths[i]%60);
-				//}
+				}				
 			} else {
 				LOGD("SINGLE LEN: %02d:%02d", len/60, len%60);
 				songLengths.push_back(len);
