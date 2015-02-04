@@ -75,3 +75,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fomit-frame-pointer -Wall -Wno-unused -Wno-
 add_executable(uadecore ${SOURCE_FILES})
 target_link_libraries(uadecore m)
 
+add_custom_command(TARGET uadecore POST_BUILD
+   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:uadecore> ${CMAKE_BINARY_DIR}/data/uade
+)
+
+
