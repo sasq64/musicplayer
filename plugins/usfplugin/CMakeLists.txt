@@ -37,7 +37,9 @@ set(SOURCE_FILES
 
 #usfplugin_CFLAGS = -O3 -ffast-math -finline-functions -funswitch-loops
 ## -ftree-vectorizer-verbose=1 -fpredictive-commoning -fgcse-after-reload -ftree-vectorize -fipa-cp-clone
-##-DARCH_MIN_ARM_NEON -mfpu=neon 
+#if(RASPBERRY)
+#	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DARCH_MIN_ARM_NEON -ftree-vectorizer-verbose=1 -fpredictive-commoning -fgcse-after-reload -ftree-vectorize -fipa-cp-clone") 
+#endif()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-typedef-redefinition")
 
 find_package(ZLIB REQUIRED)

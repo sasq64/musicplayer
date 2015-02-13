@@ -29,6 +29,8 @@ public:
 	virtual ~ChipPlayer() {}
 	virtual int getSamples(int16_t *target, int size) = 0;
 
+	virtual void putStream(uint8_t *source, int size) {};
+
 	virtual std::string getMeta(const std::string &what) { 
 		return metaData[what];
 	};
@@ -49,11 +51,7 @@ public:
 	}
 
 	template <typename... A> void setMeta(const std::string &what, int value, const A& ...args) {
-#ifdef ANDROID
-	metaData[what] = "12345";
-#else
 		metaData[what] = std::to_string(value);
-#endif
 		LOGD("Meta %s=%s", what, metaData[what]);
 		changedMeta.push_back(what);
 		setMeta(args...);

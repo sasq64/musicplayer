@@ -17,13 +17,15 @@ public:
 	virtual bool canHandle(const std::string &name) override;
 	virtual ChipPlayer *fromFile(const std::string &fileName) override;
 
-	static void readLengths();
-	static void readSTIL();
-	static std::vector<uint16_t> findLengths(uint32_t key);
+	void readLengths();
+	void readSTIL();
+	std::vector<uint16_t> findLengths(uint32_t key);
 
 //private:
 	static std::vector<uint8_t> mainHash;
 	static std::vector<uint16_t> extraLengths;	
+
+	std::string dataDir;
 
 	struct STIL {
 		int subsong;

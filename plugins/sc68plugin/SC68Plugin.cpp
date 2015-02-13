@@ -51,9 +51,7 @@ public:
 		}
 		if(valid)
 			setMeta("format", "SC68");
-
 	}
-
 
 	bool load(uint8_t *ptr, int size) {
 

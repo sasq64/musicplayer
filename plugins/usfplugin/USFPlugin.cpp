@@ -10,13 +10,13 @@
 #include <coreutils/utils.h>
 #include <set>
 
-#ifdef ARCH_MIN_ARM_NEON
-#include <arm_neon.h>
-#endif
-extern "C" {
-}
-#include "lazyusf/misc.h"
+//#ifdef ARCH_MIN_ARM_NEON
+//#include <arm_neon.h>
+//#endif
+//extern "C" {
+//}
 
+#include "lazyusf/misc.h"
 #include "resampler.h"
 
 using namespace std;
@@ -54,7 +54,9 @@ public:
 		usf_set_compare( usf_state->emu_state, usf_state->enable_compare );
 		usf_set_fifo_full( usf_state->emu_state, usf_state->enable_fifo_full );
 
-		usf_render(usf_state->emu_state, 0, 0, &sample_rate);
+		const char *err = usf_render(usf_state->emu_state, 0, 0, &sample_rate);
+		if(err)
+			LOGD("ERROR %s", err);
 		LOGD("######### RATE %d", sample_rate);
 		resampler_init();
 		for(auto &r : resampler) {
@@ -80,8 +82,11 @@ public:
 		while(samples_written < noSamples) {
 
 			auto free_count = resampler_get_free_count(resampler[0]);
-			if(free_count > 0)
-				usf_render(usf_state->emu_state, temp, free_count, &sr);
+			if(free_count > 0) {
+				const char *err = usf_render(usf_state->emu_state, temp, free_count, &sr);
+				if(err)
+					LOGD("ERROR %s", err);
+			}
 			if(sr != sample_rate) {
 				resampler_set_rate(resampler[0], 44100.0 / (float)sample_rate);
 				resampler_set_rate(resampler[1], 44100.0 / (float)sample_rate);
@@ -89,9 +94,13 @@ public:
 				LOGD("######### NEW RATE %d", sample_rate);
 			}
 
+			uint32_t avg = 0;
 			for(int i = 0; i<free_count; i++) {
 				resampler_write_sample(resampler[0], temp[i*2]);
 				resampler_write_sample(resampler[1], temp[i*2+1]);
+
+				avg += (std::abs(temp[i*2]) + std::abs(temp[i*2+1]));
+
 			}
 
 			while(samples_written < noSamples && resampler_get_sample_count(resampler[0]) > 0) {

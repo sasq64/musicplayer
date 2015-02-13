@@ -14,14 +14,14 @@ namespace chipmachine {
 class ChipPlugin {
 public:
 
-	using PluginConstructor = std::function<std::shared_ptr<ChipPlugin>(const std::string &)>;
-
 	virtual ~ChipPlugin() {};
 
+	// Must be implemented
 	virtual std::string name() const = 0; 
-
 	virtual bool canHandle(const std::string &name) = 0;
 	virtual ChipPlayer *fromFile(const std::string &fileName) = 0;
+
+	virtual ChipPlayer *fromStream() { return nullptr; }
 	virtual ChipPlayer *fromData(uint8_t *data, int size) {
 		FILE *fp = fopen("tmpfile", "wb");
 		fwrite(data, size, 1, fp);
@@ -30,6 +30,10 @@ public:
 	}
 
 	virtual int priority() { return 0; }
+
+	// Plugin registration stuff
+
+	using PluginConstructor = std::function<std::shared_ptr<ChipPlugin>(const std::string &)>;
 
 	static void createPlugins(const std::string &configDir, std::vector<std::shared_ptr<ChipPlugin>> &plugins) {
 		for(auto &f : pluginConstructors()) {
@@ -45,6 +49,7 @@ public:
 		pluginConstructors().push_back(pc);
 	}
 
+	// Static instances of this struct is used for automatic registration of linked plugins
 	struct RegisterMe {
 		RegisterMe(PluginConstructor f) {
 			ChipPlugin::addPluginConstructor(f);

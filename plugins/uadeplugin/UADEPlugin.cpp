@@ -27,7 +27,7 @@ using namespace utils;
 
 class UADEPlayer : public ChipPlayer {
 public:
-	UADEPlayer() : valid(false), state(nullptr)  {
+	UADEPlayer(const std::string &dataDir) : dataDir(dataDir), valid(false), state(nullptr)  {
 	}
 
 	static struct uade_file *amigaloader(const char *name, const char *playerdir, void *context, struct uade_state *state) {
@@ -52,10 +52,10 @@ public:
 		if(!getcwd(currdir, sizeof(currdir)))
 			return false;
 
-		auto path = current_exe_path() + ":" + File::getAppDir();
-		File ff = File::findFile(path, "data/uade/uaerc");
-		LOGD("Found %s", ff.getDirectory());
-		int ok = chdir(ff.getDirectory().c_str());
+		//auto path = current_exe_path() + ":" + File::getAppDir();
+		//File ff = File::findFile(path, "data/uade/uaerc");
+		//LOGD("Found %s", ff.getDirectory());
+		int ok = chdir(dataDir.c_str());
 
 		struct uade_config *config = uade_new_config();
 		uade_config_set_option(config, UC_ONE_SUBSONG, NULL);
@@ -146,6 +146,7 @@ public:
 	}
 
 private:
+	string dataDir;
 	bool valid;
 	struct uade_state *state;
 	const struct uade_song_info *songInfo;
@@ -160,7 +161,7 @@ bool UADEPlugin::canHandle(const std::string &name) {
 
 ChipPlayer *UADEPlugin::fromFile(const std::string &fileName) {
 
-	auto *player = new UADEPlayer();
+	auto *player = new UADEPlayer(dataDir + "/data/uade");
 	if(!player->load(fileName)) {
 		delete player;
 		player = nullptr;

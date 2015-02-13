@@ -6,10 +6,10 @@
 #include <coreutils/file.h>
 
 #include <mpg123.h>
-#include <curl/curl.h>
+//#include <curl/curl.h>
 
 #include <mutex>
-#include <thread>
+//#include <thread>
 
 #include <set>
 #include <unordered_map>
@@ -26,81 +26,39 @@ namespace chipmachine {
 
 class MP3Player : public ChipPlayer {
 public:
+
+	MP3Player() {
+		int err = mpg123_init();
+		mp3 = mpg123_new(NULL, &err);
+		bytesPut = 0;
+		streamDone = false;
+		if(mpg123_open_feed(mp3) != MPG123_OK)
+			throw player_exception("Could open MP3");
+	}
+
 	MP3Player(const std::string &fileName) {
 		int err = mpg123_init();
 		mp3 = mpg123_new(NULL, &err);
 
-		if(startsWith(fileName, "http:")) {
-			if(mpg123_open_feed(mp3) != MPG123_OK)
-				throw player_exception("Could open MP3");
-			httpThread = thread {&MP3Player::stream, this, fileName};
+		if(mpg123_open(mp3, fileName.c_str()) != MPG123_OK)
+			throw player_exception("Could open MP3");
 
-		} else {
+		int encoding = 0;
+		if(mpg123_getformat(mp3, &rate, &channels, &encoding) != MPG123_OK)
+			throw player_exception("Could not get format");
+		LOGD("%d %d %d", rate, channels, encoding);
+		mpg123_format_none(mp3);
 
-			if(mpg123_open(mp3, fileName.c_str()) != MPG123_OK)
-				throw player_exception("Could open MP3");
+		//mpg123_scan(mp3);
+		checkMeta();
 
-			int encoding = 0;
-			if(mpg123_getformat(mp3, &rate, &channels, &encoding) != MPG123_OK)
-				throw player_exception("Could not get format");
-			LOGD("%d %d %d", rate, channels, encoding);
-			mpg123_format_none(mp3);
-
-			mpg123_scan(mp3);
-			int meta = mpg123_meta_check(mp3);
-			mpg123_id3v1 *v1;
-			mpg123_id3v2 *v2;
-			if(meta & MPG123_ID3 && mpg123_id3(mp3, &v1, &v2) == MPG123_OK) {
-
-				int length = mpg123_length(mp3);
-				if(length == MPG123_ERR)
-					length = 0;
-				else {
-					 ;
-					LOGD("L %d T %f S %d", length, mpg123_tpf(mp3), mpg123_spf(mp3));
-					length = length / mpg123_spf(mp3) * mpg123_tpf(mp3);
-				}
-
-				if(v2 && v2->title) {
-
-					string msg;
-					for(int i=0; i<v2->comments; i++) {
-						if(msg.length())
-							msg = msg + " ";
-						msg = msg + v2->comment_list[i].text.p;
-					}
-
-					setMeta("title", htmldecode(v2->title->p),
-						"composer", v2->artist ? htmldecode(v2->artist->p) : "",
-						"message", msg,
-						"format", "MP3",
-						"length", length,
-						"channels", channels);
-				} else
-				if(v1) {
-					setMeta("title", v1->title ? htmldecode(v1->title) : "",
-						"composer", v1->artist ? htmldecode(v1->artist) : "",
-						"message", v1->comment ? v1->comment : "",
-						"format", "MP3",
-						"length", length,
-						"channels", channels);
-				} else {
-					setMeta(
-						"format", "MP3",
-						"length", length,
-						"channels", channels);
-				}
-			}
-
-			mpg123_format(mp3, 44100, channels, encoding);
-		}
-		buf_size = 32768;
-		buffer = new unsigned char [buf_size];
-
+		mpg123_format(mp3, 44100, channels, encoding);
+		//buf_size = 32768;
+		//buffer = new unsigned char [buf_size];
 	}
 
 	~MP3Player() override {
-		delete [] buffer;
+		//delete [] buffer;
 		if(mp3) {
 			mpg123_close(mp3);
 			mpg123_delete(mp3);
@@ -108,43 +66,90 @@ public:
 		mpg123_exit();
 	}
 
-	void stream(const std::string &url) {
+	void checkMeta() {
 
-		auto u = urlencode(url, " #");
+		if(!gotLength) {
+			length = mpg123_length(mp3);
+			if(length > 0) {
+				LOGD("L %d T %f S %d", length, mpg123_tpf(mp3), mpg123_spf(mp3));
+				length = length / mpg123_spf(mp3) * mpg123_tpf(mp3);
+				gotLength = true;
+				setMeta("length", length);
+			}
+		}
 
-		LOGI("Downloading %s", url);
-		CURL *curl;
-		curl = curl_easy_init();
-		curl_easy_setopt(curl, CURLOPT_URL, u.c_str());
-		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeFunc);
-		//curl_easy_setopt(curl, CURLOPT_WRITEHEADER, this);
-		//curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, headerFunc);
-		int rc = curl_easy_perform(curl);
+		int meta = mpg123_meta_check(mp3);
+		mpg123_id3v1 *v1;
+		mpg123_id3v2 *v2;
+		if((meta & MPG123_NEW_ID3) && mpg123_id3(mp3, &v1, &v2) == MPG123_OK) {
 
-		LOGI("Curl returned %d", rc);
-		curl_easy_cleanup(curl);
+			LOGD("We have meta");
+
+			if(v2 && v2->title) {
+
+				string msg;
+				for(int i=0; i<v2->comments; i++) {
+					if(msg.length())
+						msg = msg + " ";
+					msg = msg + v2->comment_list[i].text.p;
+				}
+
+				setMeta("title", htmldecode(v2->title->p),
+					"composer", v2->artist ? htmldecode(v2->artist->p) : "",
+					"message", msg,
+					"format", "MP3",
+					"length", length,
+					"channels", channels);
+			} else
+			if(v1) {
+				setMeta("title", v1->title ? htmldecode(v1->title) : "",
+					"composer", v1->artist ? htmldecode(v1->artist) : "",
+					"message", v1->comment ? v1->comment : "",
+					"format", "MP3",
+					"length", length,
+					"channels", channels);
+			} else {
+				setMeta(
+					"format", "MP3",
+					"length", length,
+					"channels", channels);
+			}
+		}
+		if(meta)
+			mpg123_meta_free(mp3);
 	}
 
-	static size_t writeFunc(void *ptr, size_t size, size_t nmemb, void *userdata) {
-		LOGD("Feeding %d bytes", size * nmemb);
-		MP3Player *player = (MP3Player*)userdata;
-		{
-			lock_guard<mutex> {player->m};
-			mpg123_feed(player->mp3, (unsigned char*)ptr, size*nmemb);
+	virtual void putStream(uint8_t *source, int size) {
+		lock_guard<mutex> {m};
+		if(!source) {
+			if(size <= 0)
+				streamDone = true;
+			else
+				mpg123_set_filesize(mp3, size);
+			return;
 		}
-		return size * nmemb;
+
+		mpg123_feed(mp3, source, size);
+		bytesPut += size;
+		//int bytesRead = mpg123_framepos(mp3);
+		checkMeta();
 	}
 
 	virtual int getSamples(int16_t *target, int noSamples) override {
-		size_t done;
-		{
-			lock_guard<mutex> {m};
-			int err = mpg123_read(mp3, (unsigned char*)target, noSamples*2, &done);
-		}
+		size_t done = 0;
+		lock_guard<mutex> {m};
+		if(bytesPut == 0)
+			return 0;
+		int err = mpg123_read(mp3, (unsigned char*)target, noSamples*2, &done);
+		if(err == MPG123_NEW_FORMAT)
+			return done/2;
+		else
+		if(err == MPG123_NEED_MORE) {
+			if(streamDone)
+				return -1;
+		} else if(err < 0)
+			return err;
 		return done/2;
-		//return noSamples;
 	}
 
 	virtual bool seekTo(int song, int seconds) {
@@ -153,12 +158,17 @@ public:
 
 private:
 	mpg123_handle *mp3;
-	size_t buf_size;
-	unsigned char *buffer;
+	//size_t buf_size;
+	//unsigned char *buffer;
 	long rate;
 	int channels;
-	thread httpThread;
+	//thread httpThread;
 	mutex m;
+	bool gotLength = false;
+	bool gotMeta = false;
+	int length;
+	int bytesPut;
+	bool streamDone;
 };
 
 bool MP3Plugin::canHandle(const std::string &name) {
@@ -169,5 +179,10 @@ bool MP3Plugin::canHandle(const std::string &name) {
 ChipPlayer *MP3Plugin::fromFile(const std::string &fileName) {
 	return new MP3Player { fileName };
 };
+
+ChipPlayer *MP3Plugin::fromStream() {
+	return new MP3Player();
+}
+
 
 }

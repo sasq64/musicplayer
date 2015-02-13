@@ -164,7 +164,7 @@ public:
 
 	}
 
-	VicePlayer(const string &sidFile) {
+	VicePlayer(VicePlugin &plugin, const string &sidFile) : plugin(plugin) {
 		int ret = psid_load_file(sidFile.c_str());
 		LOGD("Loaded %s -> %d", sidFile, ret);
 		if (ret == 0) {
@@ -174,7 +174,7 @@ public:
 			auto md5 = calculateMD5(data);
 			uint32_t key = get<uint32_t>(md5, 0);
 			LOGD("MD5: [%02x] %08x", md5, key);
-			songLengths = VicePlugin::findLengths(key);
+			songLengths = plugin.findLengths(key);
 
 			string realPath = sidFile;
 			if(sidFile.find("C64Music%2f") != string::npos) {
@@ -300,6 +300,9 @@ public:
 		psid_play(target, size);
 		return size;
 	}
+
+	VicePlugin &plugin;
+
 	uint32_t currentLength;
 	uint32_t currentPos;
 	uint32_t nextCheckPos;
@@ -310,8 +313,8 @@ public:
 	VicePlugin::STILSong currentStil;
 };
 
-VicePlugin::VicePlugin(const string &dataDir) {
-	VicePlayer::init(dataDir.c_str());
+VicePlugin::VicePlugin(const string &dataDir) :dataDir(dataDir) {
+	VicePlayer::init(dataDir + "/data/c64");
 	readLengths();
 	readSTIL();
 }
@@ -336,15 +339,15 @@ VicePlugin::VicePlugin(const unsigned char *data) {
 	readLengths();
 }
 
-static File find_file(const std::string &name) {
-	return File::findFile(current_exe_path() + ":" + File::getAppDir(), name);
-}
+//static File find_file(const std::string &name) {
+//	return File::findFile(current_exe_path() + ":" + File::getAppDir(), name);
+//}
 
 void VicePlugin::readSTIL() {
 
 	STIL current;
 	vector<STIL> songs;
-	File f = find_file("data/STIL.txt");
+	File f = File(dataDir + "/data/STIL.txt");
 	//int subsong = -1;
 	string path;
 	string what;
@@ -450,7 +453,7 @@ void VicePlugin::readSTIL() {
 
 void VicePlugin::readLengths() {
 
-	File f = find_file("data/songlengths.dat");
+	File f = File(dataDir + "/data/songlengths.dat");
 
 	if(f.exists()) {
 		auto data = f.getData();
@@ -486,7 +489,7 @@ bool VicePlugin::canHandle(const std::string &name) {
 }
 
 ChipPlayer *VicePlugin::fromFile(const std::string &fileName) {
-	return new VicePlayer { fileName };
+	return new VicePlayer { *this, fileName };
 }
 
 vector<uint8_t> VicePlugin::mainHash;
