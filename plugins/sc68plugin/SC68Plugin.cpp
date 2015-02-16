@@ -31,15 +31,15 @@ namespace chipmachine {
 
 class SC68Player : public ChipPlayer {
 public:
-	SC68Player(uint8_t *data, int size, string dataDir) : sc68(nullptr), dataDir(dataDir), valid(false) {
+	SC68Player(vector<uint8_t> data, string dataDir) : sc68(nullptr), dataDir(dataDir), valid(false) {
 
 
-		string head = string((char*)data, 0, 4);
+		string head = string((char*)&data[0], 0, 4);
 		if(head == "ICE!") {
-			int dsize = unice68_get_depacked_size(data, NULL);
-			LOGD("Unicing %d bytes to %d bytes", size, dsize);
+			int dsize = unice68_get_depacked_size(&data[0], NULL);
+			LOGD("Unicing %d bytes to %d bytes", data.size(), dsize);
 			uint8_t *ptr = new uint8_t [ dsize ];
-			int res = unice68_depacker(ptr, data);
+			int res = unice68_depacker(ptr, &data[0]);
 			if(res == 0) {
 				valid = load(ptr, dsize);
 			}
@@ -47,7 +47,7 @@ public:
 			delete [] ptr;
 
 		} else {
-			valid = load(data, size);
+			valid = load(&data[0], data.size());
 		}
 		if(valid)
 			setMeta("format", "SC68");
@@ -196,7 +196,8 @@ bool SC68Plugin::canHandle(const std::string &name) {
 
 ChipPlayer *SC68Plugin::fromFile(const std::string &fileName) {
 	utils::File file { fileName };
-	SC68Player *player = new SC68Player {file.getPtr(), (int)file.getSize(), dataDir};
+
+	SC68Player *player = new SC68Player { file.readAll(), dataDir};
 	if(player->isValid())
 		return player;
 	delete player;

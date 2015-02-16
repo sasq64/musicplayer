@@ -22,9 +22,9 @@ namespace chipmachine {
 
 class OpenMPTPlayer : public ChipPlayer {
 public:
-	OpenMPTPlayer(uint8_t *data, int size) {
+	OpenMPTPlayer(vector<uint8_t> data) {
 
-	mod = openmpt_module_create_from_memory(data, size, nullptr, nullptr, nullptr);
+	mod = openmpt_module_create_from_memory(&data[0], data.size(), nullptr, nullptr, nullptr);
 
 	if(!mod)
 		throw player_exception("Could not load module");
@@ -104,7 +104,7 @@ bool OpenMPTPlugin::canHandle(const std::string &name) {
 ChipPlayer *OpenMPTPlugin::fromFile(const std::string &fileName) {
 	utils::File file { fileName };
 	try {
-		return new OpenMPTPlayer {file.getPtr(), (int)file.getSize()};
+		return new OpenMPTPlayer { file.readAll() };
 	} catch(player_exception &e) {
 		return nullptr;
 	}

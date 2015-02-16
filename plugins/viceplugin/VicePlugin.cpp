@@ -170,7 +170,7 @@ public:
 		if (ret == 0) {
 
 			File f { sidFile };
-			auto data = f.getData();
+			auto data = f.readAll();
 			auto md5 = calculateMD5(data);
 			uint32_t key = get<uint32_t>(md5, 0);
 			LOGD("MD5: [%02x] %08x", md5, key);
@@ -456,7 +456,7 @@ void VicePlugin::readLengths() {
 	File f = File(dataDir + "/data/songlengths.dat");
 
 	if(f.exists()) {
-		auto data = f.getData();
+		auto data = f.readAll();
 
 		auto len = get<uint32_t>(data, 0);
 		LOGD("Found %d songs in songlengths.dat", len);

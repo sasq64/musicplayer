@@ -45,6 +45,12 @@ public:
 		});
 	}
 
+	static std::vector<std::shared_ptr<ChipPlugin>> createPlugins(const std::string &configDir) {
+		std::vector<std::shared_ptr<ChipPlugin>> plugins;
+		createPlugins(configDir, plugins);
+		return plugins;
+	}
+
 	static void addPluginConstructor(PluginConstructor pc) {
 		pluginConstructors().push_back(pc);
 	}

@@ -14,10 +14,10 @@ namespace chipmachine {
 
 class StSoundPlayer : public ChipPlayer {
 public:
-	StSoundPlayer(uint8_t *data, int size) {
+	StSoundPlayer(vector<uint8_t> data) {
 
 		ymMusic = ymMusicCreate();
-		ymMusicLoadMemory(ymMusic, data, size);
+		ymMusicLoadMemory(ymMusic, &data[0], data.size());
 
 		ymMusicInfo_t info;
 		ymMusicGetInfo(ymMusic,&info);
@@ -74,7 +74,7 @@ bool StSoundPlugin::canHandle(const std::string &name) {
 
 ChipPlayer *StSoundPlugin::fromFile(const std::string &fileName) {
 	utils::File file { fileName };
-	return new StSoundPlayer {file.getPtr(), (int)file.getSize()};
+	return new StSoundPlayer { file.readAll() };
 };
 
 }
