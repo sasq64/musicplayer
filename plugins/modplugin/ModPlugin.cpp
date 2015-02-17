@@ -56,7 +56,7 @@ Grave Composer (WOW)
 
 class ModPlayer : public ChipPlayer {
 public:
-	ModPlayer(uint8_t *data, int size) {
+	ModPlayer(uint8_t *data, uint64_t size) {
 
 		ModPlug_Settings settings;
 		ModPlug_GetSettings(&settings);
@@ -108,7 +108,8 @@ bool ModPlugin::canHandle(const std::string &name) {
 
 ChipPlayer *ModPlugin::fromFile(const std::string &fileName) {
 	utils::File file { fileName };
-	return new ModPlayer {file.getPtr(), (int)file.getSize()};
+	auto data = file.readAll();
+	return new ModPlayer { &data[0], data.size() };
 };
 
 
