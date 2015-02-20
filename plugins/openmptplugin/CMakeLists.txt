@@ -89,8 +89,8 @@ set(SOURCE_FILES
 include_directories(common common/svn_version_default .)
 add_definitions(-DLIBOPENMPT_BUILD -DMPT_CHARSET_CUSTOMUTF8 -DMPT_WITH_ZLIB )
 
-#find_package(ZLIB REQUIRED)
-#include_directories(${ZLIB_INCLUDE_DIRS})
+find_package(ZLIB)
+include_directories(${ZLIB_INCLUDE_DIRS})
 
 add_library(openmptplugin ${SOURCE_FILES})
-#target_link_libraries(openmptplugin ${ZLIB_LIBRARIES})
+target_link_libraries(openmptplugin ${ZLIB_LIBRARIES})
