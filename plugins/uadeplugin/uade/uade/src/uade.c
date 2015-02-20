@@ -384,7 +384,7 @@ void uadecore_get_amiga_message(void)
 
   case AMIGAMSG_SCOREDEAD:
      if (uadecore_debug) {
-      fprintf(stderr, "uadecore: Score is dead.\n"); 
+      fprintf(stderr, "uadecore: Score is dead.\n");
       activate_debugger();
       break;
     }
@@ -704,7 +704,7 @@ void uadecore_option(int argc, char **argv)
 
     /* if argv[i] begins with '-', see if it is a switch that we should
        handle here. */
-    
+
     if (argv[i][0] == '-') {
 
       if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h") || !strcmp(argv[i], "-help")) {
@@ -1116,7 +1116,7 @@ static void uade_safe_get_string(char *dst, int src, int maxlen)
   if (maxlen > 0) {
     if (i < maxlen) {
       dst[i] = 0;
-    } else { 
+    } else {
       fprintf(stderr, "uadecore: Warning: string truncated.\n");
       dst[maxlen - 1] = 0;
     }

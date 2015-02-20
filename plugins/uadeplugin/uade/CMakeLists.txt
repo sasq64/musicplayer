@@ -37,29 +37,29 @@ add_library(uade ${SOURCE_FILES})
 
 set(SOURCE_FILES
 	uade/src/main.c
-	uade/src/newcpu.c 
-	uade/src/memory.c 
-	uade/src/custom.c 
-	uade/src/cia.c 
-	uade/src/audio.c 
-	uade/src/compiler.c 
+	uade/src/newcpu.c
+	uade/src/memory.c
+	uade/src/custom.c
+	uade/src/cia.c
+	uade/src/audio.c
+	uade/src/compiler.c
 	uade/src/cpustbl.c
-	uade/src/missing.c 
-	uade/src/sd-sound.c 
-	uade/src/md-support.c 
-	uade/src/cfgfile.c 
-	uade/src/fpp.c 
+	uade/src/missing.c
+	uade/src/sd-sound.c
+	uade/src/md-support.c
+	uade/src/cfgfile.c
+	uade/src/fpp.c
 	uade/src/debug.c
-	uade/src/readcpu.c 
-	uade/src/cpudefs.c 
+	uade/src/readcpu.c
+	uade/src/cpudefs.c
 	uade/src/cpuemu.c
-	uade/src/uade.c 
-	uade/src/uadeipc.c 
-	uade/src/uadeutils.c 
-	uade/src/unixatomic.c 
+	uade/src/uade.c
+	uade/src/uadeipc.c
+	uade/src/uadeutils.c
+	uade/src/unixatomic.c
 	uade/src/ossupport.c
-	uade/src/uademain.c 
-	uade/src/sinctable.c 
+	uade/src/uademain.c
+	uade/src/sinctable.c
 	uade/src/text_scope.c
 )
 
@@ -74,9 +74,10 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fomit-frame-pointer -Wall -Wno-unused -Wno-
 
 add_executable(uadecore ${SOURCE_FILES})
 target_link_libraries(uadecore m)
-
+message(${UADECORE_TARGET})
+file(MAKE_DIRECTORY ${UADECORE_TARGET})
 add_custom_command(TARGET uadecore POST_BUILD
-   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:uadecore> ${CMAKE_BINARY_DIR}/data/uade
+   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:uadecore> ${UADECORE_TARGET}
 )
 
 
