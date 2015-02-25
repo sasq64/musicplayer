@@ -83,7 +83,7 @@ public:
 		mpg123_id3v2 *v2;
 		if((meta & MPG123_NEW_ID3) && mpg123_id3(mp3, &v1, &v2) == MPG123_OK) {
 
-			LOGD("We have meta");
+			LOGV("New metadata");
 
 			if(v2 && v2->title) {
 

@@ -66,7 +66,7 @@ public:
 			openmpt_module_destroy(mod);
 	}
 
-	virtual int getSamples(int16_t *target, int noSamples) override {		
+	virtual int getSamples(int16_t *target, int noSamples) override {
 		auto len = openmpt_module_read_interleaved_stereo(mod, 44100, noSamples/2, target);
 		return len*2;
 	}
@@ -91,7 +91,6 @@ private:
 bool OpenMPTPlugin::canHandle(const std::string &name) {
 	auto ext = utils::path_extension(name);
 	if(ext == "ft") return true;
-	LOGD("EXT %s", openmpt_get_supported_extensions());
 	return openmpt_is_extension_supported(ext.c_str());
 	//return supported_ext.count(utils::path_extension(name)) > 0;
 }

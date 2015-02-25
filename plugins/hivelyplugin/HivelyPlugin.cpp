@@ -61,7 +61,6 @@ private:
 static const set<string> supported_ext = { "ahx", "hvl" };
 
 HivelyPlugin::HivelyPlugin() {
-	LOGD("HIVELY INIT");
 	hvl_InitReplayer();
 }
 

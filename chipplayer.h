@@ -31,11 +31,11 @@ public:
 
 	virtual void putStream(uint8_t *source, int size) {};
 
-	virtual std::string getMeta(const std::string &what) { 
+	virtual std::string getMeta(const std::string &what) {
 		return metaData[what];
 	};
 
-	int getMetaInt(const std::string &what) { 
+	int getMetaInt(const std::string &what) {
 		const std::string &data = getMeta(what);
 		int i = atoi(data.c_str());
 		return i;
@@ -47,26 +47,26 @@ public:
 			cb(changedMeta, this);
 		}
 		changedMeta.clear();
-		LOGD("Meta Done");
+		LOGV("Meta Done");
 	}
 
 	template <typename... A> void setMeta(const std::string &what, int value, const A& ...args) {
 		metaData[what] = std::to_string(value);
-		LOGD("Meta %s=%s", what, metaData[what]);
+		LOGV("Meta %s=%s", what, metaData[what]);
 		changedMeta.push_back(what);
 		setMeta(args...);
 	}
 
 	template <typename... A> void setMeta(const std::string &what, const std::string &value, const A& ...args) {
 		metaData[what] = value;
-		LOGD("Meta %s=%s", what, metaData[what]);
+		LOGV("Meta %s=%s", what, metaData[what]);
 		changedMeta.push_back(what);
 		setMeta(args...);
 	}
 
 	template <typename... A> void setMeta(const std::string &what, const char *value, const A& ...args) {
 		metaData[what] = std::string(value);
-		LOGD("Meta %s=%s", what, metaData[what]);
+		LOGV("Meta %s=%s", what, metaData[what]);
 		changedMeta.push_back(what);
 		setMeta(args...);
 	}
