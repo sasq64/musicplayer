@@ -21,7 +21,7 @@
 /* #undef ASMALIGN_EXP */
 
 /* Define if __attribute__((aligned(16))) shall be used */
-#define CCALIGN 1
+// #define CCALIGN 1
 
 /* Define if debugging is enabled. */
 /* #undef DEBUG */
@@ -255,7 +255,7 @@
 /* #undef HAVE_WS2TCPIP_H */
 
 /* Define to indicate that float storage follows IEEE754. */
-#define IEEE_FLOAT 1
+//#define IEEE_FLOAT 1
 
 /* size of the frame index seek table */
 #define INDEX_SIZE 1000
@@ -265,7 +265,11 @@
 
 /* Define this to the size of native offset type in bits, used for LFS alias
    functions. */
+#ifdef RASPBERRYPI
+#define LFS_ALIAS_BITS 32
+#else
 #define LFS_ALIAS_BITS 64
+#endif
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
@@ -357,16 +361,16 @@
 #define SIZEOF_INT32_T 4
 
 /* The size of `long', as computed by sizeof. */
-#define SIZEOF_LONG 8
+//#define SIZEOF_LONG 8
 
 /* The size of `off_t', as computed by sizeof. */
-#define SIZEOF_OFF_T 8
+//#define SIZEOF_OFF_T 8
 
 /* The size of `size_t', as computed by sizeof. */
-#define SIZEOF_SIZE_T 8
+//#define SIZEOF_SIZE_T 8
 
 /* The size of `ssize_t', as computed by sizeof. */
-#define SIZEOF_SSIZE_T 8
+//#define SIZEOF_SSIZE_T 8
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
