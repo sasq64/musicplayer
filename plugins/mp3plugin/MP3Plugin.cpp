@@ -119,7 +119,7 @@ public:
 			mpg123_meta_free(mp3);
 	}
 
-	virtual void putStream(uint8_t *source, int size) {
+	virtual void putStream(const uint8_t *source, int size) {
 		lock_guard<mutex> {m};
 		if(!source) {
 			if(size <= 0)

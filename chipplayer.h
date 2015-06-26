@@ -29,7 +29,7 @@ public:
 	virtual ~ChipPlayer() {}
 	virtual int getSamples(int16_t *target, int size) = 0;
 
-	virtual void putStream(uint8_t *source, int size) {};
+	virtual void putStream(const uint8_t *source, int size) {};
 
 	virtual std::string getMeta(const std::string &what) {
 		return metaData[what];
