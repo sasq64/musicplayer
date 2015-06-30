@@ -71,9 +71,10 @@ public:
 		if(!gotLength) {
 			length = mpg123_length(mp3);
 			if(length > 0) {
-				LOGD("L %d T %f S %d", length, mpg123_tpf(mp3), mpg123_spf(mp3));
+				LOGV("L %d T %f S %d", length, mpg123_tpf(mp3), mpg123_spf(mp3));
 				length = length / mpg123_spf(mp3) * mpg123_tpf(mp3);
 				gotLength = true;
+				LOGD("MP3 LENGTH %ds", length);
 				setMeta("length", length);
 			}
 		}
