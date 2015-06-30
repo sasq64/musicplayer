@@ -33,6 +33,8 @@ public:
 			
 		char temp[fileName.length()+1];
 		strcpy(temp, fileName.c_str());
+
+		LOGD("Trying to load USF %s", string(temp));
 					
 		if ( psf_load( temp, &psf_file_system, 0x21, usf_loader, usf_state, usf_info, usf_state ) < 0 )
 			throw player_exception();
