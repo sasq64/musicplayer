@@ -84,7 +84,7 @@ INLINE static void do_macu(usf_state_t * state, short* VD, short* VS, short* VT)
 	UNSIGNED_CLAMP(state, VD);
 	return;
 	
-#endif
+#else
 
 
     ALIGNED int32_t product[N];
@@ -111,6 +111,7 @@ INLINE static void do_macu(usf_state_t * state, short* VD, short* VS, short* VT)
         VACC_H[i] += addend[i] >> 16;
     UNSIGNED_CLAMP(state, VD);
     return;
+#endif
 }
 
 static void VMACU(usf_state_t * state, int vd, int vs, int vt, int e)

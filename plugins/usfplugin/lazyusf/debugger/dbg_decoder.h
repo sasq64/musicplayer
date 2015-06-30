@@ -1,7 +1,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *   Mupen64plus-rsp-hle - arithmetics.h                                   *
+ *   Mupen64plus - dbg_decoder.h                                           *
  *   Mupen64Plus homepage: http://code.google.com/p/mupen64plus/           *
- *   Copyright (C) 2014 Bobby Smiles                                       *
+ *   Copyright (C) 2010 Marshall B. Rogers <mbr@64.vg>                     *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -19,25 +19,43 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.          *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef ARITHMETICS_H
-#define ARITHMETICS_H
+#ifndef __DECODER_H__
+#define __DECODER_H__
 
+#include "dbg_types.h"
+
+#if defined(WIN32)
+typedef unsigned int uint32_t;
+typedef unsigned char bool;
+#define false 0
+#define true 1
+#else
 #include <stdint.h>
-
-#include "common.h"
-
-static inline int16_t clamp_s16(int_fast32_t x)
-{
-    x = (x < INT16_MIN) ? INT16_MIN: x;
-    x = (x > INT16_MAX) ? INT16_MAX: x;
-
-    return x;
-}
-
-static inline int32_t vmulf(int16_t x, int16_t y)
-{
-    return (((int32_t)(x))*((int32_t)(y))+0x4000)>>15;
-}
-
+#include <stdbool.h>
 #endif
+
+/* Disassembler lookup handler */
+typedef char * (*r4k_lookup_func)(uint32_t, void *);
+
+/* Disassembler state */
+typedef
+struct r4k_dis_t
+{
+    r4k_lookup_func  lookup_sym;
+    void *           lookup_sym_d;
+    r4k_lookup_func  lookup_rel_hi16;
+    void *           lookup_rel_hi16_d;   
+    r4k_lookup_func  lookup_rel_lo16;
+    void *           lookup_rel_lo16_d;
+    
+    /* Private */
+    char * dest;
+    int length;
+}
+R4kDis;
+
+extern void r4300_decode_op ( uint32, char *, char *, int );
+
+
+#endif /* __DECODER_H__ */
 
