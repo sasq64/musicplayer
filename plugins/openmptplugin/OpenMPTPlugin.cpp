@@ -91,6 +91,7 @@ private:
 bool OpenMPTPlugin::canHandle(const std::string &name) {
 	auto ext = utils::path_extension(name);
 	if(ext == "ft") return true;
+	if(ext == "rns") return false;
 	return openmpt_is_extension_supported(ext.c_str());
 	//return supported_ext.count(utils::path_extension(name)) > 0;
 }

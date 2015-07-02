@@ -86,8 +86,10 @@ public:
 			auto free_count = resampler_get_free_count(resampler[0]);
 			if(free_count > 0) {
 				const char *err = usf_render(usf_state->emu_state, temp, free_count, &sr);
-				if(err)
+				if(err) {
 					LOGD("ERROR %s", err);
+					return 0;
+				}
 			}
 			if(sr != sample_rate) {
 				resampler_set_rate(resampler[0], 44100.0 / (float)sample_rate);

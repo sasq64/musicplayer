@@ -128,6 +128,7 @@ public:
 				LOGD("Unknown notification: %d\n", nf.type);
 			uade_cleanup_notification(&nf);
 		}
+		//LOGD("RC %d", rc);
 		if(rc > 0)
 			return rc/2;
 		return rc;

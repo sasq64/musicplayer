@@ -540,8 +540,11 @@ int32_t r4300i_SW_NonMemory ( usf_state_t * state, uint32_t PAddr, uint32_t Valu
 		}
 		break;
 	case 0x04000000:
+		
 		if (PAddr < 0x04002000) {
-			*(uint32_t *)(state->N64MEM+PAddr) = Value;
+			if (PAddr < 0x04000000) { // NOTE: Added because of crash
+				*(uint32_t *)(state->N64MEM+PAddr) = Value;
+			}
 			return 1;
 		}
 		switch (PAddr) {

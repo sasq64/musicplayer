@@ -56,7 +56,7 @@ private:
 
 ChipPlayer *RSNPlugin::fromFile(const string &fileName) {
 
-	static const set<string> song_formats { "spc", "psf", "minipsf", "psf2", "minipsf2", "miniusf", "dsf", "minidsf", "mini2sf", "minigsf" };
+	static const set<string> song_formats { "spc", "psf", "minipsf", "psf2", "minipsf2", "miniusf", "dsf", "minidsf", "mini2sf", "minigsf", "mdx", "s98" };
 
 	vector<string> l;
 	makedir(".rsn");

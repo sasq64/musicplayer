@@ -21,9 +21,19 @@ public:
 
 		ymMusicInfo_t info;
 		ymMusicGetInfo(ymMusic,&info);
-		setMeta("title", info.pSongName,
-			"composer", info.pSongAuthor,
-			"length", info.musicTimeInSec);
+
+		string name = info.pSongName;
+		string author = info.pSongAuthor;
+		if(name == "Unknown")
+			name = "";
+		if(author == "Unknown")
+			author = "";
+
+		setMeta("title", name,
+			"composer", author,
+			"length", info.musicTimeInSec,
+			"format", info.pSongType
+			);
 		LOGD("TYPE %s PLAYER %s", info.pSongType, info.pSongPlayer);
 		//printf("Name.....: %s\n",info.pSongName);
 		//printf("Author...: %s\n",info.pSongAuthor);

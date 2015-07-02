@@ -55,7 +55,7 @@ _HLE_Entry entrys[] = {
 
 //char foundlist[2048];
 
-int sort_entrys(void * a, void * b)
+int sort_entrys(const void * a, const void * b)
 {
 	_HLE_Entry * _a = (_HLE_Entry *)a;
 	_HLE_Entry * _b = (_HLE_Entry *)b;
