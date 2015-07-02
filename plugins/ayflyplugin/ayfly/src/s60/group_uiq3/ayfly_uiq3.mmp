@@ -1,0 +1,70 @@
+/*
+============================================================================
+ Name		: ayfly_uiq3.mmp
+ Author	  : Andrew Deryabin
+ Copyright   : Andrew Deryabin (c) 2008
+ Description : This is the project specification file for ayfly_uiq3.
+============================================================================
+*/
+
+#define MMP 1
+MACRO UIQ3
+
+#include "../inc/ayfly_s60.hrh"
+
+TARGET			ayfly_uiq3.exe
+TARGETTYPE		exe
+UID		  0x100039CE _UID3
+
+MACRO Z80EX_OPSTEP_FAST_AND_ROUGH
+
+EPOCSTACKSIZE		0x5000
+
+SOURCEPATH		..\src
+SOURCE			ayfly_s60.cpp
+SOURCE			ayfly_s60Application.cpp
+SOURCE			ayfly_s60AppUi.cpp
+SOURCE			ayfly_s60Document.cpp
+SOURCE          ayfly_uiq3PlayListView.cpp
+
+SOURCEPATH		..\..\libayfly
+SOURCE			z80ex\z80ex.c speccy.cpp formats.cpp ay_s60.cpp common.cpp AbstractAudio.cpp lha.cpp s60\ayfly_s60Audio.cpp
+
+SOURCEPATH		..\data
+
+START RESOURCE ayfly_uiq3.rss
+	HEADER	
+	TARGETPATH \resource\apps
+	LANG SC
+END
+
+START RESOURCE ayfly_uiq3_reg.rss
+	TARGET ayfly_uiq3_reg
+#ifdef WINSCW
+	TARGETPATH \private\10003a3f\apps
+#else
+	TARGETPATH \private\10003a3f\import\apps
+#endif
+END
+
+
+
+USERINCLUDE	   ..\inc ..\..\libayfly ..\..\libayfly\z80ex ..\..\libayfly\z80ex\include
+USERINCLUDE    ..\help
+
+SYSTEMINCLUDE	 \epoc32\include \epoc32\include\libc
+
+LIBRARY		   euser.lib apparc.lib cone.lib eikcore.lib eikcoctl.lib
+LIBRARY        fbscli.lib eikdlg.lib efsrv.lib estor.lib
+LIBRARY 	   qikcore.lib
+LIBRARY        qiklbx.lib
+LIBRARY        quiconfigclient.lib qikutils.lib
+LIBRARY        bafl.lib
+LIBRARY        qikdlg.lib mediaclientaudiostream.lib estlib.lib charconv.lib
+
+
+VENDORID	  	  0
+SECUREID		  _UID3
+CAPABILITY	  	  ReadUserData
+// End of File
+

@@ -1,0 +1,26 @@
+/*
+============================================================================
+ Name		: ayfly_s60.rls
+ Author	  : Andrew Deryabin
+ Copyright   : Andrew Deryabin (c) 2008
+ Description : This is a localisation file for ayfly_s60
+				A .rls file is the one and only place where the logical
+				strings to be localised are defined. 
+============================================================================
+*/
+
+//  LOCALISATION STRINGS
+
+#define qtn_caption_string "Ayfly player"
+#define qtn_addfile "Add file"
+#define qtn_addfolder "Add folder"
+#define qtn_startplayer "Start player"
+#define qtn_stopplayer "Stop player"
+#define qtn_help "Help"
+#define qtn_about "About"
+#define qtn_exit "Exit"
+#define qtn_loc_resource_file_1 "\\resource\\apps\\ayfly_s60"
+#define qtn_about_dialog_title "About"
+#define qtn_about_dialog_text "ayfly_s60 Version 0.0.25\n\nAuthor: Andrew Deryabin\n\nSupport: andrew@it-optima.ru\n\n(c) Andrew Deryabin (c) 2008-2009"
+
+// End of File

@@ -1,0 +1,150 @@
+Changelog:
+
+28.02.2008 - 0.0.25
+YM format support added
+Fixed bug in PT3_GetTime function - now time for pt3 modules calculated correctly
+Added ayfly_fym_convertor project for converting modules to FYM AY player written in flashbt SAGE studio.
+Some bug fixes
+Ayfly library: added 2 functions ay_setaywritecallback to trace writes to ay chip and ay_ists to determine if current module uses 2xay mode.
+New icon. Thx 2 mmcm.
+
+
+11.01.2008 - 0.0.24
+Rewritten PT2 player in c++. Now the only emulated format is .AY
+Added beeper emulation support
+Improved z80 emulation in Symbian versions
+Added full z80 emulation for Symbian builds
+
+
+02.01.2008 - 0.0.23
+Rewritten STP and STC player in c++
+Symbian version speedups
+Compiled symbian 8 version
+
+15.12.2008 - 0.0.22
+Added filtering and oversampling to ay synth in pc version
+AY synth moved to integers in symbian versions
+Removed filtering in symbian versions for more efficiency
+Improoved Directx driver stability
+Added ay_dumper programm for converting ay modules to register data
++ a lot of small optimizations 
+
+10.10.2008 - 0.0.21
+Turbo sound support added
+Digital AY support added
+ay code optimized
+Content detector added
+ayfly_converter is now able to read from stdin and change sample rate
+Metadata (Name and Author) support added
+Symbian version optimized 
+Multiple sample rates support in libayfly added
+
+24.10.2008 - 0.0.20
+Minor changes:
+Removed wxWidgets and SDK(Directx under Windows) dependency for building only library and converter
+Added command line parsing code
+Added ability for selection of multiple files in open dialog
+
+21.10.2008 - 0.0.19
+Added support for VTX format
+Added ayfly_converter program
+
+26.09.2008 - 0.0.18
+Added basic playlist to S60 version
+Updated z80ex library to latest version (thx 2 boo_boo)
+DirectX driver is more stable now. Windows versions now use it instead of WaveAPI.
++Improoved stability on Windows Vista
+Made mingw32 makefiles for building ayfly.dll library without Visual Studio (and even Windows)
+Added first version of library API documentation
+Fixed some bugs
+
+06.09.2008 - 0.0.17
+Added support for PT1 format
+PT3 player rewritten in c++
+Added YM emulation
+Fixed some bugs in symbian version
+Added S60 2nd (Symbian 8) build
+Added UIQ3 build
+Changed default windows audio driver from DirectX to Wave API
+Made ANSI library version for windows
+Removed ayfly_dynamicdll.h because of inconsistency with ayfly.h
+Fixed bugs
+
+24.08.2008 - 0.0.16
+Added support for PSG format
+Some optimizations in AY emulator
+Symbian player rewritten to be more stable. Now using CMdaOutputStream interface
+Added library - libayfly with clean interface :)
+Added library usage example for Windows - ayfly_cmdline
+DLL ayfly.dll is ready to be used in 3rd party applications
+Added ability to add folders in playlist
+Added sliders in ayfly application to change interrupts and AY frequency
+A lot of bugs fixed
+All functions rewritten to use c++ standard library
+
+
+06.08.2008 - 0.0.15
+New formats supported: SQT and PSC
+Fixed bugs in AY emulator
+AY emulator code is now the same on PC and Symbian builds
+
+01.08.2008 - 0.0.14
+Added filters for synth signal in symbian build
+Volume on Symbian can now be changed with up an down arrows
+Added ASC Sound Master player
+Initial work began for moving player core to the library
+
+
+30.07.2008 - 0.0.13
+Make Symbian build work on 220x ARM processors. Defaults now are: 32Khz, stereo
+Fixed z80 interrupt time
+Fixed case sensivity in filename parsing
+Minor bugs fixed
+
+25.07.2008 - 0.0.12
+Added key bindings dialog (no editing yet)
+Probably fixed DXAudio driver
+All bingings work now
+Fixed small bugs as usual
+
+24.07.2008 - 0.0.11
+Added initial support for key bindings (default is winamp style)
+Fixed bugs
+
+22.07.2008 - 0.0.10
+Fixed bugs in DXAudio.
+README rewrited
+
+19.07.2008 - 0.0.9
+Implemented position slider.
+
+17.07.2008 - 0.0.8
+Added time functions for stc, stp, ay, pt3 and pt2 formats - thanks to ay_emul sources!
+
+11.06.2008 - 0.0.7
+Initial playlist (without song's length yet)
+Removed menu bar.
+
+07.06.2008 - 0.0.6:
+Fixed some bugs in ay emulator.
+Updated "About" dialog.
+
+0.0.5:
+Added volume sliders for all channels with link button.
+Fixed some bugs.
+
+0.0.4:
+Added time counter.
+Added volume slider.
+
+0.0.3:
+Added default icon set by Alexander Shatin.
+Fixed minor bugs.
+
+0.0.2:
+Added iir low-pass filter + oversampling to ay emulator in order to remove ring modulation and alising on high notes.
+Added ability to mute any of 3 channels while playing.
+All icons are now 32x32 pixels in size.
+Added drag'n'drop. Works both in Linux and Windows.
+
+0.0.1: Initial release.

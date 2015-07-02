@@ -1,0 +1,45 @@
+/*
+ ============================================================================
+ Name		: ayfly_s60.hrh
+ Author	  : Andrew Deryabin
+ Copyright   : Andrew Deryabin (c) 2008
+ Description : This file contains declarations for constants of ayfly_s60.
+ The file can be included in C++ or resource file.
+ ============================================================================
+ */
+#ifndef __AYFLY_S60_HRH__
+#define __AYFLY_S60_HRH__
+
+#ifdef EKA2
+#define _UID3 0xEA0B66F6
+#else
+#define _UID3 0x2001D5F7
+#endif
+
+#ifndef MMP
+// ayfly_s60 enumerate command codes
+enum Tayfly_s60Ids
+	{
+	EAddFile = 0x6001, // start value must not be 0
+	EAddFolder,
+	EStartPlayer,
+	EStopPlayer,
+	EHelp,
+	EAbout
+	};
+
+enum TListBoxControl
+    {
+        EAyflyListBox,
+        EAyflyViewPage,
+        EAyflyViewNumberOfControls,
+        EAyflyListViewListCtrl
+    };
+
+/**
+Unique controls in list and detail view.
+*/
+	
+#endif
+
+#endif // __AYFLY_S60_HRH__
