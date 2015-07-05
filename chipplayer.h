@@ -35,6 +35,8 @@ public:
 		return metaData[what];
 	};
 
+	virtual bool couldHandle() { return true; }
+
 	int getMetaInt(const std::string &what) {
 		const std::string &data = getMeta(what);
 		int i = atoi(data.c_str());

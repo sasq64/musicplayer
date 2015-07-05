@@ -7,11 +7,11 @@ set(SOURCE_FILES
 	ht/arm.c
 	ht/dcsound.c
 	ht/psflib.c
-	ht/satsound.c
+	ht/satsound.cpp
 	ht/sega.c
 	ht/yam.c
-	ht/m68k/m68kops.c
-	ht/m68k/m68kcpu.c
+	ht/m68k/m68kops.cpp
+	ht/m68k/m68kcpu.cpp
 )
 
 #htplugin_CFLAGS += -mfpu=neon-ftree-vectorizer-verbose=1 -fpredictive-commoning -fgcse-after-reload -ftree-vectorize -fipa-cp-clone

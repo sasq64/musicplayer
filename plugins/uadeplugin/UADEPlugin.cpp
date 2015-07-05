@@ -34,6 +34,10 @@ public:
 		LOGD("Trying to load '%s' from '%s'", name, playerdir);
 		UADEPlayer *up = static_cast<UADEPlayer*>(context);
 		string fileName = name;
+
+		if(endsWith(fileName, "SMPL.set"))
+			fileName = path_directory(fileName) + "/set.smpl";
+		else
 		if(path_suffix(fileName) == "music") {
 			fileName = path_directory(fileName) + "/" + up->baseName + "." + path_prefix(fileName);
 			LOGD("Translated back to '%s'", fileName);

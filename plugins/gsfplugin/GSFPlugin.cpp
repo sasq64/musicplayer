@@ -68,7 +68,7 @@ namespace chipmachine {
 class GSFPlayer : public ChipPlayer {
 public:
 
-	GSFPlayer(const std::string &fileName) : fifo(128*1024), psf { fileName } {
+	GSFPlayer(const std::string &fileName) : fifo(512*1024), psf { fileName } {
 
 		decode_pos_ms = 0;
 		TrailingSilence=1000;
@@ -92,7 +92,7 @@ public:
 			);
 		}
 
-
+		LOGD("GSF:%s", fileName.c_str());
 
 		int r = GSFRun((char*)fileName.c_str());
 

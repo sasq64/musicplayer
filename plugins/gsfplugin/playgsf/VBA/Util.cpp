@@ -581,6 +581,8 @@ static int copy_int(unsigned int *dst, unsigned char *src)
   return 0;
 }
 
+//#define copy_int(a,b) (printf("%s:%d %p %p\n", __FILE__, __LINE__, a, b), _copy_int(a,b))
+
 static int fread_int(unsigned int *dst, FILE *f)
 {
 	unsigned char tmpbuf[4];
@@ -830,8 +832,7 @@ bool utildecompGSF(const char * file)
 #else
 		sprintf(filename,"%s\\%s",tempname,libtag);
 #endif
-		gsffile = decompressGSF(filename,2);
-    gsflib[1] = gsffile;
+		gsflib[1] = decompressGSF(filename,2);
 
 		if(gsflib[1].gsfloaded == false)
 		{
@@ -846,11 +847,14 @@ bool utildecompGSF(const char * file)
 		copy_int(&size, gsffile.program+8);
 		
 		offset&=0x01FFFFFF;
-		memcpy(gsflib[1].program+12+offset,gsffile.program+12,size);
-		free(gsffile.program);
+		memcpy(gsflib[1].program+12+offset, gsffile.program+12,size);
+
+    /// WTF
+		// free(gsffile.program);
+
 		uncompbuf=gsflib[1].program;
-
-
+ 
+#if 0
 		for(i=2;i<MAX_GSFLIB;i++)
 		{
 			sprintf(libname,"_lib%d",i);
@@ -877,12 +881,14 @@ bool utildecompGSF(const char * file)
 			if(gsflib[i].program == NULL)
 				break;
 		}
-
+#endif
 		uncompbuf=gsflib[1].program;
 
 	}
 	else
 		uncompbuf=gsffile.program;
+
+  //uncompbuf=gsflib[0].program;
 
 	psftag_raw_getvar(gsffile.psftag,"length",length,sizeof(length)-1);
 	if (/*!IgnoreTrackLength &&*/ strlen(length))

@@ -41,6 +41,7 @@
 
 #include "macros.h"
 
+namespace m68k {
 
 /* ======================================================================== */
 /* ==================== ARCHITECTURE-DEPENDANT DEFINES ==================== */
@@ -412,6 +413,7 @@ extern unsigned int m68k_get_reg(m68ki_cpu_core *, m68k_register_t reg);
 /* Poke values into the internals of the currently running CPU context */
 extern void m68k_set_reg(m68ki_cpu_core *, m68k_register_t reg, unsigned int value);
 
+}
 
 /* ======================================================================== */
 /* ============================== END OF FILE ============================= */

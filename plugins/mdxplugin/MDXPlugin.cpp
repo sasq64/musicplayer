@@ -16,6 +16,9 @@ namespace chipmachine {
 class MDXPlayer : public ChipPlayer {
 public:
 	MDXPlayer(const string &fileName) : started(false), ended(false) {
+
+	using P = std::pair<uint16_t, uint32_t>;
+
 		mdx_set_rate(44100);
  		if(mdx_open(&song, fileName.c_str(), utils::path_directory(fileName).c_str()))
  			throw player_exception();
@@ -23,6 +26,14 @@ public:
 		char title[1024];
 		int len = mdx_get_length(&song);
 		mdx_get_title(&song, title);
+
+		char *ptr = title;
+		while(*ptr) {
+			if(*ptr > 0x7f)
+				*ptr = ' ';
+			ptr++;
+		}
+
 		 setMeta(
 		 	"title", title,
 		 	"length", len,
