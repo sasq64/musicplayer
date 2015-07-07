@@ -8,8 +8,7 @@
 #include <mpg123.h>
 //#include <curl/curl.h>
 
-#include <mutex>
-//#include <thread>
+#include <coreutils/thread.h>
 
 #include <set>
 #include <unordered_map>

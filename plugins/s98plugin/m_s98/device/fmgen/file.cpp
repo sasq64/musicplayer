@@ -126,7 +126,7 @@ int32 FileIO::Read(void* dest, int32 size)
 	if (!(GetFlags() & open))
 		return -1;
 	
-	uint32 readsize;
+	int32 readsize;
 	if ((readsize = ::read(hfile, dest, size)) < 0)
 		return -1;
 	return readsize;
@@ -141,7 +141,7 @@ int32 FileIO::Write(const void* dest, int32 size)
 	if (!(GetFlags() & open) || (GetFlags() & readonly))
 		return -1;
 	
-	uint32 writtensize;
+	int32 writtensize;
 	if ((writtensize = ::write(hfile, dest, size)) < 0)
 		return -1;
 	return writtensize;
