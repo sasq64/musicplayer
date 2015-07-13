@@ -96,7 +96,7 @@ void AY_initayfmt(AYSongInfo &info, ayData &aydata, unsigned char track)
             ofs = -0x10000 + ofs;
 
         /* range check */
-        if(ptr - 4 - aydata.filedata + ofs >= aydata.filelen || ptr - 4 - aydata.filedata + ofs < 0)
+        if(ptr - 4 - aydata.filedata + ofs >= aydata.filelen || ptr - 4 - aydata.filedata + (long)ofs < 0)
         {
             ptr += 6;
             continue;

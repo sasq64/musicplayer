@@ -660,7 +660,7 @@ bool PSC_Detect(unsigned char *module, unsigned long length)
     while(1)
     {
         j += 8;
-        if((j > 65532) && (j + 2 > length) || (module[j] == 255))
+        if(((j > 65532) && (j + 2 > length)) || (module[j] == 255))
             break;
     }
     
