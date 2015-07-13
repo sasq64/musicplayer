@@ -184,7 +184,7 @@ void PT3_Init(AYSongInfo &info)
         version = header->PT3_MusicName[13] - 0x30;
     }
     unsigned char *ptr = PT3_FindSig(module + 0x63, info.module_len - 0x63);
-    if((unsigned long)ptr > 0)
+    if((uint64_t)ptr > 0)
     {
         info.is_ts = true;
         info.module1 = ptr;
@@ -1032,7 +1032,7 @@ void PT3_GetInfo(AYSongInfo &info)
     info.Length = length;
     info.Loop = loop;
     unsigned char *ptr = PT3_FindSig(module + 0x63, info.module_len - 0x63);
-    if((unsigned long)ptr > 0)
+    if((uint64_t)ptr > 0)
     {
         length = PT3_GetTime(ptr, loop);
         if(length > info.Length)

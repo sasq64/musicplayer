@@ -6,7 +6,7 @@
 #define USE_ZLIB 1
 
 #if USE_ZLIB
-#include "zlib.h"
+#include <zlib.h>
 #endif
 
 #define SUPPORT_VGM 1

@@ -80,7 +80,7 @@
 #define Z80EX_OPSTEP_FAST_AND_ROUGH 1 
 
 #    include "z80ex.h"
-#    ifdef WINDOWS
+#    ifdef WINDOWSx
 #        pragma warning(disable:4309)
 #        ifdef AYFLY_EXPORTS
 #           define AYFLY_API __declspec(dllexport)

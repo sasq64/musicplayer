@@ -134,7 +134,7 @@ public:
 		int bytesRead = mpg123_framepos(mp3);
 
 		int inBuffer = bytesPut - bytesRead;
-		LOGD("IN BUFFER %d", inBuffer);
+		//LOGD("IN BUFFER %d", inBuffer);
 
 		//if(inBuffer > 100000) {
 		//	utils::sleepms(750);

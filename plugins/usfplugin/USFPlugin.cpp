@@ -16,7 +16,8 @@
 //extern "C" {
 //}
 
-#include "lazyusf/misc.h"
+#include "lazyusf2/psflib.h"
+#include "lazyusf2/misc.h"
 #include "resampler.h"
 
 using namespace std;
@@ -30,14 +31,17 @@ public:
 		usf_state = new usf_loader_state;
 		usf_state->emu_state = malloc( usf_get_state_size() );
 		usf_clear( usf_state->emu_state );
+		sample_rate = 0;
 			
 		char temp[fileName.length()+1];
 		strcpy(temp, fileName.c_str());
 
 		LOGD("Trying to load USF %s", string(temp));
 					
-		if ( psf_load( temp, &psf_file_system, 0x21, usf_loader, usf_state, usf_info, usf_state ) < 0 )
+		if ( psf_load( temp, &psf_file_system, 0x21, usf_loader, usf_state, usf_info, usf_state, 1 ) < 0 )
 			throw player_exception();
+
+		usf_set_hle_audio(usf_state->emu_state, 1);
 		
 		PSFFile psf { fileName };
 		if(psf.valid()) {
