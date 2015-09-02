@@ -84,6 +84,8 @@ public:
 
 		currentFileName = fileName;
 
+		LOGD("UADEPLAY %s", fileName);
+
 		if(uade_play(fileName.c_str(), -1, state) == 1) {
 			songInfo = uade_get_song_info(state);
 			const char *modname = songInfo->modulename;
@@ -166,8 +168,10 @@ bool UADEPlugin::canHandle(const std::string &name) {
 
 ChipPlayer *UADEPlugin::fromFile(const std::string &fileName) {
 
+
 	auto *player = new UADEPlayer(dataDir + "/data/uade");
-	if(!player->load(fileName)) {
+	LOGD("UADE data %s", dataDir);
+	if(!player->load(File::resolvePath(fileName))) {
 		delete player;
 		player = nullptr;
 	}

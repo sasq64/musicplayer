@@ -167,71 +167,71 @@ public:
 	VicePlayer(VicePlugin &plugin, const string &sidFile) : plugin(plugin) {
 		int ret = psid_load_file(sidFile.c_str());
 		LOGD("Loaded %s -> %d", sidFile, ret);
-		if (ret == 0) {
+		if (ret != 0)
+			throw player_exception("Not a sid file");
 
-			File f { sidFile };
-			auto data = f.readAll();
-			auto md5 = calculateMD5(data);
-			uint32_t key = get<uint32_t>(md5, 0);
-			LOGD("MD5: [%02x] %08x", md5, key);
-			songLengths = plugin.findLengths(key);
+		File f { sidFile };
+		auto data = f.readAll();
+		auto md5 = calculateMD5(data);
+		uint32_t key = get<uint32_t>(md5, 0);
+		LOGD("MD5: [%02x] %08x", md5, key);
+		songLengths = plugin.findLengths(key);
 
-			string realPath = sidFile;
-			if(sidFile.find("C64Music%2f") != string::npos) {
-				realPath = utils::urldecode(sidFile, ":/\\?;");
-			}
+		string realPath = sidFile;
+		if(sidFile.find("C64Music%2f") != string::npos) {
+			realPath = utils::urldecode(sidFile, ":/\\?;");
+		}
 
-			int defaultSong;
-			int songs = psid_tunes(&defaultSong);
-			defaultSong--;
-			currentSong = defaultSong;
-			LOGD("DEFSONG: %d", defaultSong);
-			currentLength = 0;
-			currentPos = 0;
-			nextCheckPos = currentPos + 44100;
-			if((int)songLengths.size() > defaultSong) {
-				currentLength = songLengths[defaultSong];
-			}
-			LOGD("Length:%d", currentLength);
-			string msg = "NO STIL INFO";
-			string sub_title;
-			auto pos = realPath.find("C64Music/");
-			currentInfo = 0;
-			if(pos != string::npos) {
-				auto p = realPath.substr(pos+8);
-				LOGD("SIDFILE:%s", p);
-				if(VicePlugin::stilSongs.count(p)) {
-					currentStil = VicePlugin::stilSongs[p];
-					msg = currentStil.comment;
+		int defaultSong;
+		int songs = psid_tunes(&defaultSong);
+		defaultSong--;
+		currentSong = defaultSong;
+		LOGD("DEFSONG: %d", defaultSong);
+		currentLength = 0;
+		currentPos = 0;
+		nextCheckPos = currentPos + 44100;
+		if((int)songLengths.size() > defaultSong) {
+			currentLength = songLengths[defaultSong];
+		}
+		LOGD("Length:%d", currentLength);
+		string msg = "NO STIL INFO";
+		string sub_title;
+		auto pos = realPath.find("C64Music/");
+		currentInfo = 0;
+		if(pos != string::npos) {
+			auto p = realPath.substr(pos+8);
+			LOGD("SIDFILE:%s", p);
+			if(VicePlugin::stilSongs.count(p)) {
+				currentStil = VicePlugin::stilSongs[p];
+				msg = currentStil.comment;
 
-					for(int i=0; i<(int)currentStil.songs.size(); i++) {
-						auto &s = currentStil.songs[i];
-						LOGD("#%d: %s", s.subsong, s.title);
-						if(s.subsong == defaultSong+1) {
-							currentInfo = i;
-							sub_title = s.title;//sub_title + s.title + " ";
-							if(sub_title == "") sub_title = s.name;
+				for(int i=0; i<(int)currentStil.songs.size(); i++) {
+					auto &s = currentStil.songs[i];
+					LOGD("#%d: %s", s.subsong, s.title);
+					if(s.subsong == defaultSong+1) {
+						currentInfo = i;
+						sub_title = s.title;//sub_title + s.title + " ";
+						if(sub_title == "") sub_title = s.name;
 
-							if(msg == "") msg = s.comment;
-							break;
-						}
+						if(msg == "") msg = s.comment;
+						break;
 					}
 				}
 			}
-			setMeta(
-				"title", psid_get_name(),
-				"composer", psid_get_author(),
-				"copyright", psid_get_copyright(),
-				"format", "C64 Sid",
-				"songs", songs,
-				"message", msg,
-				"sub_title", sub_title,
-				"length", currentLength,
-				"startSong", defaultSong
-			);
-
-			c64_song_init();
 		}
+		setMeta(
+			"title", psid_get_name(),
+			"composer", psid_get_author(),
+			"copyright", psid_get_copyright(),
+			"format", "C64 Sid",
+			"songs", songs,
+			"message", msg,
+			"sub_title", sub_title,
+			"length", currentLength,
+			"startSong", defaultSong
+		);
+
+		c64_song_init();
 	}
 
 	~VicePlayer() {
@@ -489,7 +489,11 @@ bool VicePlugin::canHandle(const std::string &name) {
 }
 
 ChipPlayer *VicePlugin::fromFile(const std::string &fileName) {
-	return new VicePlayer { *this, fileName };
+	try {
+		return new VicePlayer { *this, fileName };
+	} catch(player_exception &e) {
+		return nullptr;
+	}
 }
 
 vector<uint8_t> VicePlugin::mainHash;
