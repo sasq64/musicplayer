@@ -33,7 +33,7 @@ public:
 		return 0;
 	}
 
-	virtual bool seekTo(int song, int seconds) {
+	virtual bool seekTo(int song, int seconds) override {
 		player = nullptr;
 		player = shared_ptr<ChipPlayer>(plugin->fromFile(songs[song]));
 		if(player) {

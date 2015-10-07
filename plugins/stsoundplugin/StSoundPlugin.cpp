@@ -65,7 +65,7 @@ public:
 		return noSamples*2;
 	}
 
-	virtual bool seekTo(int song, int seconds) {
+	virtual bool seekTo(int song, int seconds) override {
 		//if(mod)
 		//	ModPlug_Seek(mod, seconds * 1000);
 		ymMusicSeek(ymMusic, seconds * 1000);

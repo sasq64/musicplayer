@@ -71,7 +71,7 @@ public:
 		return len*2;
 	}
 
-	virtual bool seekTo(int song, int seconds) {
+	virtual bool seekTo(int song, int seconds) override {
 		if(mod) {
 			if(song >= 0)
 				openmpt_module_select_subsong(mod, song);

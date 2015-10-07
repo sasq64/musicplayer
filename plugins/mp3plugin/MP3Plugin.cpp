@@ -102,9 +102,9 @@ public:
 					"channels", channels);
 			} else
 			if(v1) {
-				setMeta("title", v1->title ? htmldecode(v1->title) : "",
-					"composer", v1->artist ? htmldecode(v1->artist) : "",
-					"message", v1->comment ? v1->comment : "",
+				setMeta("title", htmldecode(v1->title),
+					"composer", htmldecode(v1->artist),
+					"message", v1->comment,
 					"format", "MP3",
 					"length", length,
 					"channels", channels);
@@ -119,7 +119,7 @@ public:
 			mpg123_meta_free(mp3);
 	}
 
-	virtual void putStream(const uint8_t *source, int size) {
+	virtual void putStream(const uint8_t *source, int size) override {
 		lock_guard<mutex> {m};
 		if(!source) {
 			if(size <= 0)
@@ -160,7 +160,7 @@ public:
 		return done/2;
 	}
 
-	virtual bool seekTo(int song, int seconds) {
+	virtual bool seekTo(int song, int seconds) override {
 		return true;
 	}
 

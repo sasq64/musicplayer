@@ -140,7 +140,7 @@ public:
 		return rc;
 	}
 
-	virtual bool seekTo(int song, int seconds) {
+	virtual bool seekTo(int song, int seconds) override {
 		//if(musicStopped) {
 		//	if(uade_play(currentFileName.c_str(), -1, state) == 1) {
 		//		songInfo = uade_get_song_info(state);

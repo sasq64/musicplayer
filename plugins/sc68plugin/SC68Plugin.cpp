@@ -158,7 +158,7 @@ public:
 		return noSamples;
 	}
 
-	virtual bool seekTo(int song, int seconds) {
+	virtual bool seekTo(int song, int seconds) override {
 
 		if(song >= 0) {
 			currentTrack = song+1;

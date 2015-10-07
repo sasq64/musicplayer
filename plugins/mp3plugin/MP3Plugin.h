@@ -10,7 +10,7 @@ public:
 	virtual std::string name() const override { return "libmpg123"; }
 	virtual bool canHandle(const std::string &name) override;
 	virtual ChipPlayer *fromFile(const std::string &fileName) override;
-	virtual ChipPlayer *fromStream();
+	virtual ChipPlayer *fromStream() override;
 };
 
 }
