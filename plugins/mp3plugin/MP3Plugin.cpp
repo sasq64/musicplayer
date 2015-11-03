@@ -161,7 +161,7 @@ public:
 	}
 
 	virtual bool seekTo(int song, int seconds) override {
-		return true;
+		return false;
 	}
 
 private:
