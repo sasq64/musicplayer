@@ -7,14 +7,7 @@ set(SOURCE_FILES MP3Plugin.cpp)
 find_library(MPG123_LIBRARY mpg123 mpg123 REQUIRED)
 find_path(MPG123_PATH mpg123.h)
 
-if(EXISTS ${MPG123_LIBRARY})
-	include_directories(${MPG123_PATH})
-else()
-message("Building libmpg123 from local source")
-add_subdirectory(mpg123-1.21.0/src/libmpg123 libmpg123)
-include_directories(mpg123-1.21.0/src/libmpg123)
-set(MPG123_LIBRARY libmpg123)
-endif()
+include_directories(${MPG123_PATH})
 
 message("MP3 " ${MPG123_LIBRARY})
 
