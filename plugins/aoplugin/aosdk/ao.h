@@ -30,9 +30,10 @@ enum
 /* Compiler defines for Xcode */
 #ifdef __BIG_ENDIAN__
 	#undef LSB_FIRST
-#endif
-
-#ifdef __LITTLE_ENDIAN__
+//#endif
+//
+//#ifdef __LITTLE_ENDIAN__
+#else
 	#define LSB_FIRST	1
 #endif
 

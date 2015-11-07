@@ -52,7 +52,7 @@ const psf_file_callbacks psf_file_system =
 static void * psf_file_fopen( const char * uri )
 {
 	FILE *f;
-	f = fopen(uri, "r");
+	f = fopen(uri, "rb");
 	return f;
 }
 

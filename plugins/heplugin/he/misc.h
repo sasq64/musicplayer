@@ -121,7 +121,7 @@ static void * psf_file_fopen( const char * uri )
 	FILE *f;
 
 	fprintf(stderr, "PSF OPEN %s\n", uri);
-	f = fopen(uri, "r");
+	f = fopen(uri, "rb");
 
     // ANTI WINDOWS HACK - Try the lower case version of the filename if it can't be found
     if(!f) {
