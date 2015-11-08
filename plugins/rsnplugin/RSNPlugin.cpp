@@ -59,20 +59,21 @@ ChipPlayer *RSNPlugin::fromFile(const string &fileName) {
 	static const set<string> song_formats { "spc", "psf", "minipsf", "psf2", "minipsf2", "miniusf", "dsf", "minidsf", "mini2sf", "minigsf", "mdx", "s98" };
 
 	vector<string> l;
-	makedir(".rsn");
-	for(auto f : File(".rsn").listFiles())
+	File rsnDir = File::getCacheDir() / ".rsn";
+	makedir(rsnDir);
+	for(auto f : rsnDir.listFiles())
 		f.remove();
 
 	if(!File::exists(fileName))
 		return nullptr;
 
 	try {
-		auto *a = Archive::open(fileName, ".rsn", Archive::TYPE_RAR);
+		auto *a = Archive::open(fileName, rsnDir, Archive::TYPE_RAR);
 		for(auto s : *a) {
 			a->extract(s);
 			if(song_formats.count(path_extension(s)) > 0) {				
 				LOGD("Found %s", s);
-				l.push_back(string(".rsn/") + s);
+				l.push_back(rsnDir / s);
 			}
 		};
 		delete a;
