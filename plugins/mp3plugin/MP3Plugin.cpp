@@ -41,7 +41,7 @@ public:
 
 		if(mpg123_open(mp3, fileName.c_str()) != MPG123_OK)
 			throw player_exception("Could open MP3");
-
+		bytesPut = 1;
 		int encoding = 0;
 		if(mpg123_getformat(mp3, &rate, &channels, &encoding) != MPG123_OK)
 			throw player_exception("Could not get format");
