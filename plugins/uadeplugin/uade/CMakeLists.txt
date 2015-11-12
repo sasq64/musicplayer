@@ -31,12 +31,12 @@ endif()
 
 include_directories(. uade/src uade/src/include uade/src/frontends/include uade/src/frontends/common)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sizeof-pointer-memaccess")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sizeof-pointer-memaccess")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fomit-frame-pointer -Wall -Wno-unused -Wno-format -Wmissing-prototypes -Wstrict-prototypes -fno-exceptions")
 
-add_library(uade ${SOURCE_FILES})
 
-set(SOURCE_FILES
-	uade/src/main.c
+set(SOURCE_FILES ${SOURCE_FILES}
+	#uade/src/main.c
 	uade/src/newcpu.c
 	uade/src/memory.c
 	uade/src/custom.c
@@ -54,30 +54,17 @@ set(SOURCE_FILES
 	uade/src/cpudefs.c
 	uade/src/cpuemu.c
 	uade/src/uade.c
-	uade/src/uadeipc.c
-	uade/src/uadeutils.c
-	uade/src/unixatomic.c
-	uade/src/ossupport.c
+	#uade/src/uadeipc.c
+	#uade/src/uadeutils.c
+	#uade/src/unixatomic.c
+	#uade/src/ossupport.c
 	uade/src/uademain.c
 	uade/src/sinctable.c
 	uade/src/text_scope.c
+	uade/src/socketpair.c
 )
 
-if(NOT APPLE)
-	SET(SOURCE_FILES ${SOURCE_FILES}
-		uade/compat/strlrep.c
-	)
-endif()
+add_library(uade ${SOURCE_FILES})
 
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fomit-frame-pointer -Wall -Wno-unused -Wno-format -Wmissing-prototypes -Wstrict-prototypes -fno-exceptions")
-
-add_executable(uadecore ${SOURCE_FILES})
-target_link_libraries(uadecore m)
-message(${UADECORE_TARGET})
-file(MAKE_DIRECTORY ${UADECORE_TARGET})
-add_custom_command(TARGET uadecore POST_BUILD
-   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:uadecore> ${UADECORE_TARGET}
-)
 
 

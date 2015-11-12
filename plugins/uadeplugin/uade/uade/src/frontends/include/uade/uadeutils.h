@@ -29,4 +29,7 @@ static inline void write_be_u32(void *s, uint32_t x)
 	ptr[3] = x;
 }
 
+#ifdef _WIN32
+char* mystrsep(char** stringp, const char* delim);
+#endif
 #endif

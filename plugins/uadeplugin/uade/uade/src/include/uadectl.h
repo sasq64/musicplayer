@@ -19,7 +19,7 @@ struct uade_song {
 void uadecore_check_sound_buffers(int bytes);
 void uadecore_send_debug(const char *fmt, ...);
 void uadecore_get_amiga_message(void);
-void uadecore_handle_r_state(void);
+int uadecore_handle_r_state(void);
 void uadecore_option(int, char**); /* handles command line parameters */
 void uadecore_reset(void);
 void uadecore_send_amiga_message(int msgtype);

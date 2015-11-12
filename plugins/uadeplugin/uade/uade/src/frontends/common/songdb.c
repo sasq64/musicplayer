@@ -212,7 +212,7 @@ static int uade_open_and_lock(const char *filename, int create)
 			return -1;
 		}
 	}
-#ifndef UADE_HAVE_CYGWIN
+#if (!defined UADE_HAVE_CYGWIN) && (!defined _WIN32)
 	ret = lockf(fd, F_LOCK, 0);
 	if (ret) {
 		fprintf(stderr, "uade: Unable to lock song.conf: %s (%s)\n",

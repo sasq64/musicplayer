@@ -1309,7 +1309,8 @@ void m68k_go (void)
     m68k_reset ();
     customreset ();
 
-    uadecore_handle_r_state();
+    if(uadecore_handle_r_state())
+		return;
 
     while (uadecore_reboot == 0 && quit_program == 0) {
       if (debugging)

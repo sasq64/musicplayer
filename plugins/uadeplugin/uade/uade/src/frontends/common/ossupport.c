@@ -22,11 +22,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
+
+
+int dumb_socketpair(int socks[2], int make_overlapped);
 
 int uade_filesize(size_t *size, const char *pathname)
 {
@@ -108,6 +109,12 @@ int uade_find_amiga_file(char *realname, size_t maxlen, const char *aname,
 		return -1;
 	}
 	ptr = copy;
+	// Deal with windows paths
+	if(ptr[1] == ':' && ptr[2] == '/') {
+		memcpy(dirname, ptr, 3);
+		dirname[3] = 0;
+		ptr += 3;
+	} else
 	if ((separator = strchr(ptr, (int) ':'))) {
 		len = (int) (separator - ptr);
 		memcpy(dirname, ptr, len);
@@ -200,83 +207,49 @@ int uade_find_amiga_file(char *realname, size_t maxlen, const char *aname,
 	return 0;
 }
 
+int uadecore_main (int argc, char **argv);
+void uade_run_thread(void (*f)(void*), void *data);
+void uade_wait_thread();
+
 void uade_arch_kill_and_wait_uadecore(struct uade_ipc *ipc, pid_t *uadepid)
 {
-	if (*uadepid == 0)
-		return;
-
+	uade_info("Kill and wait\n");
 	uade_atomic_close(ipc->in_fd);
 	uade_atomic_close(ipc->out_fd);
 
-	/*
-	 * Wait until one of two happens:
-	 * 1. uadepid is successfully handled (waitpid() returns uadepid)
-	 * 2. someone else has processed uadepid (waitpid() returns -1)
-	 */
-	while (waitpid(*uadepid, NULL, 0) == -1 && errno == EINTR);
-
-	*uadepid = 0;
+	uade_wait_thread();
 }
+
+static void thread_func(void *data)
+{
+	int *fds = (int*)data;
+	char input[32], output[32];
+
+	uade_info("UADE thread started %d/%d\n", fds[0], fds[1]);	
+
+	/* give in/out fds as command line parameters to uadecore */
+	snprintf(input, sizeof input, "%d", fds[1]);
+	snprintf(output, sizeof output, "%d", fds[1]);
+
+	char *args[] = { "uadecore", "-i", input, "-o", output };
+	uadecore_main(5, args);
+	uade_info("UADE thread ended\n");
+}
+
+static int spawn_fds[2];
 
 int uade_arch_spawn(struct uade_ipc *ipc, pid_t *uadepid, const char *uadename)
 {
-	int fds[2];
-	char input[32], output[32];
-
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds)) {
+	if (dumb_socketpair(spawn_fds, 0)) {
 		uade_warning("Can not create socketpair: %s\n",
 			     strerror(errno));
 		return -1;
 	}
+	
+	uade_info("UADE thread starting %d/%d\n", spawn_fds[0], spawn_fds[1]);	
+	uade_run_thread(&thread_func, (void*)spawn_fds);
 
-	*uadepid = fork();
-	if (*uadepid < 0) {
-		fprintf(stderr, "Fork failed: %s\n", strerror(errno));
-		return -1;
-	}
-
-	/* The child (*uadepid == 0) will execute uadecore */
-	if (*uadepid == 0) {
-		int fd;
-		int maxfds;
-		sigset_t sigset;
-
-		/* Unblock SIGTERM in the child, we might need it */
-		sigemptyset(&sigset);
-		sigaddset(&sigset, SIGTERM);
-		sigprocmask(SIG_UNBLOCK, &sigset, NULL);
-
-		if ((maxfds = sysconf(_SC_OPEN_MAX)) < 0) {
-			maxfds = 1024;
-			fprintf(stderr, "Getting max fds failed. Using %d.\n", maxfds);
-		}
-
-		/*
-		 * Close everything else but stdin, stdout, stderr, and
-		 * in/out fds
-		 */
-		for (fd = 3; fd < maxfds; fd++) {
-			if (fd != fds[1])
-				uade_atomic_close(fd);
-		}
-
-		/* give in/out fds as command line parameters to uadecore */
-		snprintf(input, sizeof input, "%d", fds[1]);
-		snprintf(output, sizeof output, "%d", fds[1]);
-
-		execlp(uadename, uadename, "-i", input, "-o", output, NULL);
-		uade_die("uade execlp (%s) failed: %s\n",
-			 uadename, strerror(errno));
-	}
-
-	/* Close fds that the uadecore uses */
-	if (uade_atomic_close(fds[1]) < 0) {
-		fprintf(stderr, "Could not close uadecore fds: %s\n", strerror(errno));
-		kill (*uadepid, SIGKILL);
-		return -1;
-	}
-
-	uade_set_peer(ipc, 1, fds[0], fds[0]);
+	uade_set_peer(ipc, 1, spawn_fds[0], spawn_fds[0]);
 	return 0;
 }
 #include <limits.h>
@@ -288,7 +261,11 @@ char *canonicalize_file_name(const char *path)
 	if (s == NULL)
 		return NULL;
 
+#ifdef _WIN32
+	if(!_fullpath(s, path, PATH_MAX)) {
+#else
 	if (realpath(path, s) == NULL) {
+#endif
 		free(s);
 		return NULL;
 	}

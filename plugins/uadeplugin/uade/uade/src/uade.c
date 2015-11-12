@@ -546,7 +546,7 @@ void uadecore_get_amiga_message(void)
 }
 
 
-void uadecore_handle_r_state(void)
+int uadecore_handle_r_state(void)
 {
   uint8_t space[UADE_MAX_MESSAGE_SIZE];
   struct uade_msg *um = (struct uade_msg *) space;
@@ -561,7 +561,7 @@ void uadecore_handle_r_state(void)
        * Terminate uadecore when libuade closes the control socket.
        * This is the usual (intended) place where uadecore terminates itself.
        */
-      exit(0);
+      return 1;
     } else if (ret < 0) {
       fprintf(stderr, "uadecore: Error on input. Exiting with error.\n");
       exit(1);
@@ -668,6 +668,7 @@ void uadecore_handle_r_state(void)
       exit(1);
     }
   }
+  return 0;
 }
 
 
@@ -862,7 +863,8 @@ void uadecore_reset(void)
 
   ret = uade_receive_string(song.scorename, UADE_COMMAND_SCORE, sizeof(song.scorename), &uadecore_ipc);
   if (ret == 0) {
-    exit(0);
+	  fprintf(stderr, "Return 0\n");
+    return;
   } else if (ret < 0) {
     fprintf(stderr, "uadecore: Invalid input. Expected score name.\n");
     exit(1);

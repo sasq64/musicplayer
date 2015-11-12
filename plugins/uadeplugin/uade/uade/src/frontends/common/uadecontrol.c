@@ -21,7 +21,6 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/socket.h>
 
 /* Sends a byte request and returns the number of bytes requested */
 int uade_read_request(struct uade_state *state)
