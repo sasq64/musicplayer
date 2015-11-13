@@ -213,7 +213,6 @@ void uade_wait_thread();
 
 void uade_arch_kill_and_wait_uadecore(struct uade_ipc *ipc, pid_t *uadepid)
 {
-	uade_info("Kill and wait\n");
 	uade_atomic_close(ipc->in_fd);
 	uade_atomic_close(ipc->out_fd);
 
@@ -225,7 +224,6 @@ static void thread_func(void *data)
 	int *fds = (int*)data;
 	char input[32], output[32];
 
-	uade_info("UADE thread started %d/%d\n", fds[0], fds[1]);	
 
 	/* give in/out fds as command line parameters to uadecore */
 	snprintf(input, sizeof input, "%d", fds[1]);
@@ -233,7 +231,6 @@ static void thread_func(void *data)
 
 	char *args[] = { "uadecore", "-i", input, "-o", output };
 	uadecore_main(5, args);
-	uade_info("UADE thread ended\n");
 }
 
 static int spawn_fds[2];
@@ -246,7 +243,6 @@ int uade_arch_spawn(struct uade_ipc *ipc, pid_t *uadepid, const char *uadename)
 		return -1;
 	}
 	
-	uade_info("UADE thread starting %d/%d\n", spawn_fds[0], spawn_fds[1]);	
 	uade_run_thread(&thread_func, (void*)spawn_fds);
 
 	uade_set_peer(ipc, 1, spawn_fds[0], spawn_fds[0]);

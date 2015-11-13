@@ -863,7 +863,6 @@ void uadecore_reset(void)
 
   ret = uade_receive_string(song.scorename, UADE_COMMAND_SCORE, sizeof(song.scorename), &uadecore_ipc);
   if (ret == 0) {
-	  fprintf(stderr, "Return 0\n");
     return;
   } else if (ret < 0) {
     fprintf(stderr, "uadecore: Invalid input. Expected score name.\n");
