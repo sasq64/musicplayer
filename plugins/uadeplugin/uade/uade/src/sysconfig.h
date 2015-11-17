@@ -204,7 +204,7 @@
 #define HAVE_SELECT 1
 
 /* Define if you have the sigaction function.  */
-#define HAVE_SIGACTION 1
+/* #define HAVE_SIGACTION 1 */
 
 /* Define if you have the strchr function.  */
 #define HAVE_STRCHR 1

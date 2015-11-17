@@ -30,6 +30,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifdef _WIN32
+#define makedir(a,b) mkdir(a)
+#else
+#define makedir(a,b) mkdir(a,b)
+#endif
+
 static int uade_set_silence_timeout(struct uade_config *uc, const char *value);
 static int uade_set_subsong_timeout(struct uade_config *uc, const char *value);
 static int uade_set_timeout(struct uade_config *uc, const char *value);
@@ -421,7 +427,7 @@ char *uade_open_create_home(void)
 		struct stat st;
 		snprintf(name, sizeof name, "%s/.uade", home);
 		if (stat(name, &st) != 0)
-			mkdir(name, S_IRUSR | S_IWUSR | S_IXUSR);
+			makedir(name, S_IRUSR | S_IWUSR | S_IXUSR);
 	}
 
 	return home;

@@ -11,11 +11,9 @@
 #include <uade/options.h>
 #include <uade/rmc.h>
 
-#include <arpa/inet.h>
 #include <assert.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <time.h>
 #include <dirent.h>
@@ -23,6 +21,7 @@
 #include <errno.h>
 #include <string.h>
 #include <bencodetools/bencode.h>
+#include <uade/sysincludes.h>
 
 #define ASSERT_RECEIVE_STATE(state) do { assert((state)->ipc.state == UADE_R_STATE); } while (0)
 #define ASSERT_SEND_STATE(state) do { assert((state)->ipc.state == UADE_S_STATE); } while (0)
@@ -1132,10 +1131,10 @@ struct uade_state *uade_new_state(const struct uade_config *extraconfig)
 
 	uade_merge_configs(&state->config, &state->extraconfig);
 
-	if (access(state->config.uadecore_file.name, X_OK)) {
-		uade_warning("Could not execute %s\n", state->config.uadecore_file.name);
-		goto error;
-	}
+	//if (access(state->config.uadecore_file.name, X_OK)) {
+	//	uade_warning("Could not execute %s\n", state->config.uadecore_file.name);
+	//	goto error;
+	//}
 	if (access(state->config.uae_config_file.name, R_OK)) {
 		uade_warning("Could not read uae config file: %s\n", state->config.uae_config_file.name);
 		goto error;

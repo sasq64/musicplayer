@@ -5,6 +5,28 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+char* strsep(char** stringp, const char* delim)
+{
+  char* start = *stringp;
+  char* p;
+
+  p = (start != NULL) ? strpbrk(start, delim) : NULL;
+
+  if (p == NULL)
+  {
+    *stringp = NULL;
+  }
+  else
+  {
+    *p = '\0';
+    *stringp = p + 1;
+  }
+
+  return start;
+}
+#endif
+
 size_t uade_atomic_fread(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
 	uint8_t *dest = ptr;
