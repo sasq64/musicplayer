@@ -2,7 +2,7 @@
 #include "MDXPlugin.h"
 #include "../../chipplayer.h"
 #include <coreutils/utils.h>
-
+#include <coreutils/file.h>
 extern "C" {
 #include "mdxmini.h"
 }
@@ -64,6 +64,26 @@ static const set<string> supported_ext = { "mdx" };
 
 bool MDXPlugin::canHandle(const std::string &name) {
 	return supported_ext.count(utils::path_extension(name)) > 0;
+}
+
+vector<string> MDXPlugin::getSecondaryFiles(const string &name) {
+
+	utils::File f0 { name };
+	vector<uint8_t> header(2048);
+	f0.read(&header[0], 2048);
+	for(int i = 0; i < 2045; i++) {
+		if(header[i] == 0x0d && header[i + 1] == 0xa && header[i + 2] == 0x1a) {
+			if(header[i + 3] != 0) {
+				auto pdxFile = string((char *)&header[i + 3]);
+				utils::makeLower(pdxFile);
+				if(!utils::endsWith(pdxFile, ".pdx"))
+					pdxFile += ".pdx";
+				return vector<string> { pdxFile };
+			}
+			break;
+		}
+	}
+	return vector<string>();
 }
 
 ChipPlayer *MDXPlugin::fromFile(const std::string &name) {

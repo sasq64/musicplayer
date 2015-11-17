@@ -22,14 +22,14 @@ public:
 	virtual ChipPlayer *fromFile(const std::string &fileName) = 0;
 
 	virtual ChipPlayer *fromStream() { return nullptr; }
-	virtual ChipPlayer *fromData(uint8_t *data, int size) {
-		FILE *fp = fopen("tmpfile", "wb");
-		fwrite(data, size, 1, fp);
-		fclose(fp);
-		return fromFile("tmpfile");
-	}
-
 	virtual int priority() { return 0; }
+
+	// Return other files required for playing the provided file. The returned
+	// files should normally not contain a path if it assumed they recides in the
+	// same directory.
+	virtual std::vector<std::string> getSecondaryFiles(const std::string &file) {
+		return std::vector<std::string>();
+	}
 
 	// Plugin registration stuff
 
