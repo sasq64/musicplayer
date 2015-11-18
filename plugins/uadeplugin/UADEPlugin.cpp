@@ -155,8 +155,11 @@ private:
 	bool musicStopped;
 };
 
+static const set<string> unsupported_ext {
+	"mtr", "a2m", "med"
+};
 bool UADEPlugin::canHandle(const std::string &name) {
-	return true;
+	return unsupported_ext.count(utils::path_extension(name)) == 0;
 }
 
 ChipPlayer *UADEPlugin::fromFile(const std::string &fileName) {
