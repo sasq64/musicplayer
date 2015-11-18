@@ -15,10 +15,5 @@ if(NOT TARGET crypto)
 	add_subdirectory(../../../crypto crypto)
 endif()
 
-#find_library(CURL_LIBRARY curl REQUIRED)
-#find_path(CURL_INCLUDE curl/curl.h)
-#include_directories(${CURL_INCLUDE})
-
 add_library(mp3plugin ${SOURCE_FILES})
 target_link_libraries(mp3plugin ${MPG123_LIBRARY})
-# ${CURL_LIBRARY})

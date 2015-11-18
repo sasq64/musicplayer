@@ -76,7 +76,7 @@ private:
 	YMMUSIC *ymMusic;
 };
 
-static const set<string> supported_ext { "ym" };
+static const set<string> supported_ext { "ym", "mix" };
 
 bool StSoundPlugin::canHandle(const std::string &name) {
 	return supported_ext.count(utils::path_extension(name)) > 0;
