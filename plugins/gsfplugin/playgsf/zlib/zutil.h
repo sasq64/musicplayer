@@ -31,6 +31,11 @@
 #endif
 /* compile with -Dlocal if your debugger can't find static symbols */
 
+/* Gentoo removed OF from their copy of zconf.h (https://bugs.gentoo.org/show_bug.cgi?id=383179) */
+#ifndef OF
+#define OF(args) args
+#endif
+
 typedef unsigned char  uch;
 typedef uch FAR uchf;
 typedef unsigned short ush;

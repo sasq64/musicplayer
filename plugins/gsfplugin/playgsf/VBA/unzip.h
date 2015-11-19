@@ -77,6 +77,10 @@ typedef unzFile__ *unzFile;
 typedef voidp unzFile;
 #endif
 
+/* Gentoo removed OF from their copy of zconf.h (https://bugs.gentoo.org/show_bug.cgi?id=383179) */
+#ifndef OF
+#define OF(args) args
+#endif
 
 #define UNZ_OK                                  (0)
 #define UNZ_END_OF_LIST_OF_FILE (-100)
