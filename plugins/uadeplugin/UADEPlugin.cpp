@@ -156,7 +156,7 @@ private:
 };
 
 static const set<string> unsupported_ext {
-	"mtr", "a2m", "med"
+	"mtr", "a2m", "med", "mus"
 };
 bool UADEPlugin::canHandle(const std::string &name) {
 	return unsupported_ext.count(utils::path_extension(name)) == 0;
