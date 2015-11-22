@@ -19,6 +19,11 @@ class OpenMPTPlayer : public ChipPlayer {
 public:
 	OpenMPTPlayer(vector<uint8_t> data) {
 
+	uint8_t *ptr = &data[0];
+	if(memcmp(ptr + 1080, "FLT", 3) == 0 ||
+	   memcmp(ptr + 1080, "EXO", 3) == 0)
+		throw player_exception("Can not play Startrekker module");
+
 	mod = openmpt_module_create_from_memory(&data[0], data.size(), nullptr, nullptr, nullptr);
 
 	if(!mod)

@@ -269,6 +269,11 @@ unsigned char *osRead(const TFileName filePath, unsigned long *data_len)
 long ay_sys_detect(AYSongInfo &info)
 {
     long player = -1;
+
+	// Avoid parsing the Picatune2 (PT2) XML format
+	if(info.file_data[0] == '<')
+		return -1;
+
     unsigned char *tmp_module = new unsigned char[info.file_len];
     if(!tmp_module)
         return -1;
