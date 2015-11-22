@@ -155,11 +155,47 @@ private:
 	bool musicStopped;
 };
 
-static const set<string> unsupported_ext {
-	"mtr", "a2m", "med", "mus"
-};
-bool UADEPlugin::canHandle(const std::string &name) {
-	return unsupported_ext.count(utils::path_extension(name)) == 0;
+static const set<string> supported_ext {
+	"smod", "lion", "okta", "sid", "ymst", "sps", "spm",
+	"ast", "ahx", "thx", "adpcm", "amc", "nt",
+	"abk", "aam", "alp", "aon", "aon4", "aon8","adsc", "mod_adsc4", "bss", "bd",
+	"BDS", "uds", "kris", "cin", "core", "cus", "cust", "custom", "cm", "rk", "rkb",
+	"dz", "mkiio", "dl", "dl_deli", "dln", "dh", "dw", "dwold", "dlm2", "dm2",
+	"dlm1", "dm1", "dsr", "db", "digi", "dsc", "dss", "dns", "ems", "emsv6", "ex",
+	"fc13", "fc3", "fc", "fc14", "fc4", "fred", "gray", "bfc", "bsi", "fc-bsi",
+	"fp", "fw", "glue", "gm", "ea", "mg", "hd", "hipc", "soc", "emod", "qc", "ims",
+	"dum", "is", "is20", "jam", "jc", "jmf", "jcb", "jcbo", "jpn", "jpnd", "jp",
+	"jt", "mon_old", "jo", "hip", "mcmd", "sog", "hip7", "s7g", "hst", "kh", "powt",
+	"pt", "lme", "mon", "mfp", "hn", "mtp2", "thn", "mc", "mcr", "mco", "mk2",
+	"mkii", "avp", "mw", "max", "mcmd_org", "med", "mmd0", "mmd1", "mmd2", "mso",
+	"midi", "md", "mmdc", "dmu", "mug", "dmu2", "mug2", "ma", "mm4", "mm8", "mms",
+	"ntp", "two", "octamed", "okt", "one", "dat", "ps", "snk", "pvp", "pap", "psa",
+	"mod_doc", "mod15", "mod15_mst", "mod_ntk", "mod_ntk1", "mod_ntk2",
+	"mod_ntkamp", "mod_flt4", "mod", "mod_comp", "!pm!", "40a", "40b", "41a", "50a",
+	"60a", "61a", "ac1", "ac1d", "aval", "chan", "cp", "cplx", "crb", "di", "eu",
+	"fc-m", "fcm", "ft", "fuz", "fuzz", "gmc", "gv", "hmc", "hrt", "hrt!", "ice",
+	"it1", "kef", "kef7", "krs", "ksm", "lax", "mexxmp", "mpro", "np", "np1", "np2",
+	"noisepacker2", "np3", "noisepacker3", "nr", "nru", "ntpk", "p10", "p21", "p30",
+	"p40a", "p40b", "p41a", "p4x", "p50a", "p5a", "p5x", "p60", "p60a", "p61",
+	"p61a", "p6x", "pha", "pin", "pm", "pm0", "pm01", "pm1", "pm10c", "pm18a",
+	"pm2", "pm20", "pm4", "pm40", "pmz", "polk", "pp10", "pp20", "pp21", "pp30",
+	"ppk", "pr1", "pr2", "prom", "pru", "pru1", "pru2", "prun", "prun1", "prun2",
+	"pwr", "pyg", "pygm", "pygmy", "skt", "skyt", "snt", "snt!", "st2", "st26",
+	"st30", "star", "stpk", "tp", "tp1", "tp2", "tp3", "un2", "unic", "unic2", "wn",
+	"xan", "xann", "zen", "puma", "rjp", "sng", "riff", "rh", "rho", "sa-p",
+	"scumm", "s-c", "scn", "scr", "sid1", "smn", "sid2", "mok", "sa", "sonic",
+	"sa_old", "smus", "snx", "tiny", "spl", "sc", "sct", "psf", "sfx", "sfx13",
+	"tw", "sm", "sm1", "sm2", "sm3", "smpro", "bp", "sndmon", "bp3", "sjs", "jd",
+	"doda", "sas", "ss", "sb", "jpo", "jpold", "sun", "syn", "sdr", "osp", "st",
+	"synmod", "tfmx1.5", "tfhd1.5", "tfmx7V", "tfhd7V", "mdat", "tfmxpro",
+	"tfhdpro", "tfmx", "mdst", "thm", "tf", "tme", "sg", "dp", "trc", "tro",
+	"tronic", "ufo", "mod15_ust", "vss", "wb", "ym", "ml", "mod15_st-iv", "agi",
+	"tpu", "qpa", "sqt", "qts"
+}; 
+
+
+bool UADEPlugin::canHandle(const std::string&name) {  
+	return supported_ext.count(utils::path_extension(name)) > 0;
 }
 
 ChipPlayer *UADEPlugin::fromFile(const std::string &fileName) {

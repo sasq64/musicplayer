@@ -17,6 +17,8 @@ public:
 
 
 		aysong = ay_initsong(fileName.c_str(), 44100);
+		if(!aysong)
+			throw player_exception("Not any ay file");
 		const char *songName = ay_getsongname(aysong);
 		const char *songAuthor = ay_getsongauthor(aysong);
 		int len =  ay_getsonglength(&aysong) / 50;
