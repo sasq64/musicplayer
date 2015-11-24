@@ -156,7 +156,7 @@ private:
 };
 
 static const set<string> supported_ext {
-	"smod", "lion", "okta", "sid", "ymst", "sps", "spm",
+	"smod", "lion", "okta", "sid", "ymst", "sps", "spm", "jb",
 	"ast", "ahx", "thx", "adpcm", "amc", "nt",
 	"abk", "aam", "alp", "aon", "aon4", "aon8","adsc", "mod_adsc4", "bss", "bd",
 	"BDS", "uds", "kris", "cin", "core", "cus", "cust", "custom", "cm", "rk", "rkb",
