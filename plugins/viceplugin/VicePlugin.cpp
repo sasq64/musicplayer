@@ -220,13 +220,13 @@ public:
 			}
 		}
 		setMeta(
-			"title", psid_get_name(),
-			"composer", psid_get_author(),
-			"copyright", psid_get_copyright(),
+			"title", utf8_encode(psid_get_name()),
+			"composer", utf8_encode(psid_get_author()),
+			"copyright", utf8_encode(psid_get_copyright()),
 			"format", "C64 Sid",
 			"songs", songs,
-			"message", msg,
-			"sub_title", sub_title,
+			"message", utf8_encode(msg),
+			"sub_title", utf8_encode(sub_title),
 			"length", currentLength,
 			"startSong", defaultSong
 		);
@@ -264,7 +264,7 @@ public:
 				}
 			}
 
-			setMeta("length", currentLength, "sub_title", sub_title, "message", msg);
+			setMeta("length", currentLength, "sub_title", utf8_encode(sub_title), "message", utf8_encode(msg));
 			return true;
 		}
 		return false;
@@ -283,9 +283,9 @@ public:
 						LOGD("Found new info");
 						currentInfo = i;
 						if(s.comment != "")
-							setMeta("sub_title", s.title, "message", s.comment);
+							setMeta("sub_title", utf8_encode(s.title), "message", utf8_encode(s.comment));
 						else
-							setMeta("sub_title", s.title);
+							setMeta("sub_title", utf8_encode(s.title));
 						break;
 					}
 				}

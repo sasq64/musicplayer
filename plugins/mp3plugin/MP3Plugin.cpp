@@ -31,10 +31,21 @@ public:
 		mp3 = mpg123_new(NULL, &err);
 		bytesPut = 0;
 		streamDone = false;
-		if(mpg123_open_feed(mp3) != MPG123_OK)
-			throw player_exception("Could open MP3");
 	}
 
+	bool setParameter(const std::string  &param, int32_t v) override {
+		if(param == "icy-interval") {
+			LOGD("ICY INTERVAL %d", v);
+			//mpg123_param(mp3, MPG123_ICY_INTERVAL, v, 0);
+			metaInterval = v;
+			return true;
+		}
+		if(param == "size") {
+			mpg123_set_filesize(mp3, v);
+			return true;
+		}
+		return false;
+	}
 	MP3Player(const std::string &fileName) {
 		int err = mpg123_init();
 		mp3 = mpg123_new(NULL, &err);
@@ -81,6 +92,13 @@ public:
 		int meta = mpg123_meta_check(mp3);
 		mpg123_id3v1 *v1;
 		mpg123_id3v2 *v2;
+		if(meta & MPG123_ICY) {
+			char *icydata;
+			if(mpg123_icy(mp3, &icydata) == MPG123_OK) {
+				LOGD("ICY:%s", icydata);
+			}
+
+		}
 		if((meta & MPG123_NEW_ID3) && mpg123_id3(mp3, &v1, &v2) == MPG123_OK) {
 
 			LOGV("New metadata");
@@ -121,6 +139,11 @@ public:
 
 	virtual void putStream(const uint8_t *source, int size) override {
 		lock_guard<mutex> {m};
+		if(!opened) {
+			if(mpg123_open_feed(mp3) != MPG123_OK)
+				throw player_exception("Could open MP3");
+			opened = true;
+		}
 		if(!source) {
 			if(size <= 0)
 				streamDone = true;
@@ -128,17 +151,65 @@ public:
 				mpg123_set_filesize(mp3, size);
 			return;
 		}
+		
+		do {
 
-		mpg123_feed(mp3, source, size);
+			if(metaInterval > 0 && metaCounter + size > metaInterval) {
+				// This batch includes start of meta block
+				int pos = metaInterval - metaCounter;
+				metaSize = source[pos] * 16;
+
+				LOGD("METASIZE %d at offset %d", metaSize, pos);
+
+				if(pos > 0)
+					mpg123_feed(mp3, source, pos);
+				source += (pos+1);
+				size -= (pos+1);
+				bytesPut += (pos+1);
+				metaCounter = 0;
+				icyPtr = icyData;
+			}
+		
+			if(metaSize > 0) {
+				int metaBytes = size > metaSize ? metaSize : size;
+				LOGD("Metabytes %d", metaBytes);
+
+				memcpy(icyPtr, source, metaBytes);
+				icyPtr += metaBytes;
+				*icyPtr = 0;
+
+				size -= metaBytes;
+				source += metaBytes;
+				metaSize -= metaBytes;
+
+				if(metaSize <= 0) {
+					LOGD("META: %s", icyData);
+					icyPtr = icyData;
+
+					auto parts = split(string(icyData), ";");
+					for(const auto &p : parts) {
+						auto data = split(p, "=", 2);
+						if(data.size() == 2) {
+							if(data[0] == "StreamTitle")
+								setMeta("sub_title", data[1].substr(1, data[1].length()-2));
+						}
+					}
+					
+				}
+
+			}
+		} while(metaInterval > 0 && metaCounter + size > metaInterval);
+
+		if(size > 0) {
+			mpg123_feed(mp3, source, size);
+			if(metaInterval > 0)
+				metaCounter += size;
+		}
+
 		bytesPut += size;
 		int bytesRead = mpg123_framepos(mp3);
 
 		int inBuffer = bytesPut - bytesRead;
-		//LOGD("IN BUFFER %d", inBuffer);
-
-		//if(inBuffer > 100000) {
-		//	utils::sleepms(750);
-		//}
 
 		checkMeta();
 	}
@@ -177,6 +248,12 @@ private:
 	int length;
 	int bytesPut;
 	bool streamDone;
+	bool opened = false;
+	int metaInterval = -1;
+	int metaSize = 0;
+	int metaCounter = 0;
+	char icyData[16*256+1];
+	char *icyPtr;
 };
 
 bool MP3Plugin::canHandle(const std::string &name) {

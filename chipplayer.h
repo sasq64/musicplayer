@@ -31,6 +31,9 @@ public:
 
 	virtual void putStream(const uint8_t *source, int size) {};
 
+	virtual bool setParameter(const std::string &name, int32_t value) { return false; }
+	virtual bool setParameter(const std::string &name, const std::string &value) { return false; }
+
 	virtual std::string getMeta(const std::string &what) {
 		return metaData[what];
 	};
