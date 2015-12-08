@@ -27,6 +27,10 @@ public:
 		int len = mdx_get_length(&song);
 		mdx_get_title(&song, title);
 
+		wstring jis = utils::jis2unicode((uint8_t*)title);
+		string title_utf8 = utils::utf8_encode(jis);
+		LOGD("TITLE: %s", title_utf8);
+
 		char *ptr = title;
 		while(*ptr) {
 			if(*ptr > 0x7f)
@@ -35,7 +39,7 @@ public:
 		}
 
 		 setMeta(
-		 	"title", title,
+		 	"sub_title", title_utf8,
 		 	"length", len,
 		 	"format", "MDX"
 		);

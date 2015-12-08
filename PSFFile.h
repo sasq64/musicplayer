@@ -47,7 +47,7 @@ public:
 				for(const auto &l : lines) {
 					auto parts = utils::split(l, "=");
 					if(parts.size() == 2)
-						_tags[parts[0]] = parts[1];
+						_tags[utils::toLower(parts[0])] = parts[1];
 				}
 
 				LOGD("%s", tagData);
