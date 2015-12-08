@@ -34,6 +34,11 @@ public:
 	}
 
 	bool setParameter(const std::string  &param, int32_t v) override {
+		if(!opened) {
+			if(mpg123_open_feed(mp3) != MPG123_OK)
+				throw player_exception("Could open MP3");
+			opened = true;
+		}
 		if(param == "icy-interval") {
 			LOGD("ICY INTERVAL %d", v);
 			//mpg123_param(mp3, MPG123_ICY_INTERVAL, v, 0);
@@ -81,7 +86,7 @@ public:
 		if(!gotLength) {
 			length = mpg123_length(mp3);
 			if(length > 0) {
-				LOGV("L %d T %f S %d", length, mpg123_tpf(mp3), mpg123_spf(mp3));
+				LOGD("L %d T %f S %d", length, mpg123_tpf(mp3), mpg123_spf(mp3));
 				length = length / mpg123_spf(mp3) * mpg123_tpf(mp3);
 				gotLength = true;
 				LOGD("MP3 LENGTH %ds", length);
