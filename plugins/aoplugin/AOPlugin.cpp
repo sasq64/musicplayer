@@ -124,31 +124,41 @@ public:
 		auto buffer = utils::File(fileName).readAll();
 
 		filesig = buffer[0]<<24 | buffer[1]<<16 | buffer[2]<<8 | buffer[3];
-
+		ao_display_info info;
+		int rc;
 		switch(filesig) {
 		case SIG_SSF:
 			if(ssf_start(&buffer[0], buffer.size()) != AO_SUCCESS)
 				throw player_exception();
+			rc = ssf_fill_info(&info);
 			break;
 		case SIG_SPU:
 			if(spu_start(&buffer[0], buffer.size()) != AO_SUCCESS)
 				throw player_exception();
+			rc = spu_fill_info(&info); 
 			break;
 		case SIG_QSF:
 			if(qsf_start(&buffer[0], buffer.size()) != AO_SUCCESS)
 				throw player_exception();
+			rc =qsf_fill_info(&info);
 			break;
 		}
 
+		if(rc == AO_SUCCESS) {
+			string title = info.info[1];
+			string composer = info.info[3];
+			LOGD("LEN: %s", info.info[6]);
+			int len = 0;
+			auto p = utils::split(string(info.info[6]), ":");
+			if(p.size() == 2)
+				len = stol(p[0]) * 60 + stol(p[1]);
+			setMeta(
+				"sub_title", title,
+				"composer", composer,
+				"length", len);
+		} else
+			LOGD("WTF");
 
-
-		// int len = 0;
-		// if(len > 1000) len = 0;
-		//  setMeta(
-		//  	"title", songName,
-		//  	"composer", songAuthor,
-		//  	"length",len
-		// );
 	}
 	~AOPlayer() override {
 		ssf_stop();
