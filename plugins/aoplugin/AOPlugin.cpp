@@ -126,21 +126,25 @@ public:
 		filesig = buffer[0]<<24 | buffer[1]<<16 | buffer[2]<<8 | buffer[3];
 		ao_display_info info;
 		int rc;
+		string format;
 		switch(filesig) {
 		case SIG_SSF:
 			if(ssf_start(&buffer[0], buffer.size()) != AO_SUCCESS)
 				throw player_exception();
 			rc = ssf_fill_info(&info);
+			format = "Sega Saturn";
 			break;
 		case SIG_SPU:
 			if(spu_start(&buffer[0], buffer.size()) != AO_SUCCESS)
 				throw player_exception();
 			rc = spu_fill_info(&info); 
+			format = "Sony Playstation";
 			break;
 		case SIG_QSF:
 			if(qsf_start(&buffer[0], buffer.size()) != AO_SUCCESS)
 				throw player_exception();
 			rc =qsf_fill_info(&info);
+			format = "Capcom QSound";
 			break;
 		}
 
@@ -155,6 +159,7 @@ public:
 			setMeta(
 				"sub_title", title,
 				"composer", composer,
+				"format", format,
 				"length", len);
 		} else
 			LOGD("WTF");

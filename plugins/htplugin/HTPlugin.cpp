@@ -32,7 +32,7 @@ public:
 			setMeta("composer", tags["artist"],
 				"sub_title", tags["title"],
 				"game", tags["game"],
-				"format", "Dreamcast",
+//				"format", "Dreamcast",
 				"length", seconds
 			);
 		}
