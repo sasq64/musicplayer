@@ -12,6 +12,13 @@ using namespace std;
 
 namespace chipmachine {
 
+struct BIG {};
+struct LITTLE {};
+
+template <typename T, typename ENDIAN = LITTLE> T readmem(void *data) {
+	return *static_cast<T*>(data);
+}
+
 class S98Player : public ChipPlayer {
 public:
 	S98Player(const string &fileName) : started(false), ended(false) {
@@ -21,13 +28,27 @@ public:
 		if(!song.OpenFromBuffer(&buffer[0], buffer.size()))
 			throw player_exception();
 
-		// int len = 0;
-		// if(len > 1000) len = 0;
-		//  setMeta(
-		//  	"title", songName,
-		//  	"composer", songAuthor,
-		//  	"length",len
-		// );
+		auto tagOffset = readmem<uint32_t>(&buffer[0x10]);
+
+		if(tagOffset) {
+			auto tagInfo = string((char*)&buffer[tagOffset + 5], buffer.size() - tagOffset - 5);
+			LOGD(tagInfo);
+			unordered_map<string, string> tags;
+			for(const auto &line : utils::split(tagInfo, "\n")) {
+				auto parts = utils::split(line, "=");
+				if(parts.size() == 2) {
+					wstring jis = utils::jis2unicode((uint8_t*)parts[1].c_str());
+					string u = utils::utf8_encode(jis);
+					tags[utils::toLower(parts[0])] = u;
+					LOGD("%s=%s", parts[0], u);
+				}
+			}
+			setMeta("sub_title", tags["title"],
+					"composer", tags["artist"],
+					"year", tags["year"],
+					"copyright", tags["copyright"]);
+		}
+
 	}
 	~S98Player() override {
 	}
