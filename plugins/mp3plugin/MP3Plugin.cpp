@@ -47,6 +47,7 @@ public:
 		}
 		if(param == "size") {
 			mpg123_set_filesize(mp3, v);
+			fileSize = v;
 			return true;
 		}
 		return false;
@@ -83,7 +84,7 @@ public:
 
 	void checkMeta() {
 
-		if(!gotLength) {
+		if(!gotLength && (bytesPut == -1 || fileSize > 0)) {
 			length = mpg123_length(mp3);
 			if(length > 0) {
 				LOGD("L %d T %f S %d", length, mpg123_tpf(mp3), mpg123_spf(mp3));
@@ -259,6 +260,7 @@ private:
 	int metaCounter = 0;
 	char icyData[16*256+1];
 	char *icyPtr;
+	int64_t fileSize = 0;
 };
 
 bool MP3Plugin::canHandle(const std::string &name) {
