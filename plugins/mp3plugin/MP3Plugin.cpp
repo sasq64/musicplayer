@@ -152,8 +152,8 @@ public:
 		if(!source) {
 			if(size <= 0)
 				streamDone = true;
-			else
-				mpg123_set_filesize(mp3, size);
+			//else
+			//	mpg123_set_filesize(mp3, size);
 			return;
 		}
 		
@@ -164,7 +164,7 @@ public:
 				int pos = metaInterval - metaCounter;
 				metaSize = source[pos] * 16;
 
-				LOGD("METASIZE %d at offset %d", metaSize, pos);
+				LOGV("METASIZE %d at offset %d", metaSize, pos);
 
 				if(pos > 0)
 					mpg123_feed(mp3, source, pos);
