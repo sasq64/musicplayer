@@ -112,7 +112,7 @@ const psf_file_callbacks psf_file_system =
 
 static int EMU_CALL virtual_readfile(void *context, const char *path, int offset, char *buffer, int length)
 {
-	fprintf(stderr, "V READFILE %s %d %d\n", path, offset, length);
+        //fprintf(stderr, "V READFILE %s %d %d\n", path, offset, length);
     return psf2fs_virtual_readfile(context, path, offset, buffer, length);
 } 
 
@@ -120,7 +120,7 @@ static void * psf_file_fopen( const char * uri )
 {
 	FILE *f;
 
-	fprintf(stderr, "PSF OPEN %s\n", uri);
+        //fprintf(stderr, "PSF OPEN %s\n", uri);
 	f = fopen(uri, "rb");
 
     // ANTI WINDOWS HACK - Try the lower case version of the filename if it can't be found
