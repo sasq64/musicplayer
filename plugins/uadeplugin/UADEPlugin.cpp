@@ -68,6 +68,7 @@ public:
 		uade_config_set_option(config, UC_NO_EP_END, NULL);
 		//uade_config_set_option(config, UC_VERBOSE, "true");
 		state = uade_new_state(config);
+        free(config);
 	
 		musicStopped = false;
 

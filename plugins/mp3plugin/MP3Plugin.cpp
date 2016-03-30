@@ -245,8 +245,8 @@ private:
 	mpg123_handle *mp3;
 	//size_t buf_size;
 	//unsigned char *buffer;
-	long rate;
-	int channels;
+    long rate = 0;
+    int channels = 0;
 	//thread httpThread;
 	mutex m;
 	bool gotLength = false;
