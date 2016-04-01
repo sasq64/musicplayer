@@ -37,7 +37,7 @@ class CbmTune
 public:
 	CbmTune(void);
 	~CbmTune(void);
-	int parse(char *fName);
+	int parse(const char *fName);
 	void getPsidHeader(PsidHeader &ph);
 	virtual char *getName() {
 		return (char *) bufferPtr + CBM8M_HDR_STRINGS;

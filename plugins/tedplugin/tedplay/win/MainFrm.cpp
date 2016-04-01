@@ -21,6 +21,7 @@
 #include "registry.h"
 
 #define APPNAME _T("WinTedPlay")
+#define UPDATE_FREQ_MS 10
 
 //Get EXE directory.
 void CMainFrame::MakePathName(LPTSTR lpFileName)
@@ -131,6 +132,12 @@ LRESULT CMainFrame::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lPar
 		playListViewDialog.ShowWindow(SW_NORMAL);
 		::CheckMenuItem(GetMenu(), IDM_VIEW_PLAYLIST, MF_CHECKED);
 	}
+	if (getRegistryValue(_T("ShowWavePlotter"), regVal) && !regVal) {
+		::CheckMenuItem(GetMenu(), ID_VIEW_SHOWWAVEPLOTTER, MF_UNCHECKED);
+		::ShowWindow(GetDlgItem(IDC_WAVEOUT), SW_HIDE);
+	}
+	else
+		::CheckMenuItem(GetMenu(), ID_VIEW_SHOWWAVEPLOTTER, MF_CHECKED);
 	regVal = vAutoSkipInterval = 0;
 	if (getRegistryValue(_T("AutoSkipInterval"), regVal) && regVal) {
 		vAutoSkipInterval = regVal;
@@ -163,6 +170,8 @@ LRESULT CMainFrame::OnDestroy(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*
 	// save settings
 	LONG regVal = playListViewDialog.IsWindowVisible();
 	setRegistryValue(_T("ShowPlayList"), regVal);
+	regVal = ::IsWindowVisible(GetDlgItem(IDC_WAVEOUT));
+	setRegistryValue(_T("ShowWavePlotter"), regVal);
 	regVal = GetMenuState(GetMenu(), ID_TOOLS_DISABLESID, MF_BYCOMMAND) == MF_CHECKED;
 	setRegistryValue(_T("DisableSID"), regVal);
 	//
@@ -268,10 +277,83 @@ LRESULT CMainFrame::OnTimer(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& b
 					_stprintf(txt, _T("%02u:%02u:%02u"), hour, minute, sec);
 					stTime.SetWindowText(txt);
 				}
+				if (::IsWindowVisible(GetDlgItem(IDC_WAVEOUT)))
+					updateWaveOutWindow(true);
 			}
 			break;
 	}
 	return 0L;
+}
+
+LRESULT CMainFrame::OnPaint(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+{
+	PAINTSTRUCT ps; 
+    HDC hdc;
+
+	hdc = BeginPaint(&ps);
+	//::FillRect(hdc, &rc, (HBRUSH) GetStockObject(BLACK_BRUSH));
+	updateWaveOutWindow(false);
+	EndPaint(&ps);
+	return 0L;
+}
+
+void CMainFrame::updateWaveOutWindow(bool updatePosition)
+{
+	RECT rc;
+	static unsigned int sampPos = 0;
+	static unsigned int wWidth = -1;
+	static unsigned int wHeight = -1;
+	static short *sampHist = NULL;
+	HWND uwHwnd = GetDlgItem(IDC_WAVEOUT);
+	HDC hdc = ::GetDC(uwHwnd);
+
+	// get window metrics
+	::GetClientRect(uwHwnd, &rc);
+	wWidth = rc.right - rc.left;
+	wHeight = rc.bottom - rc.top;
+	// fill with black
+	int r = ::FillRect(hdc, &rc, (HBRUSH) GetStockObject(DKGRAY_BRUSH));
+	// set up
+	if (wWidth == -1 || !sampHist) {
+		if (sampHist) {
+			delete [] sampHist;
+		}
+		sampHist = new short[wWidth + 1];
+		// pre-fill with silence
+		for(unsigned int i = 0; i <= wWidth; i++)
+			sampHist[i] = wHeight / 2;
+		sampPos = 0;
+	}
+	// update sample history, convert to coordinate
+	if (updatePosition && tedPlayGetState()) {
+		unsigned int i;
+		int sample = ((tedPlayGetLastSample() + 8192) * wHeight) / 16384;
+		sample = sample <= 0 ? 1 : (sample >= (int)wHeight ? wHeight - 2 : sample);
+
+		sampHist[sampPos] = (short) sample;
+		sampPos = (sampPos + 1) % wWidth;
+		// create pen
+		COLORREF qLineColor = RGB(0, 255, 0);
+		HPEN hLinePen = ::CreatePen(PS_SOLID, 1, qLineColor);
+		::SelectObject(hdc, GetStockObject(COLOR_WINDOW + 1));
+		// draw wave
+		unsigned int plotPos = sampPos;
+		::MoveToEx(hdc, 0, sampHist[plotPos], NULL);
+		for(i = 0; i < wWidth; i++) {
+			short s = sampHist[plotPos];
+			plotPos = (plotPos + 1) % wWidth;
+			::LineTo(hdc, i, s);
+		}
+		// last plot
+		//HPEN hPenOld = (HPEN) ::SelectObject(hdc, hLinePen);
+		LineTo(hdc, wWidth, sampHist[plotPos]);
+		//::SetPixel(hdc, wWidth, sampHist[plotPos], RGB(0, 255, 0));
+		//::SelectObject(hdc, hPenOld);
+		//
+		::DeleteObject(hLinePen);
+	}
+	// clean up
+	::ReleaseDC(uwHwnd, hdc);
 }
 
 LRESULT CMainFrame::OnResetAutoSkipTimerFromChildWnd(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
@@ -296,7 +378,9 @@ LRESULT CMainFrame::OnFileExit(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCt
 LRESULT CMainFrame::OnFileNew(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
 	static unsigned int selFilter = 0;
-	_TCHAR szFilter[] = _T("TED tunes (*.c8m;*.prg)\0"
+	_TCHAR szFilter[] = _T("All suported formats (*.c8m;*.prg;*.sid)\0"
+						   "*.c8m;*.prg;*.sid\0"
+						   "TED tunes (*.c8m;*.prg)\0"
 						   "*.c8m;*.prg\0"
 						   "SID tunes (*.sid)\0*.sid\0"
 						   "All Files (*.*)\0*.*\0\0");
@@ -443,7 +527,7 @@ void CMainFrame::UpdateSubsong()
 	if (t) {
 		_stprintf(txt, _T("%u of %u"), c, t);
 		stSubsong.SetWindowText(txt);
-		SetTimer(1, 100);
+		SetTimer(1, UPDATE_FREQ_MS);
 	} else {
 		stSubsong.SetWindowText(_T(""));
 		stTime.SetWindowText(_T(""));
@@ -646,5 +730,19 @@ LRESULT CMainFrame::OnTedchannel2Squarewave(WORD /*wNotifyCode*/, WORD wID, HWND
 	tedPlaySetWaveform(1, wID - ID_TEDCHANNEL2_SQUAREWAVE + 1);
 	if (wasPlaying) tedplayPlay();
 	CheckMenuItem(GetMenu(), wID, MF_CHECKED);
+	return 0;
+}
+
+LRESULT CMainFrame::OnViewShowwaveplotter(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+{
+	HWND wpHwnd = GetDlgItem(IDC_WAVEOUT);
+	BOOL wasVisible = ::IsWindowVisible(wpHwnd);
+	// TODO: Add your command handler code here
+	if (wasVisible) {
+		::ShowWindow(wpHwnd, SW_HIDE);
+	} else {
+		::ShowWindow(wpHwnd, SW_SHOWNA);
+	}
+	::CheckMenuItem(GetMenu(), ID_VIEW_SHOWWAVEPLOTTER, wasVisible ? MF_UNCHECKED : MF_CHECKED);
 	return 0;
 }

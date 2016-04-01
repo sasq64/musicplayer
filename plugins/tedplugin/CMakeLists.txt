@@ -1,13 +1,16 @@
 cmake_minimum_required(VERSION 2.8.4)
-project(cpp-mods.musicplayer.gmeplugin)
+project(cpp-mods.musicplayer.tedplugin)
+
+set(TEDPLAY_FILES tedplay/Audio.cpp tedplay/CbmTune.cpp tedplay/Filter.cpp tedplay/Tedmem.cpp
+	              tedplay/Cpu.cpp tedplay/Sid.cpp tedplay/Tedsound.cpp tedplay/tedplay.cpp
+)
 
 
-
-file(GLOB SOURCE_FILES gme/*.cpp)
-add_definitions(-DBLARGG_LITTLE_ENDIAN -DHAVE_ZLIB_H)
+set(SOURCE_FILES TedPlugin.cpp ${TEDPLAY_FILES})
+#add_definitions(-DBLARGG_LITTLE_ENDIAN -DHAVE_ZLIB_H)
 #find_library(Z_LIBRARY z)
-find_package(ZLIB REQUIRED)
-include_directories(${ZLIB_INCLUDE_DIRS})
-add_library(gmeplugin GMEPlugin.cpp ${SOURCE_FILES})
+#find_package(ZLIB REQUIRED)
+#include_directories(${ZLIB_INCLUDE_DIRS})
+add_library(tedplugin ${SOURCE_FILES})
 
-target_link_libraries(gmeplugin ${ZLIB_LIBRARIES})
+#target_link_libraries(tedplugin ${ZLIB_LIBRARIES})

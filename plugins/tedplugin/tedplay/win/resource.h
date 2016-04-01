@@ -64,6 +64,7 @@
 #define IDC_EDIT_AUTOSKIPTIME           1026
 #define IDC_SPIN_AUTOSKIPTIME           1027
 #define IDC_SYSLINK1                    1028
+#define IDC_WAVEOUT                     1029
 #define IDM_FILE_OPEN                   40000
 #define IDM_FILE_PROPERTIES             40001
 #define IDM_FILE_EXIT                   40002
@@ -98,14 +99,15 @@
 #define ID_TEDCHANNEL2_SAWTOOTHTRI      40034
 #define ID_TEDCHANNEL2_SQUSAWTRIAN      40035
 #define IDM_FILE_CREATEWAV              40036
+#define ID_VIEW_SHOWWAVEPLOTTER         40037
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        121
-#define _APS_NEXT_COMMAND_VALUE         40037
-#define _APS_NEXT_CONTROL_VALUE         1029
+#define _APS_NEXT_RESOURCE_VALUE        122
+#define _APS_NEXT_COMMAND_VALUE         40038
+#define _APS_NEXT_CONTROL_VALUE         1031
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

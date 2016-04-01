@@ -48,6 +48,7 @@ public:
 		MESSAGE_HANDLER(WM_DROPFILES, OnDropFiles)
 		MESSAGE_HANDLER(WM_MOVING, OnMoving)
 		MESSAGE_HANDLER(WM_TIMER, OnTimer)
+		MESSAGE_HANDLER(WM_PAINT, OnPaint)
 		// user messages
 		MESSAGE_HANDLER(WM_USER + 1, OnUpdateSongFromChildWnd)
 		MESSAGE_HANDLER(WM_USER + 2, OnResetAutoSkipTimerFromChildWnd)
@@ -83,6 +84,7 @@ public:
 		COMMAND_RANGE_HANDLER(ID_TEDCHANNEL2_SQUAREWAVE, ID_TEDCHANNEL2_SQUSAWTRIAN, 
 			OnTedchannel2Squarewave)
 			CHAIN_MSG_MAP(CUpdateUI<CMainFrame>)
+		COMMAND_ID_HANDLER(ID_VIEW_SHOWWAVEPLOTTER, OnViewShowwaveplotter)
 	END_MSG_MAP()
 
 	LRESULT OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
@@ -90,6 +92,7 @@ public:
 	LRESULT OnDropFiles(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnMoving(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnTimer(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
+	LRESULT OnPaint(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	//LRESULT OnGetMinMaxInfo(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnTrackBar(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnUpdateSongFromChildWnd(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
@@ -137,4 +140,6 @@ public:
 	LRESULT OnToolsDisablesid(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnTedchannel1waveformSquarewave(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnTedchannel2Squarewave(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	void updateWaveOutWindow(bool updatePosition);
+	LRESULT OnViewShowwaveplotter(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 };

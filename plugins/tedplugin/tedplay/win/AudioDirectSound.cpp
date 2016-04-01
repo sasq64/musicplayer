@@ -7,7 +7,7 @@
 #define TIME_KILL_SYNCHRONOUS 0x0100
 #endif
 
-static void CALLBACK TimerProcess(UINT uTimerID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2)
+static void CALLBACK TimerProcess(UINT uTimerID, UINT uMsg, DWORD_PTR dwUser, DWORD dw1, DWORD dw2)
 {
 	AudioDirectSound *pDDS = (AudioDirectSound *)dwUser;
 	pDDS->TimerCallback();	
@@ -203,7 +203,7 @@ void AudioDirectSound::play()
 	// Start playing
 	m_lpDSB->Play(0, 0, DSBPLAY_LOOPING);
 	m_timerID = timeSetEvent(5, 5, (LPTIMECALLBACK) TimerProcess, 
-		(DWORD)this, TIME_PERIODIC | TIME_CALLBACK_FUNCTION | TIME_KILL_SYNCHRONOUS);
+		(DWORD_PTR)this, TIME_PERIODIC | TIME_CALLBACK_FUNCTION | TIME_KILL_SYNCHRONOUS);
 }
 //</Play>
 

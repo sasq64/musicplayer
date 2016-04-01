@@ -1,4 +1,4 @@
-#include "GMEPlugin.h"
+#include "TEDPlugin.h"
 namespace chipmachine {
-static ChipPlugin::RegisterMe registerMe([](const std::string &configDir) -> std::shared_ptr<GMEPlugin> { return std::make_shared<GMEPlugin>(); });
+static ChipPlugin::RegisterMe registerMe([](const std::string &configDir) -> std::shared_ptr<TEDPlugin> { return std::make_shared<TEDPlugin>(); });
 }

@@ -1,10 +1,7 @@
-#include <SDL.h>
 #include <iostream>
+#ifndef _WIN32
+#include <SDL2/SDL.h>
 #include "AudioSDL.h"
-#include "Tedmem.h"
-
-#ifndef WIN32
-#pragma comment(lib, "SDL.lib")
 
 bool AudioSDL::hasSDL()
 {
@@ -12,30 +9,38 @@ bool AudioSDL::hasSDL()
 }
 
 #else
+#include <SDL/SDL.h>
+#include <windows.h>
+#include "AudioSDL.h"
 
+#define SDL_DLL "SDL2.dll"
 #define LOADFUNC(NAME) NAME = GetProcAddress(SDL_DLL, "NAME");
 #define EXTERN __declspec(dllimport)
 
-typedef int EXTERN (*_SDL_OpenAudio)(HWND hWnd, DWORD dwFlags);
-typedef _SDL_PauseAudio EXTERN (*_GXGetDisplayProperties)();
-typedef int EXTERN *(*_SDL_LockAudio)();
-typedef void EXTERN (*_SDL_UnlockAudio)();
-typedef void EXTERN (*_SDL_CloseAudio)();
+//typedef int (*_SDL_OpenAudio)(HWND hWnd, DWORD dwFlags);
+//typedef void (*_SDL_PauseAudio)(int pause_on);
+//typedef int EXTERN *(*_SDL_LockAudio)();
+//typedef void EXTERN (*_SDL_UnlockAudio)();
+//typedef void EXTERN (*_SDL_CloseAudio)();
+//typedef void EXTERN (*SDL_Delay)(Uint32 ms);
+//typedef const char EXTERN *(*SDL_GetCurrentAudioDriver)(void);
+//
+//static _SDL_OpenAudio	SDL_OpenAudio;
+//static _SDL_PauseAudio	SDL_PauseAudio;
+//static _SDL_LockAudio	SDL_LockAudio;
+//static _SDL_UnlockAudio SDL_UnlockAudio;
+//static _SDL_Delay		SDL_Delay;
+//static _SDL_CloseAudio	SDL_CloseAudio;
 
-static _SDL_OpenAudio	SDL_OpenAudio;
-static _SDL_PauseAudio	SDL_PauseAudio;
-static _SDL_LockAudio	SDL_LockAudio;
-static _SDL_UnlockAudio SDL_UnlockAudio;
-static _SDL_Delay		SDL_Delay;
-static _SDL_CloseAudio	SDL_CloseAudio;
 
 bool AudioSDL::hasSDL()
 {
-	HINSTANCE sdlDll = LoadLibrary("SDL.DLL");
+	HINSTANCE sdlDll = LoadLibrary(SDL_DLL);
 	return sdlDll != 0;
 }
 
 #endif
+#include "Tedmem.h"
 
 void AudioSDL::setCallback(callbackFunc callback_)
 {
@@ -70,7 +75,7 @@ void AudioSDL::setSampleRate(unsigned int newSampleRate)
 	Audio::setSampleRate(newSampleRate);
 }
 
-AudioSDL::AudioSDL(void *userData, unsigned int sampleFrq_ = 48000, 
+AudioSDL::AudioSDL(void *userData, unsigned int sampleFrq_ = 48000,
 				   unsigned int bufDurInMsec = 40) : Audio(sampleFrq_), audiohwspec(0)
 {
 	if (SDL_Init(SDL_INIT_AUDIO) < 0) { //  SDL_INIT_AUDIO|
@@ -113,10 +118,8 @@ AudioSDL::AudioSDL(void *userData, unsigned int sampleFrq_ = 48000,
 		fprintf(stderr,"SDL_OpenAudio failed!\n");
 		return;
 	} else {
-		char drvnamebuf[16];
 		fprintf(stderr,"SDL_OpenAudio success!\n");
-		SDL_AudioDriverName( drvnamebuf, 16);
-		fprintf(stderr, "Using audio driver : %s\n", drvnamebuf);		
+		fprintf(stderr, "Using audio driver : %s\n", SDL_GetCurrentAudioDriver());
 		if ( obtained == NULL ) {
 			fprintf(stderr, "Great! We have our desired audio format!\n");
 			audiohwspec = desired;

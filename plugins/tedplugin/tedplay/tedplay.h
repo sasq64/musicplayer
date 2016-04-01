@@ -8,7 +8,7 @@ class Audio;
 
 extern TED *machineInit(unsigned int sampleRate, unsigned int filterOrder);
 extern void tedPlayGetInfo(void *file, PsidHeader &hdr);
-extern int tedplayMain(char *fileName, Audio *player);
+extern int tedplayMain(const char *fileName, Audio *player);
 extern void tedPlaySetVolume(unsigned int masterVolume);
 extern void tedPlaySetSpeed(unsigned int speedPct);
 extern void tedplayPause();
@@ -27,6 +27,7 @@ extern bool tedPlayCreateWav(const char *fileName);
 extern void tedPlayCloseWav();
 extern unsigned int tedplayGetSecondsPlayed();
 extern void tedPlayResetCycleCounter();
+extern short tedPlayGetLastSample();
 //
 extern void machineReset();
 extern void machineDoSomeFrames(unsigned int count);

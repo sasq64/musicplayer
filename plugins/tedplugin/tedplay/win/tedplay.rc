@@ -8,19 +8,16 @@
 // Generated from the TEXTINCLUDE 2 resource.
 //
 #include <windows.h>
-#include <atlres.h>
-
+#include <atlres.h>
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// English (U.S.) resources
+// English (United States) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
-#ifdef _WIN32
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
-#endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -48,13 +45,14 @@ BEGIN
     CONTROL         "",IDC_SLIDER_VOLUME,"msctls_trackbar32",TBS_AUTOTICKS | TBS_BOTH | WS_TABSTOP,181,18,78,24
     LTEXT           "Speed:",IDC_STATIC,181,45,78,12
     CONTROL         "",IDC_SLIDER_SPEED,"msctls_trackbar32",TBS_BOTH | WS_TABSTOP,181,57,78,24
-    PUSHBUTTON      "Prev",IDC_BUTTON_PREV,6,99,50,14
-    PUSHBUTTON      "Next",IDC_BUTTON_NEXT,59,99,50,14
-    PUSHBUTTON      "Play",IDC_BUTTON_PLAY,113,99,50,14
-    PUSHBUTTON      "Pause",IDC_BUTTON_PAUSE,167,99,50,14
-    PUSHBUTTON      "Stop",IDC_BUTTON_STOP,222,99,50,14
+    PUSHBUTTON      "Prev",IDC_BUTTON_PREV,6,101,50,14
+    PUSHBUTTON      "Next",IDC_BUTTON_NEXT,59,101,50,14
+    PUSHBUTTON      "Play",IDC_BUTTON_PLAY,113,101,50,14
+    PUSHBUTTON      "Pause",IDC_BUTTON_PAUSE,167,101,50,14
+    PUSHBUTTON      "Stop",IDC_BUTTON_STOP,222,101,50,14
     LTEXT           "Time:",IDC_STATIC,7,84,38,8
     EDITTEXT        IDC_EDIT_TIME,47,84,40,13,ES_AUTOHSCROLL | ES_READONLY | NOT WS_BORDER
+    CONTROL         "",IDC_WAVEOUT,"Static",SS_OWNERDRAW,95,79,80,18
 END
 
 
@@ -64,7 +62,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO 
+GUIDELINES DESIGNINFO
 BEGIN
     IDD_FORMVIEW, DIALOG
     BEGIN
@@ -76,7 +74,18 @@ BEGIN
 END
 #endif    // APSTUDIO_INVOKED
 
-#endif    // English (U.S.) resources
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_FORMVIEW AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -84,10 +93,8 @@ END
 // Dutch (Netherlands) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_NLD)
-#ifdef _WIN32
 LANGUAGE LANG_DUTCH, SUBLANG_DUTCH
 #pragma code_page(1252)
-#endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -120,7 +127,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO 
+GUIDELINES DESIGNINFO
 BEGIN
     IDD_TOOLS_OPTIONS_AUDIO, DIALOG
     BEGIN
@@ -140,10 +147,8 @@ END
 // English (Ireland) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENI)
-#ifdef _WIN32
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_EIRE
 #pragma code_page(1252)
-#endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -157,7 +162,7 @@ BEGIN
     DEFPUSHBUTTON   "OK",IDOK,86,176,50,14
     ICON            IDI_APPICON,IDC_STATIC,7,34,20,20
     LTEXT           "Commodore 264 TED C8M/PSID/RSID/PRG format player",IDC_STATIC,34,8,180,13,SS_CENTERIMAGE
-    LTEXT           "Copyright 2012-2014 Attila Grósz",IDC_STATIC,69,26,117,13
+    LTEXT           "Copyright 2012-2015 Attila Grósz",IDC_STATIC,69,26,117,13
     LTEXT           "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License, or (at your option) any later version.",IDC_STATIC,40,46,176,42
     LTEXT           "This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.",IDC_STATIC,40,90,176,43
     LTEXT           "You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/",IDC_STATIC,40,137,176,30
@@ -196,7 +201,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO 
+GUIDELINES DESIGNINFO
 BEGIN
     IDD_ABOUTBOX, DIALOG
     BEGIN
@@ -227,13 +232,13 @@ END
 // Menu
 //
 
-IDR_MENU MENU 
+IDR_MENU MENU
 BEGIN
     POPUP "&File"
     BEGIN
         MENUITEM "&Open...\tCtrl+O",            IDM_FILE_OPEN
         MENUITEM SEPARATOR
-        MENUITEM "&Save to WAV\tCtrl+S",        IDM_FILE_CREATEWAV
+        MENUITEM "&Save to WAV...\tCtrl+S",     IDM_FILE_CREATEWAV
         MENUITEM "&Memory dump",                ID_FILE_MEMORYDUMP
         MENUITEM SEPARATOR
         POPUP "&Control"
@@ -253,6 +258,7 @@ BEGIN
     POPUP "&View"
     BEGIN
         MENUITEM "Show &playlist",              IDM_VIEW_PLAYLIST, GRAYED
+        MENUITEM "Show &waveplotter",           ID_VIEW_SHOWWAVEPLOTTER
     END
     POPUP "&Tools"
     BEGIN
@@ -288,7 +294,7 @@ BEGIN
     END
 END
 
-IDR_POPUPMENU_PLIST MENU 
+IDR_POPUPMENU_PLIST MENU
 BEGIN
     POPUP "Root"
     BEGIN
@@ -351,14 +357,14 @@ IDI_PROPPAGEAUDIO       ICON                    "audio.ico"
 // Accelerator
 //
 
-IDR_ACCELERATORS ACCELERATORS 
+IDR_ACCELERATORS ACCELERATORS
 BEGIN
     "O",            IDM_FILE_OPEN,          VIRTKEY, CONTROL, NOINVERT
     "A",            ID_PLAYLIST_SELECTALL,  VIRTKEY, CONTROL, NOINVERT
     "S",            IDM_FILE_CREATEWAV,     VIRTKEY, CONTROL, NOINVERT
 END
 
-IDR_ACCELERATORS_PLAYLIST ACCELERATORS 
+IDR_ACCELERATORS_PLAYLIST ACCELERATORS
 BEGIN
     "A",            ID_PLAYLIST_SELECTALL,  VIRTKEY, CONTROL, NOINVERT
 END

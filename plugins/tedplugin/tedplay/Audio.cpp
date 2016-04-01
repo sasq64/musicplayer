@@ -9,6 +9,7 @@ bool Audio::paused;
 bool Audio::recording;
 FILE *Audio::wavFileHandle;
 size_t Audio::wavDataLength;
+short Audio::lastSample;
 
 void Audio::audioCallback(void *userData, unsigned char *stream, int len)
 {
@@ -24,8 +25,8 @@ void Audio::audioCallback(void *userData, unsigned char *stream, int len)
 		do {
 			// since we double buffer, fill only the half if the one we're playing is depleted
 			if ((ringBufferIndex + 1) % (ringBufferSize / 2) == 0) {
-				unsigned int half = ringBufferIndex + 1 >= ringBufferSize ? 0 : ringBufferSize / 2;
-				ted->ted_process(ringBuffer + half, ringBufferSize / 2);
+				size_t half = ringBufferIndex + 1 >= ringBufferSize ? 0 : ringBufferSize / 2;
+				ted->ted_process(ringBuffer + half, (unsigned int) ringBufferSize / 2);
 			}
 			//
 			unsigned int newCount = remainder + sampleRate;
@@ -36,6 +37,7 @@ void Audio::audioCallback(void *userData, unsigned char *stream, int len)
 				// interpolate sample
 				short sample = short(weightPrev * double(ringBuffer[ringBufferIndex]) + 
 						weightCurr * double(ringBuffer[(ringBufferIndex + 1) % ringBufferSize]) );
+			
 				*playerBuffer++ = sample;
 				sampleCnt--;
 			} else {
@@ -47,6 +49,7 @@ void Audio::audioCallback(void *userData, unsigned char *stream, int len)
 		if (recording && !paused) {
 			dumpWavData(wavFileHandle, stream, len);
 		}
+		lastSample = *(((short*)stream) + len / 2 - 1);
 	}
 }
 

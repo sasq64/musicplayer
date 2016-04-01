@@ -52,6 +52,7 @@ public:
 	virtual bool createWav(const char *fileName);
 	virtual void closeWav();
 	static bool dumpWavData(FILE *fp, unsigned char *buffer, unsigned int length);
+	static short getLastSample() { return lastSample; };
 
 protected:
 	unsigned int bufferLength;
@@ -64,6 +65,7 @@ protected:
 	static bool recording;
 	static FILE *wavFileHandle;
 	static size_t wavDataLength;
+	static short lastSample;
 private:
 	unsigned int sampleFrq;
 };

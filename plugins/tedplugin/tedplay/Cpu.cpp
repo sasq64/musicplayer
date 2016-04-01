@@ -118,6 +118,7 @@ void CPU::process()
 				return;
 			}
 		}
+		
 		currins=mem->Read(PC);				// fetch opcode
 		nextins=mem->Read(PC+1);			// prefetch next opcode/operand
 		cycle = 1;							// increment the CPU cycle counter

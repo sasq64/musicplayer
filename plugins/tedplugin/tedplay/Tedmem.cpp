@@ -100,7 +100,7 @@ TED::TED() : filter(0), sidCard(0)
 	chrbuf = DMAbuf;
 	clrbuf = DMAbuf + 64;
 	tmpClrbuf = DMAbuf + 128;
-	memset( clrbuf, sizeof(DMAbuf), 0);
+	memset(DMAbuf, 0, sizeof(DMAbuf));
 
 	// create an instance of the keyboard class
 //	keys = new KEYS;
@@ -141,8 +141,10 @@ void TED::texttoscreen(int x,int y, const char *scrtxt)
 {
 	register int i =0;
 
-	while (scrtxt[i]!=0)
-		chrtoscreen(x+i*8,y,scrtxt[i++]);
+	while (scrtxt[i]!=0) {
+		chrtoscreen(x+i*8,y,scrtxt[i]);
+		i++;
+	}
 }
 
 void TED::chrtoscreen(int x,int y, char scrchr)
@@ -227,7 +229,7 @@ void TED::loadhiromfromfile(int nr, char fname[512])
 
 void TED::injectCodeToRAM(unsigned int address, unsigned char *from, size_t len)
 {
-	unsigned int bytes = (address + len > 0xffff) ? 0xffff - address : len;
+	size_t bytes = (address + len > 0xffff) ? 0xffff - address : len;
 	memcpy(actram + (address & 0xffff), from, bytes);
 }
 

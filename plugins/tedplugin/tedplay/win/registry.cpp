@@ -9,13 +9,13 @@ bool getRegistryValue(_TCHAR *keyName, unsigned int &value)
 	// Read settings
 	HKEY appKey;
 	DWORD keyLength = 4;
-	LONG regVal = 0;
+	LONG regVal = -1;
 	LONG s = ::RegCreateKeyEx(HKEY_CURRENT_USER, REGKEYPATH, 0, 0, 
 		REG_OPTION_NON_VOLATILE, KEY_STANDARD_ACCESS, 0, &appKey, 0);
 	if (s == ERROR_SUCCESS) {
 		s = ::RegQueryValueEx(appKey, keyName, 0, 
 			NULL, (LPBYTE) &regVal, (LPDWORD) &keyLength);
-		if (s == ERROR_SUCCESS && regVal) {
+		if (s == ERROR_SUCCESS && regVal != -1) {
 			value = regVal;
 		}
 		::RegCloseKey(appKey);

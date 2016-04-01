@@ -19,7 +19,7 @@ CbmTune::~CbmTune(void)
 	}
 }
 
-int CbmTune::parse(char *fName)
+int CbmTune::parse(const char *fName)
 {
 	unsigned int i;
 	file = (FILE *) 0;

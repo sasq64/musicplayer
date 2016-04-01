@@ -1,4 +1,8 @@
-#include <SDL.h>
+#ifdef _WIN32
+#include <SDL/SDL.h>
+#else
+#include <SDL2/SDL.h>
+#endif
 #include <iostream>
 #include "AudioSDL.h"
 #include "psid.h"
@@ -28,6 +32,7 @@ static void loop()
 			case '?':
 				cerr << "1\t toggle channel 1" << endl;
 				cerr << "2\t toggle channel 2" << endl;
+				cerr << "3\t toggle channel 3" << endl;
 				cerr << "b\t skip back one track" << endl;
 				cerr << "f\t skip forward one track" << endl;
 				cerr << "h or ?\t this help" << endl;
@@ -38,8 +43,9 @@ static void loop()
 
 			case '1':
 			case '2':
+			case '3':
 				tedPlayChannelEnable(c - '1', !tedPlayIsChannelEnabled(c - '1'));
-				cerr << "Channel " << int(c - '1') << (tedPlayIsChannelEnabled(c - '1') ? " enabled." : " muted.") << endl;
+				cerr << "Channel " << int(c - '0') << (tedPlayIsChannelEnabled(c - '0') ? " enabled." : " muted.") << endl;
 				break;
 			case 'b':
 				psidChangeTrack(-1);
@@ -51,6 +57,8 @@ static void loop()
 				break;
 			case 'i':
 				printPsidInfo(getPsidHeader());
+				if (!player->isPaused())
+					cerr << "Playing track #" << int(getPsidHeader().current) << endl;
 				break;
 			case 'p':
 				if (!player->isPaused()) {
@@ -75,7 +83,7 @@ static void loop()
 static void printUsage()
 {
     cout << "tedplay - a (mostly) Commodore 264 family media player" << endl;
-    cout << "Copyright 2012 Attila Grosz" << endl;
+    cout << "Copyright 2012,2015 Attila Grosz" << endl;
     cout << "Usage:" << endl;
     cout << "tedplay filename" << endl;
 }

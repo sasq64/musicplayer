@@ -68,7 +68,7 @@ void TED::writeSoundReg(unsigned int reg, unsigned char value)
 #if defined(_DEBUG) && 1
 	static FILE *f = std::fopen("freqlog.txt", "a");
 	if (f)
-		std::fprintf(f, "%04X <- %02X in cycle %u", 0xff0e + reg, value, CycleCounter);
+		std::fprintf(f, "%04X <- %02X in cycle %llu", 0xff0e + reg, value, CycleCounter);
 	fprintf(f, "\n");
 #endif
 
@@ -202,7 +202,7 @@ inline unsigned int TED::getWaveSample(unsigned int channel, unsigned int wave)
 		case 4: // triangle
 			return waveTriangle(channel);
 
-		// combined waveforms á la SID
+		// combined waveforms ? la SID
 		case 3: // square + sawtooth
 			sm = waveSawTooth(channel) + waveSquare(channel);
 			return sm /= 2;
@@ -247,8 +247,8 @@ void TED::renderSound(unsigned int nrsamples, short *buffer)
 				oscCount[1] = OscReload[1] + (oscCount[1] - OSCRELOADVAL);
 			}
 			result = (Snd1Status && FlipFlop[0]) ? (getWaveSample(0, waveForm[0]) & channelMask[0]) : 0;
-			if (Snd2Status && FlipFlop[1]) {
-				result += getWaveSample(1, waveForm[1]) & channelMask[1];
+			if (Snd2Status && FlipFlop[1] & channelMask[1]) {
+				result += getWaveSample(1, waveForm[1]);
 			} else if (SndNoiseStatus && noise[NoiseCounter] & channelMask[2]) {
 				result += Volume;
 			}
