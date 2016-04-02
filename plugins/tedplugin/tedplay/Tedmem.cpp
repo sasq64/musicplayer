@@ -319,7 +319,8 @@ unsigned char TED::Read(unsigned int addr)
 							  else
 								  return keys->feedkey(Ram[0xFD30]);
 #else
-							return 0xFF;
+							return getKey(Ram[0xFD30]);
+							//return 0xFF;
 #endif
 						case 0xFF09 : return Ram[0xFF09]|(0x25);
 						case 0xFF0A : return Ram[0xFF0A]|(0xA0);
@@ -1065,6 +1066,8 @@ inline void TED::DoDMA( unsigned char *Buf, unsigned int Offset )
 // main loop of the whole emulation as the TED feeds the CPU with clock cycles
 void TED::ted_process(short *buffer, unsigned int count)
 {
+	static int vCount = 0;
+
     do {
         switch(++beamx) {
 
@@ -1229,6 +1232,10 @@ void TED::ted_process(short *buffer, unsigned int count)
 
 					case 271:
 						VBlanking = false;
+						if(vCount++ == 10) {
+							vCount = 0;
+							miscUpdate();
+						}
 						break;
 
 					case 512:

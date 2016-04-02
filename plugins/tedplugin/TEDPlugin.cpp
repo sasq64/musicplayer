@@ -72,10 +72,14 @@ public:
 	TEDPlayer(const string &fileName)  {
 
 		LOGD("Trying to play TED music");
-		
+		haveSound = false;
+		counter = 0;
 		audio = new PluginAudio();
 		audio->ted = machineInit(44100, 24);
 		tedplayMain(fileName.c_str(), audio);
+		
+		//audio->sleep(300);
+		//audio->ted->putKey(1);
 		
 		setMeta("songs", 10);
 			// "game", track0->game,
@@ -93,16 +97,31 @@ public:
 
 	int getSamples(int16_t *target, int noSamples) override {
 		audio->getSamples(target, noSamples);
+		if(!haveSound) {
+			int s = 0;
+			for(int i=0; !s && i<noSamples; i+=8)
+				s += target[i];
+			if(s == 0) {			
+				counter++;
+				if(counter%3 == 0) {
+					audio->ted->putKey(counter/3-1);
+				}
+			} else haveSound = true;
+		}
 		return noSamples;
 	}
 
 	virtual bool seekTo(int song, int seconds) override {
+		LOGD("Seek %d", song);
+		audio->ted->putKey(song+1);
 		return true;
 	}
 
 private:
 	PluginAudio *audio;
 	TED *ted;
+	bool haveSound;
+	int counter;
 };
 
 bool TEDPlugin::canHandle(const std::string &name) {

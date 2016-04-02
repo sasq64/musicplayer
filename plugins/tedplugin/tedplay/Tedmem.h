@@ -7,7 +7,7 @@
 	and/or modify it under certain conditions. For more information,
 	read 'Copying'.
 
-	(c) 2000, 2001, 2004, 2007 Attila Grósz
+	(c) 2000, 2001, 2004, 2007 Attila Grï¿½sz
 */
 #ifndef _TEDMEM_H
 #define _TEDMEM_H
@@ -21,6 +21,9 @@
 #include "types.h"
 #include "mem.h"
 //#include "serial.h"
+
+#include <stdio.h>
+#include <string.h>
 
 class CPU;
 class KEYS;
@@ -119,8 +122,112 @@ class TED : public MemoryHandler {
 	SIDsound *getSidCard() { return sidCard; };
 	void enableSidCard(bool enable, unsigned int disableMask);
 	static unsigned int masterVolume;
+	
+	// matrix[row*8+col];
+	int matrix[8*8] = {0};
+	
+	
+	int getKey(int x) {
+		//printf("Get key %x\n", x);
+		if(currentKey >= 0) {
+			unsigned char res = 0;
+			for(int i=0; i<8; i++) {
+				if((x & (1<<i)) == 0) {
+					// Check this column
+					for(int j=0; j<8; j++) {
+						if(matrix[j+8*i])
+							res |= (1<<j);
+					}
+				}
+			}
+			return ~res;
+		}
+		
+		return 0xff;
+	}
+	
+	void putKey(int x) {
+		if(keyPos < 16)
+			keyBuffer[keyPos++] = x;	
+	}
+	
+	void miscUpdate() {
+		
+		memset(matrix, 0, 8*8*4);
+		currentKey = -1;
+		
+		if(keyPos > 0) {
+			currentKey = keyBuffer[0];
+			
+			//printf("Pushing key %02x\n", currentKey);
+			
+			switch(currentKey) {
+			case '1':
+				matrix[0+8*7] = 1; // 1
+				break;
+			case '2':
+				matrix[3+8*7] = 1; // 2
+				break;
+			case '3':
+				matrix[0+8*1] = 1;
+				break;
+			case '4':
+				matrix[3+8*2] = 1;
+				break;
+			case '5':
+				matrix[0+8*2] = 1;
+				break;
+			case '6':
+				matrix[3+8*3] = 1;
+				break;
+			case '7':
+				matrix[0+8*3] = 1;
+				break;
+			case 0:
+				matrix[4+8*7] = 1; // SPACE
+				break;
+			case 1:
+				matrix[0+8*7] = 1; // 1
+				matrix[4+8*0] = 1; // F1
+				break;
+			case 2:
+				matrix[3+8*7] = 1;
+				matrix[5+8*0] = 1;
+				break;
+			case 3:
+				matrix[0+8*1] = 1;
+				matrix[6+8*0] = 1;
+				break;
+			case 4:
+				matrix[3+8*2] = 1;
+				break;
+			case 5:
+				matrix[0+8*2] = 1;
+				break;
+			case 6:
+				matrix[3+8*3] = 1;
+				break;
+			case 7:
+				matrix[0+8*3] = 1;
+				break;
+			}
+			
+			        
+			//printf("Found key %d", k);
+			memcpy(keyBuffer, keyBuffer + sizeof(int), keyPos * sizeof(int));
+			keyPos--;
+		}
+		
+		
+	}
 
   private:
+	
+	int keyBuffer[16];
+	int keyPos = 0;
+	int currentKey = 0;
+	
+	
 	static TED *instance_;
     Filter *filter;
 	// memory variables
