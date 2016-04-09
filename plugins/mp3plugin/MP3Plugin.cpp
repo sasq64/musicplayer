@@ -29,6 +29,7 @@ public:
 	MP3Player() {
 		int err = mpg123_init();
 		mp3 = mpg123_new(NULL, &err);
+		mpg123_param(mp3, MPG123_ADD_FLAGS, MPG123_QUIET, 0);
 		bytesPut = 0;
 		streamDone = false;
 	}
@@ -55,6 +56,7 @@ public:
 	MP3Player(const std::string &fileName) {
 		int err = mpg123_init();
 		mp3 = mpg123_new(NULL, &err);
+		mpg123_param(mp3, MPG123_ADD_FLAGS, MPG123_QUIET, 0);
 
 		if(mpg123_open(mp3, fileName.c_str()) != MPG123_OK)
 			throw player_exception("Could open MP3");
