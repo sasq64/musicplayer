@@ -42,8 +42,9 @@ public:
 
 	int getMetaInt(const std::string &what) {
 		const std::string &data = getMeta(what);
-		int i = atoi(data.c_str());
-		return i;
+		if(data == "")
+			return -1;
+		return atoi(data.c_str());
 	};
 
 	void setMeta() {
