@@ -6,7 +6,7 @@ set(TEDPLAY_FILES tedplay/Audio.cpp tedplay/CbmTune.cpp tedplay/Filter.cpp tedpl
 )
 
 
-set(SOURCE_FILES TedPlugin.cpp ${TEDPLAY_FILES})
+set(SOURCE_FILES TEDPlugin.cpp ${TEDPLAY_FILES})
 #add_definitions(-DBLARGG_LITTLE_ENDIAN -DHAVE_ZLIB_H)
 #find_library(Z_LIBRARY z)
 #find_package(ZLIB REQUIRED)
