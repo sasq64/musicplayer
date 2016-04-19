@@ -198,8 +198,10 @@ public:
 					for(const auto &p : parts) {
 						auto data = split(p, "=", 2);
 						if(data.size() == 2) {
-							if(data[0] == "StreamTitle")
-								setMeta("sub_title", data[1].substr(1, data[1].length()-2));
+							if(data[0] == "StreamTitle") {
+								auto title = data[1].substr(1, data[1].length()-2);
+								setMeta("sub_title", utf8_encode(title));
+							}
 						}
 					}
 					
