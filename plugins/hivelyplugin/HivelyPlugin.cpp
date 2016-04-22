@@ -23,8 +23,17 @@ public:
 
 		tune = hvl_LoadTune(fileName.c_str(), 44100, 0);
 
+		if(!tune)
+			throw player_exception();
+		string msg;
+		for(int i=1; i<tune->ht_InstrumentNr; i++) {
+			char *name = tune->ht_Instruments[i].ins_Name;
+			msg = msg + utils::utf8_encode(name) + " ";
+		}
+
 		setMeta(
 			"title", tune->ht_Name,
+			"message", msg, 
 			"channels", tune->ht_Channels,
 			"length", tune->ht_PlayingTime,
 			"format", tune->ht_Version == 0xAA ? "AHX" : "Hively"
