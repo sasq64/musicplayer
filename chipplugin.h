@@ -35,7 +35,8 @@ public:
 
 	using PluginConstructor = std::function<std::shared_ptr<ChipPlugin>(const std::string &)>;
 
-	static void createPlugins(const std::string &configDir, std::vector<std::shared_ptr<ChipPlugin>> &plugins) {
+	static void createPlugins(const std::string &configDir) {
+		auto &plugins = getPlugins();
 		for(auto &f : pluginConstructors()) {
 			plugins.push_back(f(configDir));
 		}
@@ -44,13 +45,26 @@ public:
 			return a->priority() > b->priority();
 		});
 	}
-
+	
+	static void addPlugin(std::shared_ptr<ChipPlugin> plugin) {
+		getPlugins().push_back(plugin);
+	}
+	
+	static std::shared_ptr<ChipPlugin> getPlugin(const std::string &name) {
+		for(auto &p : getPlugins()) {
+			if(p->name() == name)
+				return p;
+		}
+		return nullptr;
+	}
+	
+/*
 	static std::vector<std::shared_ptr<ChipPlugin>> createPlugins(const std::string &configDir) {
 		std::vector<std::shared_ptr<ChipPlugin>> plugins;
 		createPlugins(configDir, plugins);
 		return plugins;
 	}
-
+*/
 	static void addPluginConstructor(PluginConstructor pc) {
 		pluginConstructors().push_back(pc);
 	}
@@ -62,6 +76,10 @@ public:
 		};
 	};
 
+	static std::vector<std::shared_ptr<ChipPlugin>> &getPlugins() {
+		static std::vector<std::shared_ptr<ChipPlugin>> plugins;
+		return plugins;
+	}
 
 private:
 	// Small trick to put a static variable in an h-file only
@@ -69,6 +87,7 @@ private:
 		static std::vector<PluginConstructor> constructors;
 		return constructors;
 	};
+	
 
 };
 
