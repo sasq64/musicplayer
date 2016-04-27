@@ -11,6 +11,7 @@ public:
 	virtual bool canHandle(const std::string &name) override;
 	virtual ChipPlayer *fromFile(const std::string &fileName) override;
 	virtual ChipPlayer *fromStream() override;
+	virtual bool checkSilence() const override { return false; }
 };
 
 }

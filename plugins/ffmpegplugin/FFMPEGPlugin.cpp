@@ -38,17 +38,9 @@ public:
 
 		decodeThread = std::thread([=]() {
 			
-			string fn = fileName;
-			
-			LOGD("Open stream %s", fn);
-			pFormatCtx = avformat_alloc_context();
-			//pFormatCtx->max_analyze_duration2 = 5 * AV_TIME_BASE;
-			if(avformat_open_input(&pFormatCtx, fn.c_str(), NULL, NULL) != 0)
+			AVFormatContext *pFormatCtx = avformat_alloc_context();
+			if(avformat_open_input(&pFormatCtx, fileName.c_str(), NULL, NULL) != 0)
 				throw player_exception("avformat_open_input() failed");
-	
-			//VDictionary *options = nullptr;
-			//int ok = avformat_find_stream_info(pFormatCtx, &options);
-			//LOGD("OK %d COUNT %d", ok, av_dict_count(options));
 	
 			int audioStreamIndex = -1;
 			AVCodecContext *pAudioCodecCtx;
@@ -70,8 +62,8 @@ public:
 						rate = pAudioCodecCtx->sample_rate;
 						LOGD("AUDIO %s %d/%d", pAudioCodec->long_name, pAudioCodecCtx->sample_rate,
 							 pAudioCodecCtx->channels);
+						break;
 					}
-					// break;
 				}
 			}
 			
@@ -81,13 +73,13 @@ public:
 			//setMeta("length", length);
 			
 			
-			//av_resample_init(44100, rate, 16, 10, 0, 1.0);
 			SwrContext *swr = swr_alloc_set_opts(nullptr,  AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_S16, 44100, 
 			                                     pAudioCodecCtx->channel_layout ,pAudioCodecCtx->sample_fmt, rate, 0, nullptr);
 			swr_init(swr);
 			AVPacket packet;
 			av_init_packet(&packet);
 			int16_t buffer[8192];
+			uint8_t* out[] = { (uint8_t*)buffer };
 
 			AVFrame *audioFrame = av_frame_alloc();
 
@@ -105,8 +97,6 @@ public:
 							    NULL, pAudioCodecCtx->channels, audioFrame->nb_samples,
 							    pAudioCodecCtx->sample_fmt, 1);
 						
-							uint8_t* out[] = { (uint8_t*)buffer };
-							//const uint8_t* in[] = { audioFrame->data[0], audioFrame->data[1] };
 							int rc = swr_convert(swr, out, 8192, (const uint8_t**)audioFrame->data, audioFrame->nb_samples);
 							fifo.put(buffer, rc*2);
 						}
@@ -115,14 +105,13 @@ public:
 					}
 				}
 			}
+			quit = true;
 			av_frame_free(&audioFrame);
 			swr_free(&swr);
 			avcodec_close(pAudioCodecCtx);
 			avformat_close_input(&pFormatCtx);
 			LOGD("Thread ending");
 		});
-		// av_dump_format(pFormatCtx, 0, fn.c_str(), 01);
-		// checkMeta();
 	}
 
 	~FFMPEGPlayer() override {
@@ -133,6 +122,8 @@ public:
 	}
 
 	virtual int getSamples(int16_t *target, int noSamples) override {
+		if(quit)
+			return -1;
 		return fifo.get(target, noSamples);
 	}
 
@@ -140,12 +131,9 @@ public:
 
 private:
 	std::thread decodeThread;
-	AVFormatContext *pFormatCtx = nullptr;
 	bool quit = false;
 	long rate;
 	mutex m;
-	//bool gotLength = false;
-	//int length;
 	static bool init;
 	utils::Fifo<int16_t> fifo{32768};
 };

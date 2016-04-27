@@ -23,6 +23,8 @@ public:
 
 	virtual ChipPlayer *fromStream() { return nullptr; }
 	virtual int priority() { return 0; }
+	
+	virtual bool checkSilence() const { return true; }
 
 	// Return other files required for playing the provided file. The returned
 	// files should normally not contain a path if it assumed they recides in the
