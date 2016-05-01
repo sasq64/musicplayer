@@ -93,8 +93,14 @@ private:
 
 //static const set<string> supported_ext { "mod", "xm", "s3m" , "oct", /*"okt", "okta", sucks here, use UADE */ "it", "ft", "far", "ult", "669", "dmf", "mdl", "stm", "okt", "gdm", "mt2", "mtm", "j2b", "imf", "ptm", "ams" };
 
-bool OpenMPTPlugin::canHandle(const std::string &name) {
+bool OpenMPTPlugin::canHandle(const std::string &n) {
+	auto name = utils::toLower(n);
 	auto ext = utils::path_extension(name);
+	if(ext == "gz") return false;
+	LOGD("NAME: %s", name);
+	if(name.find("2fstk.") != string::npos || name.find("2fmod.") != string::npos) {
+		return true;
+	}
 	if(ext == "ft") return true;
 	if(ext == "rns" || ext == "dtm") return false;
 	return openmpt_is_extension_supported(ext.c_str());
@@ -103,6 +109,7 @@ bool OpenMPTPlugin::canHandle(const std::string &name) {
 
 ChipPlayer *OpenMPTPlugin::fromFile(const std::string &fileName) {
 	utils::File file { fileName };
+	LOGD("From file %s", fileName);
 	try {
 		return new OpenMPTPlayer { file.readAll() };
 	} catch(player_exception &e) {

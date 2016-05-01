@@ -19,7 +19,7 @@ set(SOURCE_FILES
 	lazyusf2/r4300/cp0.c
 	lazyusf2/r4300/cp1.c
 	lazyusf2/r4300/exception.c
-	lazyusf2/r4300/instr_counters.c
+	#lazyusf2/r4300/instr_counters.c
 	lazyusf2/r4300/interupt.c
 	lazyusf2/r4300/mi_controller.c
 	lazyusf2/r4300/pure_interp.c
