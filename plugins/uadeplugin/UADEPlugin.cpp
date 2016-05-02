@@ -67,6 +67,7 @@ public:
 		uade_config_set_option(config, UC_IGNORE_PLAYER_CHECK, NULL);
 		uade_config_set_option(config, UC_NO_EP_END, NULL);
 		//uade_config_set_option(config, UC_VERBOSE, "true");
+		uade_config_set_option(config, UC_BASE_DIR, ".");
 		state = uade_new_state(config);
         free(config);
 	

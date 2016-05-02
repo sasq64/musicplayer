@@ -38,6 +38,9 @@ public:
 	using PluginConstructor = std::function<std::shared_ptr<ChipPlugin>(const std::string &)>;
 
 	static void createPlugins(const std::string &configDir) {
+		if(pluginConstructors().size() == 0) {
+			LOGD("WARNING: No plugins to create. Already created?");
+		}
 		auto &plugins = getPlugins();
 		for(auto &f : pluginConstructors()) {
 			plugins.push_back(f(configDir));
@@ -46,6 +49,7 @@ public:
 		std::sort(plugins.begin(), plugins.end(), [](std::shared_ptr<ChipPlugin> a, std::shared_ptr<ChipPlugin> b) -> bool {
 			return a->priority() > b->priority();
 		});
+		pluginConstructors().clear();
 	}
 	
 	static void addPlugin(std::shared_ptr<ChipPlugin> plugin) {
