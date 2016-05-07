@@ -32,6 +32,7 @@ public:
 		mpg123_param(mp3, MPG123_ADD_FLAGS, MPG123_QUIET, 0);
 		bytesPut = 0;
 		streamDone = false;
+		totalSize = 0;
 	}
 
 	bool setParameter(const std::string  &param, int32_t v) override {
@@ -160,6 +161,7 @@ public:
 			return;
 		}
 		
+		totalSize += size;
 		do {
 
 			if(metaInterval > 0 && metaCounter + size > metaInterval) {
@@ -230,6 +232,19 @@ public:
 		if(bytesPut == 0)
 			return 0;
 		int err = mpg123_read(mp3, (unsigned char*)target, noSamples*2, &done);
+		
+		totalSeconds += ((double)done / (44100*4));
+		if(totalSeconds > 0) {
+			auto r = (double)totalSize / totalSeconds;
+			r = (r * 8) / 1000;
+			if(bitRate == 0)
+				bitRate = r;
+			else
+				bitRate = r * 0.25 + bitRate * 0.75;
+			LOGD("Bitrate %f %d kbit (%d) %d", r, bitRate, totalSize, totalSeconds);
+			setMeta("bitrate", (int)bitRate);
+		}
+
 		if(err == MPG123_NEW_FORMAT)
 			return done/2;
 		else
@@ -238,6 +253,7 @@ public:
 				return -1;
 		} else if(err < 0)
 			return err;
+		
 		return done/2;
 	}
 
@@ -265,6 +281,11 @@ private:
 	char icyData[16*256+1];
 	char *icyPtr;
 	int64_t fileSize = 0;
+	
+	double totalSeconds = 0;
+	std::atomic<uint64_t> totalSize;
+	float bitRate = 0;
+	
 };
 
 bool MP3Plugin::canHandle(const std::string &name) {

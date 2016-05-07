@@ -86,6 +86,7 @@ public:
 			LOGD("LOOP");
 			while(!quit && av_read_frame(pFormatCtx, &packet) >= 0) {
 				//LOGD("STREAM %d", packet.stream_index);
+				totalSize += packet.size;
 				if(packet.stream_index == audioStreamIndex) {
 					//LOGD("PACKET SIZE %d", packet.size);
 					while(packet.size > 0) {
@@ -124,7 +125,19 @@ public:
 	virtual int getSamples(int16_t *target, int noSamples) override {
 		if(quit)
 			return -1;
-		return fifo.get(target, noSamples);
+		int rc = fifo.get(target, noSamples);
+		totalSeconds += ((double)rc / (44100*2));
+		if(totalSeconds > 0) {
+			auto r = (double)totalSize / totalSeconds;
+			r = (r * 8) / 1000;
+			if(bitRate == 0)
+				bitRate = r;
+			else
+				bitRate = r * 0.25 + bitRate * 0.75;
+			//LOGD("Bitrate %f %d kbit (%d)", r, bitRate, totalSize);
+			setMeta("bitrate", (int)bitRate);
+		}
+		return rc;
 	}
 
 	virtual bool seekTo(int song, int seconds) override { return false; }
@@ -133,6 +146,9 @@ private:
 	std::thread decodeThread;
 	bool quit = false;
 	long rate;
+	uint64_t totalSize = 0;
+	double totalSeconds = 0;
+	float bitRate = 0;
 	mutex m;
 	static bool init;
 	utils::Fifo<int16_t> fifo{32768};
