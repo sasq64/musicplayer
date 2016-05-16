@@ -192,7 +192,8 @@ static const set<string> supported_ext {
 	"synmod", "tfmx1.5", "tfhd1.5", "tfmx7V", "tfhd7V", "mdat", "tfmxpro",
 	"tfhdpro", "tfmx", "mdst", "thm", "tf", "tme", "sg", "dp", "trc", "tro",
 	"tronic", "ufo", "mod15_ust", "vss", "wb", "ym", "ml", "mod15_st-iv", "agi",
-	"tpu", "qpa", "sqt", "qts"
+	"tpu", "qpa", "sqt", "qts",
+	"ftm"
 }; 
 
 

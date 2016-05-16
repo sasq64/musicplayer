@@ -118,6 +118,10 @@ static const set<string> supported_ext { "psf", "psf2", "minipsf" , "minipsf2" }
 
 bool HEPlugin::canHandle(const std::string &name) {
 	auto ext = utils::path_extension(name);
+	
+	if(utils::toLower(name).find("/soundfactory") != string::npos)
+		return false;
+	
 	return supported_ext.count(utils::path_extension(name)) > 0;
 }
 

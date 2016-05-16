@@ -97,7 +97,6 @@ bool OpenMPTPlugin::canHandle(const std::string &n) {
 	auto name = utils::toLower(n);
 	auto ext = utils::path_extension(name);
 	if(ext == "gz") return false;
-	LOGD("NAME: %s", name);
 	if(name.find("2fstk.") != string::npos || name.find("2fmod.") != string::npos) {
 		return true;
 	}

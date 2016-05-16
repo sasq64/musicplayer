@@ -52,6 +52,9 @@ private:
 static const set<string> supported_ext = { "stp2", "ay", "psg", "asc", "stc", "psc", "sqt", "stp", "pt1", "pt2", "pt3", "ftc", "vtx", "vt2" };
 
 bool AyflyPlugin::canHandle(const std::string &name) {
+	LOGD("ZX NAME %s", name);
+	if(utils::toLower(name).find("/quartet") != string::npos)
+		return false;
 	return supported_ext.count(utils::path_extension(name)) > 0;
 }
 
