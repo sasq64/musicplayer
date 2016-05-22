@@ -16,6 +16,10 @@
 
 #include <cstring>
 
+OPENMPT_NAMESPACE_BEGIN
+
+class CSoundFile;
+
 // Note definitions
 #define NOTE_NONE			(ModCommand::NOTE(0))
 #define NOTE_MIN			(ModCommand::NOTE(1))
@@ -48,7 +52,7 @@ enum VolumeCommands
 	VOLCMD_PORTAUP			= 12,
 	VOLCMD_PORTADOWN		= 13,
 	VOLCMD_DELAYCUT			= 14, //currently unused
-	VOLCMD_OFFSET			= 15, //rewbs.volOff
+	VOLCMD_OFFSET			= 15,
 	MAX_VOLCMDS				= 16
 };
 
@@ -96,7 +100,8 @@ enum EffectCommands
 	CMD_NOTESLIDEUPRETRIG	= 37, // PTM Lxy (Slide y notes up every x ticks + retrigger note)
 	CMD_NOTESLIDEDOWNRETRIG	= 38, // PTM Mxy (Slide y notes down every x ticks + retrigger note)
 	CMD_REVERSEOFFSET		= 39, // PTM Nxx Revert sample + offset
-	MAX_EFFECTS				= 40
+	CMD_DBMECHO				= 40, // DBM enable/disable echo
+	MAX_EFFECTS				= 41
 };
 
 
@@ -116,12 +121,12 @@ class ModCommand
 //==============
 {
 public:
-	typedef BYTE NOTE;
-	typedef BYTE INSTR;
-	typedef BYTE VOL;
-	typedef BYTE VOLCMD;
-	typedef BYTE COMMAND;
-	typedef BYTE PARAM;
+	typedef uint8 NOTE;
+	typedef uint8 INSTR;
+	typedef uint8 VOL;
+	typedef uint8 VOLCMD;
+	typedef uint8 COMMAND;
+	typedef uint8 PARAM;
 
 	// Defines the maximum value for column data when interpreted as 2-byte value
 	// (for example volcmd and vol). The valid value range is [0, maxColumnValue].
@@ -130,30 +135,34 @@ public:
 	// Returns empty modcommand.
 	static ModCommand Empty() { ModCommand m = { 0, 0, 0, 0, 0, 0 }; return m; }
 
-	bool operator==(const ModCommand& mc) const { return (std::memcmp(this, &mc, sizeof(ModCommand)) == 0); }
+	bool operator==(const ModCommand& mc) const
+	{
+		return (note == mc.note)
+			&& (instr == mc.instr)
+			&& (volcmd == mc.volcmd)
+			&& (command == mc.command)
+			&& ((volcmd == VOLCMD_NONE && !IsPcNote()) || vol == mc.vol)
+			&& ((command == CMD_NONE && !IsPcNote()) || param == mc.param);
+	}
 	bool operator!=(const ModCommand& mc) const { return !(*this == mc); }
 
 	void Set(NOTE n, INSTR ins, uint16 volcol, uint16 effectcol) { note = n; instr = ins; SetValueVolCol(volcol); SetValueEffectCol(effectcol); }
 
 	uint16 GetValueVolCol() const { return GetValueVolCol(volcmd, vol); }
-	static uint16 GetValueVolCol(BYTE volcmd, BYTE vol) { return (volcmd << 8) + vol; }
-	void SetValueVolCol(const uint16 val) { volcmd = static_cast<BYTE>(val >> 8); vol = static_cast<BYTE>(val & 0xFF); }
+	static uint16 GetValueVolCol(uint8 volcmd, uint8 vol) { return (volcmd << 8) + vol; }
+	void SetValueVolCol(const uint16 val) { volcmd = static_cast<uint8>(val >> 8); vol = static_cast<uint8>(val & 0xFF); }
 
 	uint16 GetValueEffectCol() const { return GetValueEffectCol(command, param); }
-	static uint16 GetValueEffectCol(BYTE command, BYTE param) { return (command << 8) + param; }
-	void SetValueEffectCol(const uint16 val) { command = static_cast<BYTE>(val >> 8); param = static_cast<BYTE>(val & 0xFF); }
+	static uint16 GetValueEffectCol(uint8 command, uint8 param) { return (command << 8) + param; }
+	void SetValueEffectCol(const uint16 val) { command = static_cast<uint8>(val >> 8); param = static_cast<uint8>(val & 0xFF); }
 
 	// Clears modcommand.
 	void Clear() { memset(this, 0, sizeof(ModCommand)); }
 
 	// Returns true if modcommand is empty, false otherwise.
-	// If ignoreEffectValues is true (default), effect values are ignored if there is no effect command present.
-	bool IsEmpty(const bool ignoreEffectValues = true) const
+	bool IsEmpty() const
 	{
-		if(ignoreEffectValues)
-			return (note == 0 && instr == 0 && volcmd == VOLCMD_NONE && command == CMD_NONE);
-		else
-			return (*this == Empty());
+		return (note == NOTE_NONE && instr == 0 && volcmd == VOLCMD_NONE && command == CMD_NONE);
 	}
 
 	// Returns true if instrument column represents plugin index.
@@ -172,6 +181,8 @@ public:
 	// Returns true if and only if note is a valid musical note or the note entry is empty.
 	bool IsNoteOrEmpty() const { return note == NOTE_NONE || IsNote(); }
 	static bool IsNoteOrEmpty(NOTE note) { return note == NOTE_NONE || IsNote(note); }
+	// Returns true if any of the commands in this cell trigger a tone portamento.
+	bool IsPortamento() const { return command == CMD_TONEPORTAMENTO || command == CMD_TONEPORTAVOL || volcmd == VOLCMD_TONEPORTAMENTO; }
 
 	static EffectType GetEffectType(COMMAND cmd);
 	EffectType GetEffectType() const { return GetEffectType(command); }
@@ -179,7 +190,7 @@ public:
 	EffectType GetVolumeEffectType() const { return GetVolumeEffectType(volcmd); }
 
 	// Convert a complete ModCommand item from one format to another
-	void Convert(MODTYPE fromType, MODTYPE toType);
+	void Convert(MODTYPE fromType, MODTYPE toType, const CSoundFile &sndFile);
 	// Convert MOD/XM Exx to S3M/IT Sxx
 	void ExtendedMODtoS3MEffect();
 	// Convert S3M/IT Sxx to MOD/XM Exx
@@ -201,12 +212,14 @@ public:
 	}
 
 public:
-	BYTE note;
-	BYTE instr;
-	BYTE volcmd;
-	BYTE command;
-	BYTE vol;
-	BYTE param;
+	uint8 note;
+	uint8 instr;
+	uint8 volcmd;
+	uint8 command;
+	uint8 vol;
+	uint8 param;
 };
 
 typedef ModCommand MODCOMMAND_ORIGINAL;
+
+OPENMPT_NAMESPACE_END

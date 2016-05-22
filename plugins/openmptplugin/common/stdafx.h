@@ -16,7 +16,9 @@
 #include "BuildSettings.h"
 
 
-#if defined(MODPLUG_TRACKER)
+#if defined(MODPLUG_TRACKER) && !defined(MPT_BUILD_WINESUPPORT)
+
+#if MPT_OS_WINDOWS
 
 #include <afxwin.h>         // MFC core and standard components
 #include <afxext.h>         // MFC extensions
@@ -30,7 +32,9 @@
 #include <shlwapi.h>
 #include <mmsystem.h>
 
-#endif // MODPLUG_TRACKER
+#endif // MPT_OS_WINDOWS
+
+#endif // MODPLUG_TRACKER && !MPT_BUILD_WINESUPPORT
 
 
 #if MPT_COMPILER_MSVC
@@ -38,39 +42,52 @@
 #endif
 
 
-#if defined(_WIN32) && !defined(NO_WINDOWS_H)
-#include <windows.h>
-#endif
-
 // this will be available everywhere
 
 #include "../common/typedefs.h"
 // <memory>
 // <new>
-// <cstdarg>
 // <cstdint>
 // <stdint.h>
 
+#include "../common/mptTypeTraits.h"
+// <type_traits> // if available
+
 #include "../common/mptString.h"
+// <algorithm>
 // <limits>
 // <string>
 // <type_traits>
 // <cstring>
 
+#include "../common/mptStringFormat.h"
+
 #include "../common/mptPathString.h"
-// <cstdio>
-// <stdio.h>
 
 #include "../common/Logging.h"
 
 #include "../common/misc_util.h"
+// <algorithm>
 // <limits>
 // <string>
 // <type_traits>
 // <vector>
 // <cmath>
+// <cstdlib>
 // <cstring>
 // <time.h>
+
+// for std::abs
+#include <cstdlib>
+#include <stdlib.h>
+#include <cmath>
+#include <math.h>
+
+#if defined(MPT_ENABLE_FILEIO_STDIO)
+// for FILE* definition (which cannot be forward-declared in a portable way)
+#include <cstdio>
+#include <stdio.h>
+#endif
 
 
 //{{AFX_INSERT_LOCATION}}

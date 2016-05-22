@@ -12,6 +12,8 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -244,15 +246,15 @@ static int ReadULTEvent(ModCommand &m, FileReader &file)
 	{
 		uint32 off = ((param1 << 8) | param2) >> 6;
 		cmd1 = CMD_NONE;
-		param1 = (uint8)MIN(off, 0xFF);
+		param1 = (uint8)MIN(off, 0xFFu);
 	} else if(cmd1 == CMD_OFFSET)
 	{
 		uint32 off = param1 * 4;
-		param1 = (uint8)MIN(off, 0xFF);
+		param1 = (uint8)MIN(off, 0xFFu);
 	} else if(cmd2 == CMD_OFFSET)
 	{
 		uint32 off = param2 * 4;
-		param2 = (uint8)MIN(off, 0xFF);
+		param2 = (uint8)MIN(off, 0xFFu);
 	} else if(cmd1 == cmd2)
 	{
 		// don't try to figure out how ultratracker does this, it's quite random
@@ -381,7 +383,7 @@ bool CSoundFile::ReadUlt(FileReader &file, ModLoadingFlags loadFlags)
 	UltFileHeader fileHeader;
 
 	// Tracker ID
-	if(!file.Read(fileHeader)
+	if(!file.ReadStruct(fileHeader)
 		|| fileHeader.version < '1'
 		|| fileHeader.version > '4'
 		|| memcmp(fileHeader.signature, "MAS_UTrack_V00", sizeof(fileHeader.signature)) != 0)
@@ -392,19 +394,17 @@ bool CSoundFile::ReadUlt(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
-	mpt::String::Read<mpt::String::maybeNullTerminated>(songName, fileHeader.songName);
+	InitializeGlobals(MOD_TYPE_ULT);
+	mpt::String::Read<mpt::String::maybeNullTerminated>(m_songName, fileHeader.songName);
 
 	const char *versions[] = {"<1.4", "1.4", "1.5", "1.6"};
-	madeWithTracker = "UltraTracker ";
-	madeWithTracker += versions[fileHeader.version - '1'];
+	m_madeWithTracker = "UltraTracker ";
+	m_madeWithTracker += versions[fileHeader.version - '1'];
 
-	m_nType = MOD_TYPE_ULT;
 	m_SongFlags = SONG_ITCOMPATGXX | SONG_ITOLDEFFECTS;	// this will be converted to IT format by MPT.
-	SetModFlag(MSF_COMPATIBLE_PLAY, true);
 
 	// read "messageLength" lines, each containing 32 characters.
-	songMessage.ReadFixedLineLength(file, fileHeader.messageLength * 32, 32, 0);
+	m_songMessage.ReadFixedLineLength(file, fileHeader.messageLength * 32, 32, 0);
 
 	m_nSamples = static_cast<SAMPLEINDEX>(file.ReadUint8());
 	if(GetNumSamples() >= MAX_SAMPLES)
@@ -430,8 +430,7 @@ bool CSoundFile::ReadUlt(FileReader &file, ModLoadingFlags loadFlags)
 		mpt::String::Read<mpt::String::maybeNullTerminated>(m_szNames[smp], sampleHeader.name);
 	}
 
-	// ult just so happens to use 255 for its end mark, so there's no need to fiddle with this
-	Order.ReadAsByte(file, 256);
+	Order.ReadAsByte(file, 256, 256, 0xFF, 0xFE);
 
 	m_nChannels = file.ReadUint8() + 1;
 	PATTERNINDEX numPats = file.ReadUint8() + 1;
@@ -450,7 +449,7 @@ bool CSoundFile::ReadUlt(FileReader &file, ModLoadingFlags loadFlags)
 
 	for(PATTERNINDEX pat = 0; pat < numPats; pat++)
 	{
-		if(Patterns.Insert(pat, 64))
+		if(!Patterns.Insert(pat, 64))
 			return false;
 	}
 
@@ -497,3 +496,6 @@ bool CSoundFile::ReadUlt(FileReader &file, ModLoadingFlags loadFlags)
 	}
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

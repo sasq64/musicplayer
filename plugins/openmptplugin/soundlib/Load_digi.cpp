@@ -11,6 +11,8 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -52,11 +54,11 @@ STATIC_ASSERT(sizeof(DIGIFileHeader) == 610);
 #endif
 
 
-static void ReadDIGIPatternEntry(FileReader &file, ModCommand &m, CSoundFile &sndFile)
-//------------------------------------------------------------------------------------
+static void ReadDIGIPatternEntry(FileReader &file, ModCommand &m)
+//---------------------------------------------------------------
 {
-	sndFile.ReadMODPatternEntry(file, m);
-	sndFile.ConvertModCommand(m);
+	CSoundFile::ReadMODPatternEntry(file, m);
+	CSoundFile::ConvertModCommand(m);
 	if(m.command == CMD_MODCMDEX)
 	{
 		switch(m.param & 0xF0)
@@ -109,14 +111,13 @@ bool CSoundFile::ReadDIGI(FileReader &file, ModLoadingFlags loadFlags)
 	}
 
 	// Globals
-	InitializeGlobals();
+	InitializeGlobals(MOD_TYPE_DIGI);
 	InitializeChannels();
 
-	m_nType = MOD_TYPE_DIGI;
 	m_nChannels = fileHeader.numChannels;
 	m_nSamples = 31;
 	m_nSamplePreAmp = 256 / m_nChannels;
-	madeWithTracker = mpt::String::Print("Digi Booster %1.%2", fileHeader.versionInt >> 4, fileHeader.versionInt & 0x0F);
+	m_madeWithTracker = mpt::String::Print("Digi Booster %1.%2", fileHeader.versionInt >> 4, fileHeader.versionInt & 0x0F);
 
 	Order.ReadFromArray(fileHeader.orders, fileHeader.lastOrdIndex + 1);
 
@@ -139,7 +140,7 @@ bool CSoundFile::ReadDIGI(FileReader &file, ModLoadingFlags loadFlags)
 	}
 
 	// Read song + sample names
-	file.ReadString<mpt::String::maybeNullTerminated>(songName, 32);
+	file.ReadString<mpt::String::maybeNullTerminated>(m_songName, 32);
 	for(SAMPLEINDEX smp = 1; smp <= 31; smp++)
 	{
 		file.ReadString<mpt::String::maybeNullTerminated>(m_szNames[smp], 30);
@@ -156,7 +157,7 @@ bool CSoundFile::ReadDIGI(FileReader &file, ModLoadingFlags loadFlags)
 			patternChunk = file.ReadChunk(4 * 64 * GetNumChannels());
 		}
 
-		if(!(loadFlags & loadPatternData) || Patterns.Insert(pat, 64))
+		if(!(loadFlags & loadPatternData) || !Patterns.Insert(pat, 64))
 		{
 			continue;
 		}
@@ -176,7 +177,7 @@ bool CSoundFile::ReadDIGI(FileReader &file, ModLoadingFlags loadFlags)
 					if(eventMask[row] & bit)
 					{
 						ModCommand &m = patRow[chn];
-						ReadDIGIPatternEntry(patternChunk, m, *this);
+						ReadDIGIPatternEntry(patternChunk, m);
 					}
 				}
 			}
@@ -187,7 +188,7 @@ bool CSoundFile::ReadDIGI(FileReader &file, ModLoadingFlags loadFlags)
 			{
 				for(ROWINDEX row = 0; row < 64; row++)
 				{
-					ReadDIGIPatternEntry(patternChunk, *Patterns[pat].GetpModCommand(row, chn), *this);
+					ReadDIGIPatternEntry(patternChunk, *Patterns[pat].GetpModCommand(row, chn));
 				}
 			}
 		}
@@ -210,3 +211,6 @@ bool CSoundFile::ReadDIGI(FileReader &file, ModLoadingFlags loadFlags)
 
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

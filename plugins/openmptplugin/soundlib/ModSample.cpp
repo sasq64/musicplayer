@@ -16,6 +16,9 @@
 #include <cmath>
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 // Translate sample properties between two given formats.
 void ModSample::Convert(MODTYPE fromType, MODTYPE toType)
 //-------------------------------------------------------
@@ -70,8 +73,8 @@ void ModSample::Convert(MODTYPE fromType, MODTYPE toType)
 			nPan = 128;
 		}
 
-		LimitMax(nVibDepth, BYTE(15));
-		LimitMax(nVibRate, BYTE(63));
+		LimitMax(nVibDepth, uint8(15));
+		LimitMax(nVibRate, uint8(63));
 	}
 
 
@@ -82,6 +85,20 @@ void ModSample::Convert(MODTYPE fromType, MODTYPE toType)
 		{
 			nVibSweep = 255 - nVibSweep;
 		}
+	}
+	// Convert incompatible autovibrato types
+	if(toType == MOD_TYPE_IT && nVibType == VIB_RAMP_UP)
+	{
+		nVibType = VIB_RAMP_DOWN;
+	} else if(toType == MOD_TYPE_XM && nVibType == VIB_RANDOM)
+	{
+		nVibType = VIB_SINE;
+	}
+
+	// No external samples in formats other than MPTM.
+	if(toType != MOD_TYPE_MPT)
+	{
+		uFlags.reset(SMP_KEEPONDISK);
 	}
 }
 
@@ -97,7 +114,7 @@ void ModSample::Initialize(MODTYPE type)
 	nPan = 128;
 	nVolume = 256;
 	nGlobalVol = 64;
-	uFlags.reset(CHN_PANNING | CHN_SUSTAINLOOP | CHN_LOOP | CHN_PINGPONGLOOP | CHN_PINGPONGSUSTAIN);
+	uFlags.reset(CHN_PANNING | CHN_SUSTAINLOOP | CHN_LOOP | CHN_PINGPONGLOOP | CHN_PINGPONGSUSTAIN | SMP_MODIFIED | SMP_KEEPONDISK);
 	if(type == MOD_TYPE_XM)
 	{
 		uFlags.set(CHN_PANNING);
@@ -109,6 +126,12 @@ void ModSample::Initialize(MODTYPE type)
 	nVibDepth = 0;
 	nVibRate = 0;
 	filename[0] = '\0';
+
+	// Default cues compatible with old-style volume column offset
+	for(int i = 0; i < 9; i++)
+	{
+		cues[i] = (i + 1) << 11;
+	}
 }
 
 
@@ -143,6 +166,7 @@ size_t ModSample::AllocateSample()
 
 
 // Allocate sample memory. On sucess, a pointer to the silenced sample buffer is returned. On failure, nullptr is returned.
+// numSamples must contain the sample length, bytesPerSample the size of a sampling point multiplied with the number of channels.
 void *ModSample::AllocateSample(SmpLength numSamples, size_t bytesPerSample)
 //--------------------------------------------------------------------------
 {
@@ -175,7 +199,7 @@ size_t ModSample::GetRealSampleBufferSize(SmpLength numSamples, size_t bytesPerS
 	const SmpLength maxSize = Util::MaxValueOfType(numSamples);
 	const SmpLength lookaheadBufferSize = 16 + (1 + 4 + 4) * InterpolationMaxLookahead;
 
-	if(numSamples > maxSize || lookaheadBufferSize > maxSize - numSamples)
+	if(numSamples > MAX_SAMPLE_LENGTH || lookaheadBufferSize > maxSize - numSamples)
 	{
 		return 0;
 	}
@@ -280,7 +304,7 @@ void ModSample::SanitizeLoops()
 uint32 ModSample::TransposeToFrequency(int transpose, int finetune)
 //-----------------------------------------------------------------
 {
-	return Util::Round<uint32>(std::pow(2.0f, (transpose * 128.0f + finetune) * (1.0f / (12.0f * 128.0f))) * 8363.0f);
+	return Util::Round<uint32>(std::pow(2.0, (transpose * 128.0 + finetune) * (1.0 / (12.0 * 128.0))) * 8363.0);
 }
 
 
@@ -291,11 +315,11 @@ void ModSample::TransposeToFrequency()
 }
 
 
+// Return tranpose.finetune as 25.7 fixed point value.
 int ModSample::FrequencyToTranspose(uint32 freq)
 //----------------------------------------------
 {
-	const float inv_log_2 = 1.44269504089f; // 1.0f/std::log(2.0f)
-	return Util::Round<int>(std::log(freq * (1.0f / 8363.0f)) * (12.0f * 128.0f * inv_log_2));
+	return Util::Round<int>(std::log(freq * (1.0 / 8363.0)) * (12.0 * 128.0 * (1.0 / M_LN2)));
 }
 
 
@@ -318,3 +342,18 @@ void ModSample::FrequencyToTranspose()
 	RelativeTone = static_cast<int8>(transpose);
 	nFineTune = static_cast<int8>(finetune);
 }
+
+
+// Check if the sample's cue points are the default cue point set.
+bool ModSample::HasCustomCuePoints() const
+//----------------------------------------
+{
+	for(SmpLength i = 0; i < CountOf(cues); i++)
+	{
+		if(cues[i] != (i + 1) << 11) return true;
+	}
+	return false;
+}
+
+
+OPENMPT_NAMESPACE_END

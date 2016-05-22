@@ -10,9 +10,12 @@
 
 #pragma once
 
-#include "FileReader.h"
+#include "../common/FileReader.h"
 
 #include <vector>
+
+
+OPENMPT_NAMESPACE_BEGIN
 
 
 //===================================
@@ -21,7 +24,7 @@ class ChunkReader : public FileReader
 {
 public:
 
-	ChunkReader(const char *data, size_t length) : FileReader(data, length) { }
+	ChunkReader(mpt::span<const mpt::byte> bytedata) : FileReader(bytedata) { }
 	ChunkReader(const FileReader &other) : FileReader(other) { }
 
 	template<typename T>
@@ -104,7 +107,7 @@ public:
 	ChunkList<T> ReadChunks(size_t padding)
 	{
 		ChunkList<T> result;
-		while(AreBytesLeft())
+		while(CanRead(sizeof(T)))
 		{
 			T chunkHeader;
 			if(!Read(chunkHeader))
@@ -126,3 +129,6 @@ public:
 		return result;
 	}
 };
+
+
+OPENMPT_NAMESPACE_END

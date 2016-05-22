@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <vector>
 
+OPENMPT_NAMESPACE_BEGIN
+
 class CSoundFile;
 class ModSequenceSet;
 class FileReader;
@@ -31,18 +33,18 @@ public:
 	virtual ~ModSequence() {if (m_bDeletableArray) delete[] m_pArray;}
 	ModSequence(const ModSequence&);
 	ModSequence(CSoundFile& rSf, ORDERINDEX nSize);
-	ModSequence(CSoundFile& rSf, PATTERNINDEX* pArray, ORDERINDEX nSize, ORDERINDEX nCapacity, bool bDeletableArray);
+	ModSequence(CSoundFile& rSf, PATTERNINDEX* pArray, ORDERINDEX nSize, ORDERINDEX nCapacity, ORDERINDEX restartPos, bool bDeletableArray);
 
 	// Initialize default sized sequence.
 	void Init();
 
-	PATTERNINDEX& operator[](const size_t i) {ASSERT(i < m_nSize); return m_pArray[i];}
-	const PATTERNINDEX& operator[](const size_t i) const {ASSERT(i < m_nSize); return m_pArray[i];}
+	PATTERNINDEX& operator[](const size_t i) {MPT_ASSERT(i < m_nSize); return m_pArray[i];}
+	const PATTERNINDEX& operator[](const size_t i) const {MPT_ASSERT(i < m_nSize); return m_pArray[i];}
 	PATTERNINDEX& At(const size_t i) {return (*this)[i];}
 	const PATTERNINDEX& At(const size_t i) const {return (*this)[i];}
 
-	PATTERNINDEX& Last() {ASSERT(m_nSize > 0); return m_pArray[m_nSize-1];}
-	const PATTERNINDEX& Last() const {ASSERT(m_nSize > 0); return m_pArray[m_nSize-1];}
+	PATTERNINDEX& Last() {MPT_ASSERT(m_nSize > 0); return m_pArray[m_nSize-1];}
+	const PATTERNINDEX& Last() const {MPT_ASSERT(m_nSize > 0); return m_pArray[m_nSize-1];}
 
 	// Returns last accessible index, i.e. GetLength() - 1. Behaviour is undefined if length is zero.
 	ORDERINDEX GetLastIndex() const {return m_nSize - 1;}
@@ -63,6 +65,9 @@ public:
 	// Remove all references to a given pattern index from the order list. Jump commands are updated accordingly.
 	void RemovePattern(PATTERNINDEX which);
 
+	// Check if pattern at sequence position ord is valid.
+	bool IsValidPat(ORDERINDEX ord);
+
 	void clear();
 	void resize(ORDERINDEX nNewSize) {resize(nNewSize, GetInvalidPatIndex());}
 	void resize(ORDERINDEX nNewSize, PATTERNINDEX nFill);
@@ -81,11 +86,10 @@ public:
 	// Returns length of sequence stopping counting on first '---' (or at the end of sequence).
 	ORDERINDEX GetLengthFirstEmpty() const;
 
-	PATTERNINDEX GetInvalidPatIndex() const {return m_nInvalidIndex;} // To correspond 0xFF
-	static PATTERNINDEX GetInvalidPatIndex(const MODTYPE type);
-
-	PATTERNINDEX GetIgnoreIndex() const {return m_nIgnoreIndex;} // To correspond 0xFE
-	static PATTERNINDEX GetIgnoreIndex(const MODTYPE type);
+	// Returns the internal representation of a stop '---' index
+	static PATTERNINDEX GetInvalidPatIndex() { return uint16_max; }
+	// Returns the internal representation of an ignore '+++' index
+	static PATTERNINDEX GetIgnoreIndex() {return uint16_max - 1; }
 
 	// Returns the previous/next order ignoring skip indices(+++).
 	// If no previous/next order exists, return first/last order, and zero
@@ -98,11 +102,15 @@ public:
 
 	ModSequence& operator=(const ModSequence& seq);
 
-	// Read/write.
-	size_t WriteAsByte(FILE* f, const uint16 count) const;
-	bool ReadAsByte(FileReader &file, size_t howMany, size_t readEntries = ORDERINDEX_MAX);
+	// Write order items as bytes. '---' is written as stopIndex, '+++' is written as ignoreIndex
+	size_t WriteAsByte(FILE* f, const ORDERINDEX count, uint8 stopIndex = 0xFF, uint8 ignoreIndex = 0xFE) const;
+	// Read order items as bytes from a file. 'howMany' bytes are read from the file, optionally only the first 'readEntries' of them are actually processed.
+	// 'stopIndex' is treated as '---', 'ignoreIndex' is treated as '+++'. If the format doesn't support such indices, just pass a parameter that does not fit into a byte.
+	bool ReadAsByte(FileReader &file, size_t howMany, size_t readEntries = ORDERINDEX_MAX, uint16 stopIndex = ORDERINDEX_INVALID, uint16 ignoreIndex = ORDERINDEX_INVALID);
 	template<typename T, size_t arraySize>
-	bool ReadFromArray(const T (&orders)[arraySize], size_t howMany = arraySize);
+	// Read order items from an array. Only the first 'howMany' entries are actually processed.
+	// 'stopIndex' is treated as '---', 'ignoreIndex' is treated as '+++'. If the format doesn't support such indices, just pass ORDERINDEX_INVALID.
+	bool ReadFromArray(const T (&orders)[arraySize], size_t howMany = arraySize, uint16 stopIndex = ORDERINDEX_INVALID, uint16 ignoreIndex = ORDERINDEX_INVALID);
 
 	// Deprecated function used for MPTm files created with OpenMPT 1.17.02.46 - 1.17.02.48.
 	bool Deserialize(FileReader &file);
@@ -115,11 +123,14 @@ public:
 	bool IsPositionLocked(ORDERINDEX position) const;
 #endif // MODPLUG_TRACKER
 
-	// Sequence name setter
-	void SetName(const std::string &newName);
-	
-	// Sequence name getter
-	std::string GetName() const;
+	// Sequence name setter / getter
+	inline void SetName(const std::string &newName) { m_sName = newName;}
+	inline std::string GetName() const { return m_sName; }
+
+	// Restart position setter / getter
+	inline void SetRestartPos(ORDERINDEX restartPos) { m_restartPos = restartPos; }
+	inline ORDERINDEX GetRestartPos() const { return m_restartPos; }
+
 
 protected:
 	iterator begin() {return m_pArray;}
@@ -128,35 +139,24 @@ protected:
 	const_iterator end() const {return m_pArray + m_nSize;}
 
 protected:
-	std::string m_sName;				// Sequence name.
+	std::string m_sName;			// Sequence name.
 
-protected:
 	CSoundFile &m_sndFile;			// Pointer to associated CSoundFile.
 	PATTERNINDEX *m_pArray;			// Pointer to sequence array.
 	ORDERINDEX m_nSize;				// Sequence length.
 	ORDERINDEX m_nCapacity;			// Capacity in m_pArray.
-	PATTERNINDEX m_nInvalidIndex;	// Invalid pat index.
-	PATTERNINDEX m_nIgnoreIndex;	// Ignore pat index.
+	ORDERINDEX m_restartPos;		// Restart position when playback of this order ended
 	bool m_bDeletableArray;			// True if m_pArray points the deletable(with delete[]) array.
-	MODTYPE GetSndFileType() const;
 };
 
 
-inline PATTERNINDEX ModSequence::GetInvalidPatIndex(const MODTYPE type) {return (type & (MOD_TYPE_MPT | MOD_TYPE_XM)) ?  uint16_max : 0xFF;}
-inline PATTERNINDEX ModSequence::GetIgnoreIndex(const MODTYPE type) {return (type & (MOD_TYPE_MPT | MOD_TYPE_XM)) ? uint16_max - 1 : 0xFE;}
-
-
 template<typename T, size_t arraySize>
-bool ModSequence::ReadFromArray(const T (&orders)[arraySize], size_t howMany)
-//---------------------------------------------------------------------------
+bool ModSequence::ReadFromArray(const T (&orders)[arraySize], size_t howMany, uint16 stopIndex, uint16 ignoreIndex)
+//-----------------------------------------------------------------------------------------------------------------
 {
+	STATIC_ASSERT(arraySize < ORDERINDEX_MAX);
 	LimitMax(howMany, arraySize);
-
 	ORDERINDEX readEntries = static_cast<ORDERINDEX>(howMany);
-	if(!(GetSndFileType() & MOD_TYPE_MPT))
-	{
-		LimitMax(readEntries, MAX_ORDERS);
-	}
 
 	if(GetLength() < readEntries)
 	{
@@ -165,7 +165,10 @@ bool ModSequence::ReadFromArray(const T (&orders)[arraySize], size_t howMany)
 
 	for(int i = 0; i < readEntries; i++)
 	{
-		(*this)[i] = static_cast<ORDERINDEX>(orders[i]);
+		PATTERNINDEX pat = static_cast<PATTERNINDEX>(orders[i]);
+		if(pat == stopIndex) pat = GetInvalidPatIndex();
+		if(pat == ignoreIndex) pat = GetIgnoreIndex();
+		(*this)[i] = pat;
 	}
 	return true;
 }
@@ -193,27 +196,37 @@ public:
 	void RemoveSequence(SEQUENCEINDEX);		// Removes given sequence
 	SEQUENCEINDEX GetCurrentSequenceIndex() const {return m_nCurrentSeq;}
 
-	void OnModTypeChanged(const MODTYPE oldtype);
-
 	ModSequenceSet& operator=(const ModSequence& seq) {ModSequence::operator=(seq); return *this;}
 
-	// Merges multiple sequences into one and destroys all other sequences.
-	// Returns false if there were no sequences to merge, true otherwise.
-	bool MergeSequences();
-
+#ifdef MODPLUG_TRACKER
+	// Adjust sequence when converting between module formats
+	void OnModTypeChanged(const MODTYPE oldtype);
 	// If there are subsongs (separated by "---" or "+++" patterns) in the module,
 	// asks user whether to convert these into multiple sequences (given that the 
 	// modformat supports multiple sequences).
 	// Returns true if sequences were modified, false otherwise.
 	bool ConvertSubsongsToMultipleSequences();
 
-	static const ORDERINDEX s_nCacheSize = MAX_ORDERS;
+	// Convert the sequence's restart position information to a pattern command.
+	bool RestartPosToPattern(SEQUENCEINDEX seq);
+	// Merges multiple sequences into one and destroys all other sequences.
+	// Returns false if there were no sequences to merge, true otherwise.
+	bool MergeSequences();
+#endif // MODPLUG_TRACKER
+
+	static const ORDERINDEX s_nCacheSize;
 
 private:
 	void CopyCacheToStorage();
 	void CopyStorageToCache();
 
-	PATTERNINDEX m_Cache[s_nCacheSize];		// Local cache array.
+	// Array size should be s_nCacheSize.
+	// s_nCacheSize is defined out of line, because taking references to
+	// static const members is problematic for some clang and GCC versions
+	// otherwise.
+	// Defining s_nCacheSize out of line makes it unavailable for declaring
+	// an array.
+	PATTERNINDEX m_Cache[MAX_ORDERS];		// Local cache array.
 	std::vector<ModSequence> m_Sequences;	// Array of sequences.
 	SEQUENCEINDEX m_nCurrentSeq;			// Index of current sequence.
 };
@@ -230,3 +243,6 @@ void ReadModSequence(std::istream& iStrm, ModSequence& seq, const size_t);
 
 void WriteModSequenceOld(std::ostream& oStrm, const ModSequenceSet& seq);
 void ReadModSequenceOld(std::istream& iStrm, ModSequenceSet& seq, const size_t);
+
+
+OPENMPT_NAMESPACE_END

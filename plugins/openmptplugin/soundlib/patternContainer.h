@@ -14,6 +14,8 @@
 
 #include <algorithm>
 
+OPENMPT_NAMESPACE_BEGIN
+
 class CSoundFile;
 typedef CPattern MODPATTERN;
 
@@ -46,17 +48,21 @@ public:
 	// Delete all patterns.
 	void DestroyPatterns();
 	
-	//Insert (default)pattern to given position. If pattern already exists at that position,
-	//ignoring request. Returns true on failure, false otherwise.
+	// Insert (default)pattern to given position. If pattern already exists at that position,
+	// ignoring request. Returns true on success, false otherwise.
 	bool Insert(const PATTERNINDEX index, const ROWINDEX rows);
 	
-	//Insert pattern to position with the lowest index, and return that index, PATTERNINDEX_INVALID
-	//on failure.
-	PATTERNINDEX Insert(const ROWINDEX rows);
+	// Insert pattern to position with the lowest index, and return that index, PATTERNINDEX_INVALID on failure.
+	// If respectQtyLimits is true, inserting patterns will fail if the resulting pattern index would exceed the current format's pattern quantity limits.
+	PATTERNINDEX InsertAny(const ROWINDEX rows, bool respectQtyLimits = false);
+
+	// Duplicate an existing pattern. Returns new pattern index on success, or PATTERNINDEX_INVALID on failure.
+	// If respectQtyLimits is true, inserting patterns will fail if the resulting pattern index would exceed the current format's pattern quantity limits.
+	PATTERNINDEX Duplicate(PATTERNINDEX from, bool respectQtyLimits = false);
 
 	//Remove pattern from given position. Currently it actually makes the pattern
 	//'invisible' - the pattern data is cleared but the actual pattern object won't get removed.
-	bool Remove(const PATTERNINDEX index);
+	void Remove(const PATTERNINDEX index);
 
 	// Applies function object for modcommands in patterns in given range.
 	// Return: Copy of the function object.
@@ -69,9 +75,6 @@ public:
 
 	CSoundFile& GetSoundFile() {return m_rSndFile;}
 	const CSoundFile& GetSoundFile() const {return m_rSndFile;}
-
-	//Returns the index of given pattern, Size() if not found.
-	PATTERNINDEX GetIndex(const MODPATTERN* const pPat) const;
 
 	// Return true if pattern can be accessed with operator[](iPat), false otherwise.
 	bool IsValidIndex(const PATTERNINDEX iPat) const {return (iPat < Size());}
@@ -120,3 +123,6 @@ const char FileIdPatterns[] = "mptPc";
 
 void ReadModPatterns(std::istream& iStrm, CPatternContainer& patc, const size_t nSize = 0);
 void WriteModPatterns(std::ostream& oStrm, const CPatternContainer& patc);
+
+
+OPENMPT_NAMESPACE_END

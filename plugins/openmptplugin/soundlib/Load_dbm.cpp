@@ -11,6 +11,12 @@
 #include "stdafx.h"
 #include "Loaders.h"
 #include "ChunkReader.h"
+#include "../common/StringFixer.h"
+#ifndef NO_PLUGINS
+#include "plugins/DigiBoosterEcho.h"
+#endif // NO_PLUGINS
+
+OPENMPT_NAMESPACE_BEGIN
 
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
@@ -39,7 +45,8 @@ struct PACKED DBMChunk
 		idPENV	= 0x564E4550,
 		idPATT	= 0x54544150,
 		idPNAM	= 0x4D414E50,
-		idSMPL	= 0x4c504d53,
+		idSMPL	= 0x4C504D53,
+		idDSPE	= 0x45505344,
 		idMPEG	= 0x4745504D,
 	};
 
@@ -164,13 +171,23 @@ static const ModCommand::COMMAND dbmEffects[] =
 	CMD_PANNING8, CMD_OFFSET, CMD_VOLUMESLIDE, CMD_POSITIONJUMP,
 	CMD_VOLUME, CMD_PATTERNBREAK, CMD_MODCMDEX, CMD_TEMPO,
 	CMD_GLOBALVOLUME, CMD_GLOBALVOLSLIDE, CMD_KEYOFF, CMD_SETENVPOSITION,
-	CMD_CHANNELVOLUME, CMD_CHANNELVOLSLIDE, CMD_PANNINGSLIDE,
+	CMD_CHANNELVOLUME, CMD_CHANNELVOLSLIDE, CMD_NONE, CMD_NONE,
+	CMD_NONE, CMD_PANNINGSLIDE, CMD_NONE, CMD_NONE,
+	CMD_NONE, CMD_NONE, CMD_NONE,
+#ifndef NO_PLUGINS
+	CMD_DBMECHO,	// Toggle DSP
+	CMD_MIDI,		// Wxx Echo Delay
+	CMD_MIDI,		// Xxx Echo Feedback
+	CMD_MIDI,		// Yxx Echo Mix
+	CMD_MIDI,		// Zxx Echo Cross
+#endif // NO_PLUGINS
 };
 
 
 static void ConvertDBMEffect(uint8 &command, uint8 &param)
 //--------------------------------------------------------
 {
+	uint8 oldCmd = command;
 	if(command < CountOf(dbmEffects))
 		command = dbmEffects[command];
 	else
@@ -242,16 +259,20 @@ static void ConvertDBMEffect(uint8 &command, uint8 &param)
 			// TODO key of at tick 0
 		}
 		break;
+
+	case CMD_MIDI:
+		// Encode echo parameters into fixed MIDI macros
+		param = 128 + (oldCmd - 32) * 32 + param / 8;
 	}
 }
 
 
 // Read a chunk of volume or panning envelopes
-static void ReadDBMEnvelopeChunk(FileReader chunk, enmEnvelopeTypes envType, CSoundFile &sndFile, bool scaleEnv)
-//--------------------------------------------------------------------------------------------------------------
+static void ReadDBMEnvelopeChunk(FileReader chunk, EnvelopeType envType, CSoundFile &sndFile, bool scaleEnv)
+//----------------------------------------------------------------------------------------------------------
 {
 	uint16 numEnvs = chunk.ReadUint16BE();
-	for(uint16 i = 0; i < numEnvs; i++)
+	for(uint16 env = 0; env < numEnvs; env++)
 	{
 		DBMEnvelope dbmEnv;
 		chunk.ReadConvertEndianness(dbmEnv);
@@ -297,7 +318,7 @@ bool CSoundFile::ReadDBM(FileReader &file, ModLoadingFlags loadFlags)
 	DBMFileHeader fileHeader;
 
 	file.Rewind();
-	if(!file.Read(fileHeader)
+	if(!file.ReadStruct(fileHeader)
 		|| memcmp(fileHeader.dbm0, "DBM0", 4)
 		|| fileHeader.trkVerHi > 3)
 	{
@@ -318,19 +339,18 @@ bool CSoundFile::ReadDBM(FileReader &file, ModLoadingFlags loadFlags)
 		return false;
 	}
 
-	InitializeGlobals();
+	InitializeGlobals(MOD_TYPE_DBM);
 	InitializeChannels();
-	m_nType = MOD_TYPE_DBM;
 	m_SongFlags = SONG_ITCOMPATGXX | SONG_ITOLDEFFECTS;
-	SetModFlag(MSF_COMPATIBLE_PLAY, true);
 	m_nChannels = Clamp(infoData.channels, uint16(1), uint16(MAX_BASECHANNELS));	// note: MAX_BASECHANNELS is currently 127, but DBPro 2 supports up to 128 channels, DBPro 3 apparently up to 254.
 	m_nInstruments = std::min<INSTRUMENTINDEX>(infoData.instruments, MAX_INSTRUMENTS - 1);
 	m_nSamples = std::min<SAMPLEINDEX>(infoData.samples, MAX_SAMPLES - 1);
-	madeWithTracker = mpt::String::Print("DigiBooster Pro %1.%2", mpt::fmt::hex(fileHeader.trkVerHi), mpt::fmt::hex(fileHeader.trkVerLo));
+	m_madeWithTracker = mpt::String::Print("DigiBooster Pro %1.%2", mpt::fmt::hex(fileHeader.trkVerHi), mpt::fmt::hex(fileHeader.trkVerLo));
+	m_playBehaviour.set(kSlidesAtSpeed1);
 
 	// Name chunk
 	FileReader nameChunk = chunks.GetChunk(DBMChunk::idNAME);
-	nameChunk.ReadString<mpt::String::maybeNullTerminated>(songName, nameChunk.GetLength());
+	nameChunk.ReadString<mpt::String::maybeNullTerminated>(m_songName, nameChunk.GetLength());
 
 	// Song chunk
 	FileReader songChunk = chunks.GetChunk(DBMChunk::idSONG);
@@ -339,23 +359,28 @@ bool CSoundFile::ReadDBM(FileReader &file, ModLoadingFlags loadFlags)
 	{
 		char name[44];
 		songChunk.ReadString<mpt::String::maybeNullTerminated>(name, 44);
-		if(songName.empty())
+		if(m_songName.empty())
 		{
-			songName = name;
+			m_songName = name;
 		}
 #ifdef DBM_USE_REAL_SUBSONGS
 		if(i > 0) Order.AddSequence(false);
 		Order.SetSequence(i);
+		Order.clear();
 		Order.m_sName = name;
 #endif // DBM_USE_REAL_SUBSONGS
 
-		const uint16 numOrders = songChunk.ReadUint16BE();
+		uint16 numOrders = songChunk.ReadUint16BE();
 		const ORDERINDEX startIndex = Order.GetLength();
-		Order.resize(startIndex + numOrders + 1, Order.GetInvalidPatIndex());
-
-		for(uint16 ord = 0; ord < numOrders; ord++)
+		if(startIndex < ORDERINDEX_MAX && songChunk.CanRead(2))
 		{
-			Order[startIndex + ord] = static_cast<PATTERNINDEX>(songChunk.ReadUint16BE());
+			LimitMax(numOrders, static_cast<ORDERINDEX>(ORDERINDEX_MAX - startIndex));
+			Order.resize(startIndex + numOrders + 1, Order.GetInvalidPatIndex());
+
+			for(uint16 ord = 0; ord < numOrders; ord++)
+			{
+				Order[startIndex + ord] = static_cast<PATTERNINDEX>(songChunk.ReadUint16BE());
+			}
 		}
 	}
 #ifdef DBM_USE_REAL_SUBSONGS
@@ -416,6 +441,9 @@ bool CSoundFile::ReadDBM(FileReader &file, ModLoadingFlags loadFlags)
 
 	// Patterns
 	FileReader patternChunk = chunks.GetChunk(DBMChunk::idPATT);
+#ifndef NO_PLUGINS
+	bool hasEchoEnable = false, hasEchoParams = false;
+#endif // NO_PLUGINS
 	if(patternChunk.IsValid() && (loadFlags & loadPatternData))
 	{
 		FileReader patternNameChunk = chunks.GetChunk(DBMChunk::idPNAM);
@@ -427,7 +455,7 @@ bool CSoundFile::ReadDBM(FileReader &file, ModLoadingFlags loadFlags)
 			uint32 packedSize = patternChunk.ReadUint32BE();
 			FileReader chunk = patternChunk.ReadChunk(packedSize);
 
-			if(Patterns.Insert(pat, numRows))
+			if(!Patterns.Insert(pat, numRows))
 			{
 				continue;
 			}
@@ -438,7 +466,7 @@ bool CSoundFile::ReadDBM(FileReader &file, ModLoadingFlags loadFlags)
 
 			PatternRow patRow = Patterns[pat].GetRow(0);
 			ROWINDEX row = 0;
-			while(chunk.AreBytesLeft() && row < numRows)
+			while(chunk.CanRead(1) && row < numRows)
 			{
 				const uint8 ch = chunk.ReadUint8();
 
@@ -520,10 +548,97 @@ bool CSoundFile::ReadDBM(FileReader &file, ModLoadingFlags loadFlags)
 #ifdef MODPLUG_TRACKER
 					m.ExtendedMODtoS3MEffect();
 #endif // MODPLUG_TRACKER
+#ifndef NO_PLUGINS
+					if(m.command == CMD_DBMECHO)
+						hasEchoEnable = true;
+					else if(m.command == CMD_MIDI)
+						hasEchoParams = true;
+#endif // NO_PLUGINS
 				}
 			}
 		}
 	}
+
+#ifndef NO_PLUGINS
+	// Echo DSP
+	if(loadFlags & loadPluginData)
+	{
+		if(hasEchoEnable)
+		{
+			// If there are any Vxx effects to dynamically enable / disable echo, use the CHN_NOFX flag.
+			for(CHANNELINDEX i = 0; i < m_nChannels; i++)
+			{
+				ChnSettings[i].nMixPlugin = 1;
+				ChnSettings[i].dwFlags.set(CHN_NOFX);
+			}
+		}
+
+		bool anyEnabled = hasEchoEnable;
+		// DBP 3 Documentation says that the defaults are 64/128/128/255, but they appear to be 80/150/80/255 in DBP 2.21
+		uint8 settings[8] = { 0, 80, 0, 150, 0, 80, 0, 255 };
+
+		FileReader dspChunk = chunks.GetChunk(DBMChunk::idDSPE);
+		if(dspChunk.IsValid())
+		{
+			uint16 maskLen = dspChunk.ReadUint16BE();
+			for(uint16 i = 0; i < maskLen; i++)
+			{
+				bool enabled = (dspChunk.ReadUint8() == 0);
+				if(i < m_nChannels)
+				{
+					if(hasEchoEnable)
+					{
+						// If there are any Vxx effects to dynamically enable / disable echo, use the CHN_NOFX flag.
+						ChnSettings[i].dwFlags.set(CHN_NOFX, !enabled);
+					} else if(enabled)
+					{
+						ChnSettings[i].nMixPlugin = 1;
+						anyEnabled = true;
+					}
+				}
+			}
+			dspChunk.ReadArray(settings);
+		}
+
+		if(anyEnabled)
+		{
+			// Note: DigiBooster Pro 3 has a more versatile per-channel echo effect.
+			// In this case, we'd have to create one plugin per channel.
+			SNDMIXPLUGIN &plugin = m_MixPlugins[0];
+			plugin.Destroy();
+			memcpy(&plugin.Info.dwPluginId1, "DBM0", 4);
+			memcpy(&plugin.Info.dwPluginId2, "Echo", 4);
+			plugin.Info.routingFlags = SNDMIXPLUGININFO::irAutoSuspend;
+			plugin.Info.mixMode = 0;
+			plugin.Info.gain = 10;
+			plugin.Info.reserved = 0;
+			plugin.Info.dwOutputRouting = 0;
+			std::fill(plugin.Info.dwReserved, plugin.Info.dwReserved + CountOf(plugin.Info.dwReserved), 0);
+			mpt::String::Write<mpt::String::nullTerminated>(plugin.Info.szName, "Echo");
+			mpt::String::Write<mpt::String::nullTerminated>(plugin.Info.szLibraryName, "DigiBooster Pro Echo");
+
+			plugin.nPluginDataSize = sizeof(DigiBoosterEcho::PluginChunk);
+			plugin.pPluginData = new (std::nothrow) char[sizeof(DigiBoosterEcho::PluginChunk)];
+			if(plugin.pPluginData != nullptr)
+			{
+				new (plugin.pPluginData) DigiBoosterEcho::PluginChunk(settings[1], settings[3], settings[5], settings[7]);
+			}
+		}
+	}
+
+	// Encode echo parameters into fixed MIDI macros
+	if(hasEchoParams)
+	{
+		for(uint32 i = 0; i < 32; i++)
+		{
+			uint32 param = (i * 127u) / 32u;
+			sprintf(m_MidiCfg.szMidiZXXExt[i     ], "F0F080%02X", param);
+			sprintf(m_MidiCfg.szMidiZXXExt[i + 32], "F0F081%02X", param);
+			sprintf(m_MidiCfg.szMidiZXXExt[i + 64], "F0F082%02X", param);
+			sprintf(m_MidiCfg.szMidiZXXExt[i + 96], "F0F083%02X", param);
+		}
+	}
+#endif // NO_PLUGINS
 
 	// Samples
 	FileReader sampleChunk = chunks.GetChunk(DBMChunk::idSMPL);
@@ -549,7 +664,7 @@ bool CSoundFile::ReadDBM(FileReader &file, ModLoadingFlags loadFlags)
 		}
 	}
 
-#if !defined(NO_MP3_SAMPLES) && 0
+#if defined(MPT_ENABLE_MP3_SAMPLES) && 0
 	// Compressed samples - this does not quite work yet...
 	FileReader mpegChunk = chunks.GetChunk(DBMChunk::idMPEG);
 	if(mpegChunk.IsValid() && (loadFlags & loadSampleData))
@@ -565,7 +680,7 @@ bool CSoundFile::ReadDBM(FileReader &file, ModLoadingFlags loadFlags)
 		if(ReadMP3Sample(0, chunk))
 		{
 			ModSample &srcSample = Samples[0];
-			const uint8 *smpData = static_cast<uint8 *>(srcSample.pSample);
+			const int8 *smpData = srcSample.pSample8;
 
 			for(SAMPLEINDEX smp = 1; smp <= GetNumSamples(); smp++)
 			{
@@ -585,7 +700,10 @@ bool CSoundFile::ReadDBM(FileReader &file, ModLoadingFlags loadFlags)
 			srcSample.FreeSample();
 		}
 	}
-#endif // NO_MP3_SAMPLES
+#endif // MPT_ENABLE_MP3_SAMPLES
 	
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

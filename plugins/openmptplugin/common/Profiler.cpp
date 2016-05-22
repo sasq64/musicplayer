@@ -12,6 +12,9 @@
 #include "Profiler.h"
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 #ifdef USE_PROFILER
 
 
@@ -208,4 +211,11 @@ void Profile::Leave()
 }
 
 
+#else // !USE_PROFILER
+
+MPT_MSVC_WORKAROUND_LNK4221(Profiler)
+
 #endif // USE_PROFILER
+
+
+OPENMPT_NAMESPACE_END

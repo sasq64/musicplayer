@@ -13,6 +13,10 @@
 
 #include "stdafx.h"
 #include "Loaders.h"
+#include <algorithm>
+
+
+OPENMPT_NAMESPACE_BEGIN
 
 
 #ifdef NEEDS_PRAGMA_PACK
@@ -106,8 +110,8 @@ bool CSoundFile::ReadAMF_Asylum(FileReader &file, ModLoadingFlags loadFlags)
 	file.Rewind();
 
 	AsylumFileHeader fileHeader;
-	if(!file.Read(fileHeader)
-		|| strncmp(fileHeader.signature, "ASYLUM Music Format V1.0", 25)
+	if(!file.ReadStruct(fileHeader)
+		|| memcmp(fileHeader.signature, "ASYLUM Music Format V1.0\0", 25)
 		|| fileHeader.numSamples > 64
 		|| !file.CanRead(256 + 64 * sizeof(AsylumSampleHeader) + 64 * 4 * 8 * fileHeader.numPatterns))
 	{
@@ -117,18 +121,17 @@ bool CSoundFile::ReadAMF_Asylum(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
+	InitializeGlobals(MOD_TYPE_AMF0);
 	InitializeChannels();
-	m_nType = MOD_TYPE_AMF0;
 	m_nChannels = 8;
 	m_nDefaultSpeed = fileHeader.defaultSpeed;
-	m_nDefaultTempo = fileHeader.defaultTempo;
+	m_nDefaultTempo.Set(fileHeader.defaultTempo);
 	m_nSamples = fileHeader.numSamples;
 	if(fileHeader.restartPos < fileHeader.numOrders)
 	{
-		m_nRestartPos = fileHeader.restartPos;
+		Order.SetRestartPos(fileHeader.restartPos);
 	}
-	songName = "";
+	m_songName.clear();
 
 	Order.ReadAsByte(file, 256, fileHeader.numOrders);
 
@@ -146,7 +149,7 @@ bool CSoundFile::ReadAMF_Asylum(FileReader &file, ModLoadingFlags loadFlags)
 	// Read Patterns
 	for(PATTERNINDEX pat = 0; pat < fileHeader.numPatterns; pat++)
 	{
-		if(!(loadFlags & loadPatternData) || Patterns.Insert(pat, 64))
+		if(!(loadFlags & loadPatternData) || !Patterns.Insert(pat, 64))
 		{
 			file.Skip(64 * 4 * 8);
 			continue;
@@ -195,7 +198,7 @@ static void AMFReadPattern(CPattern &pattern, CHANNELINDEX chn, FileReader &file
 {
 	fileChunk.Rewind();
 	ModCommand::INSTR lastInstr = 0;
-	while(fileChunk.AreBytesLeft())
+	while(fileChunk.CanRead(3))
 	{
 		const uint8 row = fileChunk.ReadUint8();
 		const uint8 command = fileChunk.ReadUint8();
@@ -378,14 +381,13 @@ bool CSoundFile::ReadAMF_DSMI(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
+	InitializeGlobals(MOD_TYPE_AMF);
 	InitializeChannels();
 
-	m_nType = MOD_TYPE_AMF;
 	m_nChannels = fileHeader.numChannels;
 	m_nSamples = fileHeader.numSamples;
 
-	mpt::String::Read<mpt::String::maybeNullTerminated>(songName, fileHeader.title);
+	mpt::String::Read<mpt::String::maybeNullTerminated>(m_songName, fileHeader.title);
 
 	if(fileHeader.version < 10)
 	{
@@ -420,27 +422,29 @@ bool CSoundFile::ReadAMF_DSMI(FileReader &file, ModLoadingFlags loadFlags)
 		}
 	}
 	// To check: Was the channel table introduced in revision 1.0 or 0.9? I only have 0.8 files, in which it is missing...
-	ASSERT(fileHeader.version != 9);
+	MPT_ASSERT(fileHeader.version != 9);
 
 	// Get Tempo/Speed
 	if(fileHeader.version >= 13)
 	{
-		m_nDefaultTempo = file.ReadUint8();
+		uint8 tempo = file.ReadUint8();
+		if(tempo < 32) tempo = 125;
+		m_nDefaultTempo.Set(tempo);
 		m_nDefaultSpeed = file.ReadUint8();
-		if(m_nDefaultTempo < 32)
-		{
-			m_nDefaultTempo = 125;
-		}
 	} else
 	{
-		m_nDefaultTempo = 125;
+		m_nDefaultTempo.Set(125);
 		m_nDefaultSpeed = 6;
 	}
 
 	// Setup Order List
 	Order.resize(fileHeader.numOrders);
-	std::vector<ROWINDEX> patternLength(fileHeader.numOrders, 64);
+	std::vector<uint16> patternLength;
 	const FileReader::off_t trackStartPos = file.GetPosition() + (fileHeader.version >= 14 ? 2 : 0);
+	if(fileHeader.version >= 14)
+	{
+		patternLength.resize(fileHeader.numOrders);
+	}
 
 	for(ORDERINDEX ord = 0; ord < fileHeader.numOrders; ord++)
 	{
@@ -513,7 +517,10 @@ bool CSoundFile::ReadAMF_DSMI(FileReader &file, ModLoadingFlags loadFlags)
 	
 	// Read Track Mapping Table
 	std::vector<uint16> trackMap;
-	file.ReadVectorLE(trackMap, fileHeader.numTracks);
+	if(!file.ReadVectorLE(trackMap, fileHeader.numTracks))
+	{
+		return false;
+	}
 	uint16 trackCount = 0;
 	for(std::vector<uint16>::const_iterator i = trackMap.begin(); i != trackMap.end(); i++)
 	{
@@ -538,21 +545,24 @@ bool CSoundFile::ReadAMF_DSMI(FileReader &file, ModLoadingFlags loadFlags)
 			SampleIO::littleEndian,
 			SampleIO::unsignedPCM);
 
-		// Why is all of this sample loading business so dumb in AMF?
-		// Surely there must be some great idea behind it which isn't handled here (re-using the same sample data for different sample slots maybe?)
-		for(uint32 seekPos = 1; seekPos <= maxSamplePos; seekPos++)
+		// Why is all of this sample loading business so weird in AMF?
+		// Surely there must be some great idea behind it which isn't handled here or used in the wild
+		// (re-using the same sample data for different sample slots maybe?)
+
+		// First, try compacting the sample indices so that the loop won't have 2^32 iterations in the worst case.
+		std::vector<uint32> samplePosCompact = samplePos;
+		std::sort(samplePosCompact.begin(), samplePosCompact.end());
+		std::vector<uint32>::const_iterator end = std::unique(samplePosCompact.begin(), samplePosCompact.end());
+
+		for(std::vector<uint32>::const_iterator pos = samplePosCompact.begin(); pos != end && file.CanRead(1); pos++)
 		{
-			for(SAMPLEINDEX smp = 0; smp < GetNumSamples(); smp++)
+			for(SAMPLEINDEX smp = 0; smp < GetNumSamples() && file.CanRead(1); smp++)
 			{
-				if(seekPos == samplePos[smp])
+				if(*pos == samplePos[smp])
 				{
 					sampleIO.ReadSample(Samples[smp + 1], file);
 					break;
 				}
-			}
-			if(file.NoBytesLeft())
-			{
-				break;
 			}
 		}
 	}
@@ -565,7 +575,8 @@ bool CSoundFile::ReadAMF_DSMI(FileReader &file, ModLoadingFlags loadFlags)
 	// Create the patterns from the list of tracks
 	for(PATTERNINDEX pat = 0; pat < fileHeader.numOrders; pat++)
 	{
-		if(Patterns.Insert(pat, patternLength[pat]))
+		uint16 patLength = pat < patternLength.size() ? patternLength[pat] : 64;
+		if(!Patterns.Insert(pat, patLength))
 		{
 			continue;
 		}
@@ -573,7 +584,10 @@ bool CSoundFile::ReadAMF_DSMI(FileReader &file, ModLoadingFlags loadFlags)
 		// Get table with per-channel track assignments
 		file.Seek(trackStartPos + pat * (GetNumChannels() * 2 + (fileHeader.version >= 14 ? 2 : 0)));
 		std::vector<uint16> tracks;
-		file.ReadVectorLE(tracks, GetNumChannels());
+		if(!file.ReadVectorLE(tracks, GetNumChannels()))
+		{
+			continue;
+		}
 
 		for(CHANNELINDEX chn = 0; chn < GetNumChannels(); chn++)
 		{
@@ -591,3 +605,6 @@ bool CSoundFile::ReadAMF_DSMI(FileReader &file, ModLoadingFlags loadFlags)
 
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

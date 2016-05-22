@@ -12,6 +12,9 @@
 #include "Loaders.h"
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -150,15 +153,14 @@ bool CSoundFile::ReadFAR(FileReader &file, ModLoadingFlags loadFlags)
 	}
 
 	// Globals
-	InitializeGlobals();
-	m_nType = MOD_TYPE_FAR;
+	InitializeGlobals(MOD_TYPE_FAR);
 	m_nChannels = 16;
 	m_nSamplePreAmp = 32;
 	m_nDefaultSpeed = fileHeader.defaultSpeed;
-	m_nDefaultTempo = 80;
+	m_nDefaultTempo.Set(80);
 	m_nDefaultGlobalVolume = MAX_GLOBAL_VOLUME;
 
-	mpt::String::Read<mpt::String::maybeNullTerminated>(songName, fileHeader.songName);
+	mpt::String::Read<mpt::String::maybeNullTerminated>(m_songName, fileHeader.songName);
 
 	// Read channel settings
 	for(CHANNELINDEX chn = 0; chn < 16; chn++)
@@ -171,7 +173,7 @@ bool CSoundFile::ReadFAR(FileReader &file, ModLoadingFlags loadFlags)
 	// Read song message
 	if(fileHeader.messageLength != 0)
 	{
-		songMessage.ReadFixedLineLength(file, fileHeader.messageLength, 132, 0);	// 132 characters per line... wow. :)
+		m_songMessage.ReadFixedLineLength(file, fileHeader.messageLength, 132, 0);	// 132 characters per line... wow. :)
 	}
 
 	// Read orders
@@ -180,8 +182,8 @@ bool CSoundFile::ReadFAR(FileReader &file, ModLoadingFlags loadFlags)
 	{
 		return false;
 	}
-	Order.ReadFromArray(orderHeader.orders, orderHeader.numOrders);
-	m_nRestartPos = orderHeader.restartPos;
+	Order.ReadFromArray(orderHeader.orders, orderHeader.numOrders, 0xFF, 0xFE);
+	Order.SetRestartPos(orderHeader.restartPos);
 
 	file.Seek(fileHeader.headerLength);
 	
@@ -218,7 +220,7 @@ bool CSoundFile::ReadFAR(FileReader &file, ModLoadingFlags loadFlags)
 
 		// Calculate pattern length in rows (every event is 4 bytes, and we have 16 channels)
 		ROWINDEX numRows = (orderHeader.patternSize[pat] - 2) / (16 * 4);
-		if(!(loadFlags & loadPatternData) || !numRows || numRows > MAX_PATTERN_ROWS || Patterns.Insert(pat, numRows))
+		if(!(loadFlags & loadPatternData) || !Patterns.Insert(pat, numRows))
 		{
 			continue;
 		}
@@ -319,3 +321,6 @@ bool CSoundFile::ReadFAR(FileReader &file, ModLoadingFlags loadFlags)
 	}
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

@@ -16,20 +16,23 @@
 #include "../common/misc_util.h"
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 //////////////////////////////////////////////////////////////////////////
 // Noise Shaping (Dithering)
 
 
-std::wstring Dither::GetModeName(DitherMode mode)
+mpt::ustring Dither::GetModeName(DitherMode mode)
 //-----------------------------------------------
 {
 	switch(mode)
 	{
-		case DitherNone   : return L"no"     ; break;
-		case DitherDefault: return L"default"; break;
-		case DitherModPlug: return L"0.5 bit"; break;
-		case DitherSimple : return L"1 bit"  ; break;
-		default           : return L""       ; break;
+		case DitherNone   : return MPT_USTRING("no"     ); break;
+		case DitherDefault: return MPT_USTRING("default"); break;
+		case DitherModPlug: return MPT_USTRING("0.5 bit"); break;
+		case DitherSimple : return MPT_USTRING("1 bit"  ); break;
+		default           : return MPT_USTRING(""       ); break;
 	}
 }
 
@@ -41,8 +44,8 @@ std::wstring Dither::GetModeName(DitherMode mode)
 
 #ifdef ENABLE_X86
 
-void X86_Dither(int *pBuffer, UINT nSamples, UINT nBits, DitherModPlugState *state)
-//---------------------------------------------------------------------------------
+void X86_Dither(int *pBuffer, uint32 nSamples, uint32 nBits, DitherModPlugState *state)
+//-------------------------------------------------------------------------------------
 {
 	if(nBits + MIXING_ATTENUATION + 1 >= 32) //if(nBits>16)
 	{
@@ -99,11 +102,11 @@ static forceinline int32 dither_rand(uint32 &a, uint32 &b)
 	a ^= 0x10204080u;
 	a += 0x78649E7Du + (b * 4);
 	b += ((a << 16 ) | (a >> 16)) * 5;
-	return (int32)b;
+	return static_cast<int32>(b);
 }
 
-static void C_Dither(int *pBuffer, std::size_t count, UINT nBits, DitherModPlugState *state)
-//------------------------------------------------------------------------------------------
+static void C_Dither(int *pBuffer, std::size_t count, uint32 nBits, DitherModPlugState *state)
+//--------------------------------------------------------------------------------------------
 {
 	if(nBits + MIXING_ATTENUATION + 1 >= 32) //if(nBits>16)
 	{
@@ -127,8 +130,8 @@ static void C_Dither(int *pBuffer, std::size_t count, UINT nBits, DitherModPlugS
 
 }
 
-static void Dither_ModPlug(int *pBuffer, std::size_t count, std::size_t channels, UINT nBits, DitherModPlugState &state)
-//----------------------------------------------------------------------------------------------------------------------
+static void Dither_ModPlug(int *pBuffer, std::size_t count, std::size_t channels, uint32 nBits, DitherModPlugState &state)
+//------------------------------------------------------------------------------------------------------------------------
 {
 	#ifdef ENABLE_X86
 		X86_Dither(pBuffer, count * channels, nBits, &state);
@@ -162,13 +165,13 @@ static forceinline int fastrandbits(uint32 &state, int bits)
 template<int targetbits, int channels, int ditherdepth = 1, bool triangular = false, bool shaped = true>
 struct Dither_SimpleTemplate
 {
-noinline void operator () (int *mixbuffer, std::size_t count, DitherSimpleState &state)
-//-------------------------------------------------------------------------------------
+MPT_NOINLINE void operator () (int *mixbuffer, std::size_t count, DitherSimpleState &state)
+//-----------------------------------------------------------------------------------------
 {
 	STATIC_ASSERT(sizeof(int) == 4);
 	STATIC_ASSERT(FASTRAND_BITS * 3 >= (32-targetbits) - MIXING_ATTENUATION);
 	const int rshift = (32-targetbits) - MIXING_ATTENUATION;
-	if(rshift <= 0)
+	MPT_CONSTANT_IF(rshift <= 0)
 	{
 		// nothing to dither
 		return;
@@ -183,7 +186,7 @@ noinline void operator () (int *mixbuffer, std::size_t count, DitherSimpleState 
 		for(std::size_t channel = 0; channel < channels; ++channel)
 		{
 			int noise = 0;
-			if(triangular)
+			MPT_CONSTANT_IF(triangular)
 			{
 				noise = (fastrandbits(s.rng, noise_bits) + fastrandbits(s.rng, noise_bits)) >> 1;
 			} else
@@ -192,7 +195,7 @@ noinline void operator () (int *mixbuffer, std::size_t count, DitherSimpleState 
 			}
 			noise -= noise_bias; // un-bias
 			int val = *mixbuffer;
-			if(shaped)
+			MPT_CONSTANT_IF(shaped)
 			{
 				val += (s.error[channel] >> 1);
 			}
@@ -305,3 +308,6 @@ void Dither::Process(int *mixbuffer, std::size_t count, std::size_t channels, in
 			break;
 	}
 }
+
+
+OPENMPT_NAMESPACE_END

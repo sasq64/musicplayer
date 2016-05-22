@@ -11,66 +11,269 @@
 
 #include "stdafx.h"
 #include "Sndfile.h"
+#include "mod_specifications.h"
 #ifdef MODPLUG_TRACKER
 #include "../mptrack/Moddoc.h"
 #include "../mptrack/TrackerSettings.h"
+#include "Dlsbank.h"
 #endif //MODPLUG_TRACKER
-#include "../common/AudioCriticalSection.h"
-#include "Wav.h"
+#include "../soundlib/AudioCriticalSection.h"
+#ifndef MODPLUG_NO_FILESAVE
+#include "../common/mptFileIO.h"
+#endif
+#include "../common/misc_util.h"
 #include "Tagging.h"
 #include "ITTools.h"
 #include "XMTools.h"
 #include "S3MTools.h"
 #include "WAVTools.h"
 #include "../common/version.h"
+#include "Loaders.h"
 #include "ChunkReader.h"
-
-
-#ifndef NO_MP3_SAMPLES
-// Check for valid MPEG header
-static bool IsMPEG(const uint8 (&header)[3])
-//------------------------------------------
-{
-	return header[0] == 0xFF && (header[1] & 0xE0) == 0xE0 && (header[1] & 0x18) != 0x08 && (header[1] & 0x06) != 0x00 && (header[2] & 0xF0) != 0xF0;
+#include "SampleFormatConverters.h"
+#include "../common/ComponentManager.h"
+#ifdef MPT_ENABLE_MP3_SAMPLES
+#include "MPEGFrame.h"
+#endif // MPT_ENABLE_MP3_SAMPLES
+//#include "../common/mptCRC.h"
+#include "OggStream.h"
+#ifdef MPT_WITH_OGG
+#include <ogg/ogg.h>
+#endif // MPT_WITH_OGG
+#ifdef MPT_WITH_FLAC
+#include <FLAC/stream_decoder.h>
+#include <FLAC/stream_encoder.h>
+#include <FLAC/metadata.h>
+#endif // MPT_WITH_FLAC
+#if defined(MPT_WITH_OPUSFILE)
+#include <opusfile.h>
+#endif
+#if defined(MPT_WITH_VORBIS)
+#include <vorbis/codec.h>
+#endif
+#if defined(MPT_WITH_VORBISFILE)
+#include <vorbis/vorbisfile.h>
+#endif
+#ifdef MPT_WITH_STBVORBIS
+#include <stb_vorbis/stb_vorbis.c>
+#endif // MPT_WITH_STBVORBIS
+#if defined(MPT_WITH_MINIMP3)
+extern "C" {
+#include <minimp3/minimp3.h>
 }
-static bool IsMPEG(FileReader file)
-//---------------------------------
+#endif // MPT_WITH_MINIMP3
+#if defined(MPT_WITH_MEDIAFOUNDATION)
+#include <windows.h>
+#include <mfapi.h>
+#include <mfidl.h>
+#include <mfreadwrite.h>
+#include <mferror.h>
+#include <Propvarutil.h>
+#endif // MPT_WITH_MEDIAFOUNDATION
+
+// mpg123 must be last because of mpg123 largfile support insanity
+#if defined(MPT_WITH_MPG123)
+
+#include <stdlib.h>
+#include <sys/types.h>
+
+#include <mpg123.h>
+
+// check for utterly weird mpg123 largefile support
+
+#if !defined(MPG123_API_VERSION)
+#error "libmpg123 API version unknown. Assuming too old."
+#else
+
+#if (MPG123_API_VERSION < 11)
+#error "libmpg123 API version too old."
+
+#elif (MPG123_API_VERSION < 23)
+// OK
+
+#elif (MPG123_API_VERSION < 25) // < 1.12.0
+#if MPT_COMPILER_MSVC
+#pragma message("libmpg123 API version with split largefile support detected. This has not been tested at all.")
+#elif MPT_COMPILER_GCC || MPT_COMPILER_CLANG
+#warning "libmpg123 API version with split largefile support detected. This has not been tested at all."
+#else
+// There is no portable way to display a warning.
+// Try to provoke a warning with an unused function.
+static void OpenMPT_libmpg123_API_version_with_split_largefile_support_detected__This_has_not_been_tested_at_all_() { } 
+#endif
+
+#elif (MPG123_API_VERSION == 25) // == 1.12.x and some later
+// 1.12.2 introduced dumb wrappers for suffixed _32 and _64 functions.
+// We cannot detect whether it's one of the broken versions 1.12.0 or 1.12.1,
+// and thus have to implement a work-around for all of them (does not hurt though).
+#define MPT_LIBMPG123_WORKAROUND_LARGEFILE_SUFFIX
+
+#else // modern
+// OK
+
+#endif // MPG123_API_VERSION
+#endif // MPG123_API_VERSION
+
+#if defined(MPT_LIBMPG123_WORKAROUND_LARGEFILE_SUFFIX)
+
+#if !MPT_COMPILER_MSVC
+#if defined(_FILE_OFFSET_BITS) && !defined(MPG123_LARGESUFFIX)
+#if defined(MPT_ARCH_BITS)
+#if MPT_ARCH_BITS_64
+
+// We are always compiling with _FILE_OFFSET_BITS==64, even on 64 bit platforms.
+// libmpg123 does not provide the suffixed _64 versions in this case.
+// Thus, on 64 bit, #undef all the wrapper macros.
+
+extern "C" {
+
+#ifdef mpg123_open
+#undef mpg123_open
+#endif
+EXPORT int mpg123_open(mpg123_handle *mh, const char *path);
+
+#ifdef mpg123_open_fd
+#undef mpg123_open_fd
+#endif
+EXPORT int mpg123_open_fd(mpg123_handle *mh, int fd);
+
+#ifdef mpg123_open_handle  
+#undef mpg123_open_handle
+#endif
+EXPORT int mpg123_open_handle(mpg123_handle *mh, void *iohandle);
+
+#ifdef mpg123_framebyframe_decode 
+#undef mpg123_framebyframe_decode
+#endif
+EXPORT int mpg123_framebyframe_decode(mpg123_handle *mh, off_t *num, unsigned char **audio, size_t *bytes);
+
+#ifdef mpg123_decode_frame 
+#undef mpg123_decode_frame
+#endif
+EXPORT int mpg123_decode_frame(mpg123_handle *mh, off_t *num, unsigned char **audio, size_t *bytes);
+
+#ifdef mpg123_tell         
+#undef mpg123_tell
+#endif
+EXPORT off_t mpg123_tell(mpg123_handle *mh);
+
+#ifdef mpg123_tellframe    
+#undef mpg123_tellframe
+#endif
+EXPORT off_t mpg123_tellframe(mpg123_handle *mh);
+
+#ifdef mpg123_tell_stream  
+#undef mpg123_tell_stream
+#endif
+EXPORT off_t mpg123_tell_stream(mpg123_handle *mh);
+
+#ifdef mpg123_seek         
+#undef mpg123_seek
+#endif
+EXPORT off_t mpg123_seek(mpg123_handle *mh, off_t sampleoff, int whence);
+
+#ifdef mpg123_feedseek     
+#undef mpg123_feedseek
+#endif
+EXPORT off_t mpg123_feedseek(mpg123_handle *mh, off_t sampleoff, int whence, off_t *input_offset);
+
+#ifdef mpg123_seek_frame   
+#undef mpg123_seek_frame
+#endif
+EXPORT off_t mpg123_seek_frame(mpg123_handle *mh, off_t frameoff, int whence);
+
+#ifdef mpg123_timeframe    
+#undef mpg123_timeframe
+#endif
+EXPORT off_t mpg123_timeframe(mpg123_handle *mh, double sec);
+
+#ifdef mpg123_index        
+#undef mpg123_index
+#endif
+EXPORT int mpg123_index(mpg123_handle *mh, off_t **offsets, off_t *step, size_t *fill);
+
+#ifdef mpg123_set_index    
+#undef mpg123_set_index
+#endif
+EXPORT int mpg123_set_index(mpg123_handle *mh, off_t *offsets, off_t step, size_t fill);
+
+#ifdef mpg123_position     
+#undef mpg123_position
+#endif
+EXPORT int mpg123_position( mpg123_handle *mh, off_t frame_offset, off_t buffered_bytes, off_t *current_frame, off_t *frames_left, double *current_seconds, double *seconds_left);
+
+#ifdef mpg123_length       
+#undef mpg123_length
+#endif
+EXPORT off_t mpg123_length(mpg123_handle *mh);
+
+#ifdef mpg123_set_filesize 
+#undef mpg123_set_filesize
+#endif
+EXPORT int mpg123_set_filesize(mpg123_handle *mh, off_t size);
+
+#ifdef mpg123_replace_reader 
+#undef mpg123_replace_reader
+#endif
+EXPORT int mpg123_replace_reader(mpg123_handle *mh, ssize_t (*r_read) (int, void *, size_t), off_t (*r_lseek)(int, off_t, int));
+
+#ifdef mpg123_replace_reader_handle 
+#undef mpg123_replace_reader_handle
+#endif
+EXPORT int mpg123_replace_reader_handle(mpg123_handle *mh, ssize_t (*r_read) (void *, void *, size_t), off_t (*r_lseek)(void *, off_t, int), void (*cleanup)(void*));
+
+} // extern "C"
+
+#endif
+#endif
+#endif
+#endif
+
+#endif // MPT_LIBMPG123_WORKAROUND_LARGEFILE_SUFFIX
+
+#endif // MPT_WITH_MPG123
+
+
+OPENMPT_NAMESPACE_BEGIN
+
+
+#if defined(MPT_WITH_MEDIAFOUNDATION) || defined(MPT_WITH_OPUSFILE) || defined(MPT_WITH_VORBISFILE)
+
+static mpt::ustring GetSampleNameFromTags(const FileTags &tags)
+//-------------------------------------------------------------
 {
-	uint8 header[3];
-	if(!file.CanRead(3))
-		return false;
-	file.ReadArrayLE(header);
-	file.SkipBack(3);
-	return IsMPEG(header);
+	mpt::ustring result;
+	if(tags.artist.empty())
+	{
+		result = tags.title;
+	} else
+	{
+		result = mpt::String::Print(MPT_USTRING("%1 (by %2)"), tags.title, tags.artist);
+	}
+	return result;
 }
 
-static bool IsID3(FileReader file)
-//--------------------------------
-{
-	char header[3];
-	if(!file.CanRead(3))
-		return false;
-	file.ReadArrayLE(header);
-	file.SkipBack(3);
-	return header[0] == 'I' && header[1] == 'D' && header[2] == '3';
-}
-#endif // NO_MP3_SAMPLES
+#endif // MPT_WITH_MEDIAFOUNDATION || MPT_WITH_OPUSFILE || MPT_WITH_VORBISFILE
 
 
-bool CSoundFile::ReadSampleFromFile(SAMPLEINDEX nSample, FileReader &file, bool mayNormalize)
-//-------------------------------------------------------------------------------------------
+bool CSoundFile::ReadSampleFromFile(SAMPLEINDEX nSample, FileReader &file, bool mayNormalize, bool includeInstrumentFormats)
+//--------------------------------------------------------------------------------------------------------------------------
 {
 	if(!nSample || nSample >= MAX_SAMPLES) return false;
 	if(!ReadWAVSample(nSample, file, mayNormalize)
-		&& !ReadXISample(nSample, file)
-		&& !ReadITISample(nSample, file)
+		&& !(includeInstrumentFormats && ReadXISample(nSample, file))
+		&& !(includeInstrumentFormats && ReadITISample(nSample, file))
 		&& !ReadAIFFSample(nSample, file, mayNormalize)
 		&& !ReadITSSample(nSample, file)
-		&& !ReadPATSample(nSample, file)
+		&& !(includeInstrumentFormats && ReadPATSample(nSample, file))
 		&& !ReadIFFSample(nSample, file)
 		&& !ReadS3ISample(nSample, file)
 		&& !ReadFLACSample(nSample, file)
-		&& !ReadMP3Sample(nSample, file))
+		&& !ReadOpusSample(nSample, file)
+		&& !ReadVorbisSample(nSample, file)
+		&& !ReadMP3Sample(nSample, file)
+		&& !ReadMediaFoundationSample(nSample, file)
+		)
 	{
 		return false;
 	}
@@ -91,7 +294,18 @@ bool CSoundFile::ReadInstrumentFromFile(INSTRUMENTINDEX nInstr, FileReader &file
 		&& !ReadXIInstrument(nInstr, file)
 		&& !ReadITIInstrument(nInstr, file)
 		// Generic read
-		&& !ReadSampleAsInstrument(nInstr, file, mayNormalize)) return false;
+		&& !ReadSampleAsInstrument(nInstr, file, mayNormalize))
+	{
+		bool ok = false;
+#ifdef MODPLUG_TRACKER
+		CDLSBank bank;
+		if(bank.Open(file))
+		{
+			ok = bank.ExtractInstrument(*this, nInstr, 0, 0);
+		}
+#endif // MODPLUG_TRACKER
+		if(!ok) return false;
+	}
 
 	if(nInstr > GetNumInstruments()) m_nInstruments = nInstr;
 	return true;
@@ -101,52 +315,37 @@ bool CSoundFile::ReadInstrumentFromFile(INSTRUMENTINDEX nInstr, FileReader &file
 bool CSoundFile::ReadSampleAsInstrument(INSTRUMENTINDEX nInstr, FileReader &file, bool mayNormalize)
 //--------------------------------------------------------------------------------------------------
 {
-	file.Rewind();
-
-	if(!file.CanRead(80))
-		return false;
-	uint32 psig[20];
-	file.ReadArrayLE(psig);
-	file.SkipBack(80);
-	if(    (!memcmp(&psig[0], "RIFF", 4) && !memcmp(&psig[2], "WAVE", 4))	// RIFF....WAVE signature
-		|| (!memcmp(&psig[0], "LIST", 4) && !memcmp(&psig[2], "wave", 4))	// LIST....wave
-		||  !memcmp(&psig[76 / 4], "SCRS", 4)								// S3I signature
-		|| (!memcmp(&psig[0], "FORM", 4) &&
-			  (!memcmp(&psig[2], "AIFF", 4)									// AIFF signature
-			|| !memcmp(&psig[2], "AIFC", 4)									// AIFF-C signature
-			|| !memcmp(&psig[2], "8SVX", 4)))								// 8SVX signature
-		|| psig[0] == LittleEndian(ITSample::magic)							// ITS signature
-#ifndef NO_FLAC
-		|| !memcmp(&psig[0], "fLaC", 4)										// FLAC signature
-#endif // NO_FLAC
-#ifndef NO_MP3_SAMPLES
-		|| IsMPEG(file)														// MPEG signature
-		|| IsID3(file)				// MP3 signature
-#endif // NO_MP3_SAMPLES
-		)
+	// Scanning free sample
+	SAMPLEINDEX nSample = GetNextFreeSample(nInstr); // may also return samples which are only referenced by the current instrument
+	if(nSample == SAMPLEINDEX_INVALID)
 	{
-		// Scanning free sample
-		SAMPLEINDEX nSample = GetNextFreeSample(nInstr);
-		if(nSample == SAMPLEINDEX_INVALID)
-		{
-			return false;
-		}
-		
-		// Loading Instrument
-
-		ModInstrument *pIns = new (std::nothrow) ModInstrument(nSample);
-		if(pIns == nullptr)
-		{
-			return false;
-		}
-		 
-		DestroyInstrument(nInstr, deleteAssociatedSamples);
-		Instruments[nInstr] = pIns;
-
-		ReadSampleFromFile(nSample, file, mayNormalize);
-		return true;
+		return false;
 	}
-	return false;
+
+	// Loading Instrument
+	ModInstrument *pIns = new (std::nothrow) ModInstrument(nSample);
+	if(pIns == nullptr)
+	{
+		return false;
+	}
+	if(!ReadSampleFromFile(nSample, file, mayNormalize, false))
+	{
+		delete pIns;
+		return false;
+	}
+
+	// Remove all samples which are only referenced by the old instrument, except for the one we just loaded our new sample into.
+	RemoveInstrumentSamples(nInstr, nSample);
+
+	// Replace the instrument 
+	DestroyInstrument(nInstr, doNoDeleteAssociatedSamples);
+	Instruments[nInstr] = pIns;
+
+#if defined(MPT_ENABLE_FILEIO) && defined(MPT_EXTERNAL_SAMPLES)
+	SetSamplePath(nSample, file.GetFileName());
+#endif
+
+	return true;
 }
 
 
@@ -159,17 +358,6 @@ bool CSoundFile::DestroyInstrument(INSTRUMENTINDEX nInstr, deleteInstrumentSampl
 	{
 		RemoveInstrumentSamples(nInstr);
 	}
-
-#ifdef MODPLUG_TRACKER
-// -> CODE#0023
-// -> DESC="IT project files (.itp)"
-	m_szInstrumentPath[nInstr - 1] = mpt::PathString();
-	if(GetpModDoc())
-	{
-		GetpModDoc()->m_bsInstrumentModified.reset(nInstr - 1);
-	}
-// -! NEW_FEATURE#0023
-#endif // MODPLUG_TRACKER
 
 	CriticalSection cs;
 
@@ -187,9 +375,9 @@ bool CSoundFile::DestroyInstrument(INSTRUMENTINDEX nInstr, deleteInstrumentSampl
 }
 
 
-// Removing all unused samples
-bool CSoundFile::RemoveInstrumentSamples(INSTRUMENTINDEX nInstr)
-//--------------------------------------------------------------
+// Remove all unused samples from the given nInstr and keep keepSample if provided
+bool CSoundFile::RemoveInstrumentSamples(INSTRUMENTINDEX nInstr, SAMPLEINDEX keepSample)
+//--------------------------------------------------------------------------------------
 {
 	if(Instruments[nInstr] == nullptr)
 	{
@@ -203,7 +391,18 @@ bool CSoundFile::RemoveInstrumentSamples(INSTRUMENTINDEX nInstr)
 	for(std::set<SAMPLEINDEX>::const_iterator sample = referencedSamples.begin(); sample != referencedSamples.end(); sample++)
 	{
 		if((*sample) <= GetNumSamples())
+		{
 			keepSamples[*sample] = false;
+		}
+	}
+
+	// If we want to keep a specific sample, do so.
+	if(keepSample != SAMPLEINDEX_INVALID)
+	{
+		if(keepSample <= GetNumSamples())
+		{
+			keepSamples[keepSample] = true;
+		}
 	}
 
 	// Check if any of those samples are referenced by other instruments as well, in which case we want to keep them of course.
@@ -318,6 +517,93 @@ bool CSoundFile::ReadSampleFromSong(SAMPLEINDEX targetSample, const CSoundFile &
 			memcpy(Samples[targetSample].pSample, sourceSmp.pSample, nSize);
 			Samples[targetSample].PrecomputeLoops(*this, false);
 		}
+		// Remember on-disk path (for MPTM files), but don't implicitely enable on-disk storage
+		// (we really don't want this for e.g. duplicating samples or splitting stereo samples)
+#ifdef MPT_EXTERNAL_SAMPLES
+		SetSamplePath(targetSample, srcSong.GetSamplePath(sourceSample));
+#endif
+		Samples[targetSample].uFlags.reset(SMP_KEEPONDISK);
+	}
+
+	return true;
+}
+
+
+////////////////////////////////////////////////////////////////////////
+// IMA ADPCM Support for WAV files
+
+
+static bool IMAADPCMUnpack16(int16 *target, SmpLength sampleLen, FileReader file, uint16 blockAlign, uint32 numChannels)
+//----------------------------------------------------------------------------------------------------------------------
+{
+	static const int32 IMAIndexTab[8] =  { -1, -1, -1, -1, 2, 4, 6, 8 };
+	static const int32 IMAUnpackTable[90] =
+	{
+		7,     8,     9,     10,    11,    12,    13,    14,
+		16,    17,    19,    21,    23,    25,    28,    31,
+		34,    37,    41,    45,    50,    55,    60,    66,
+		73,    80,    88,    97,    107,   118,   130,   143,
+		157,   173,   190,   209,   230,   253,   279,   307,
+		337,   371,   408,   449,   494,   544,   598,   658,
+		724,   796,   876,   963,   1060,  1166,  1282,  1411,
+		1552,  1707,  1878,  2066,  2272,  2499,  2749,  3024,
+		3327,  3660,  4026,  4428,  4871,  5358,  5894,  6484,
+		7132,  7845,  8630,  9493,  10442, 11487, 12635, 13899,
+		15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794,
+		32767, 0
+	};
+
+	if(target == nullptr || blockAlign < 4u * numChannels)
+		return false;
+
+	SmpLength samplePos = 0;
+	sampleLen *= numChannels;
+	while(file.CanRead(4u * numChannels) && samplePos < sampleLen)
+	{
+		FileReader block = file.ReadChunk(blockAlign);
+		FileReader::PinnedRawDataView blockView = block.GetPinnedRawDataView();
+		const mpt::byte *data = blockView.data();
+		const uint32 blockSize = static_cast<uint32>(blockView.size());
+
+		for(uint32 chn = 0; chn < numChannels; chn++)
+		{
+			// Block header
+			int32 value = block.ReadInt16LE();
+			int32 nIndex = block.ReadUint8();
+			Limit(nIndex, 0, 89);
+			block.Skip(1);
+
+			SmpLength smpPos = samplePos + chn;
+			uint32 dataPos = (numChannels + chn) * 4;
+			// Block data
+			while(smpPos <= (sampleLen - 8) && dataPos <= (blockSize - 4))
+			{
+				for(uint32 i = 0; i < 8; i++)
+				{
+					uint8 delta = data[dataPos];
+					if(i & 1)
+					{
+						delta >>= 4;
+						dataPos++;
+					} else
+					{
+						delta &= 0x0F;
+					}
+					int32 v = IMAUnpackTable[nIndex] >> 3;
+					if (delta & 1) v += IMAUnpackTable[nIndex] >> 2;
+					if (delta & 2) v += IMAUnpackTable[nIndex] >> 1;
+					if (delta & 4) v += IMAUnpackTable[nIndex];
+					if (delta & 8) value -= v; else value += v;
+					nIndex += IMAIndexTab[delta & 7];
+					Limit(nIndex, 0, 88);
+					Limit(value, -32768, 32767);
+					target[smpPos] = static_cast<int16>(value);
+					smpPos += numChannels;
+				}
+				dataPos += (numChannels - 1) * 4u;
+			}
+		}
+		samplePos += ((blockSize - (numChannels * 4u)) * 2u);
 	}
 
 	return true;
@@ -352,21 +638,22 @@ bool CSoundFile::ReadWAVSample(SAMPLEINDEX nSample, FileReader &file, bool mayNo
 
 	FileReader sampleChunk = wavFile.GetSampleData();
 
-	if(wavFile.GetSampleFormat() == WAVFormatChunk::fmtIMA_ADPCM)
+	if(wavFile.GetSampleFormat() == WAVFormatChunk::fmtIMA_ADPCM && wavFile.GetNumChannels() <= 2)
 	{
 		// IMA ADPCM 4:1
 		LimitMax(sample.nLength, MAX_SAMPLE_LENGTH);
-		sample.uFlags |= CHN_16BIT;
+		sample.uFlags.set(CHN_16BIT);
+		sample.uFlags.set(CHN_STEREO, wavFile.GetNumChannels() == 2);
 		if(!sample.AllocateSample())
 		{
 			return false;
 		}
-		IMAADPCMUnpack16((int16 *)sample.pSample, sample.nLength, FileReader(sampleChunk.GetRawData(), sampleChunk.BytesLeft()), wavFile.GetBlockAlign());
+		IMAADPCMUnpack16(sample.pSample16, sample.nLength, sampleChunk, wavFile.GetBlockAlign(), wavFile.GetNumChannels());
 		sample.PrecomputeLoops(*this, false);
 	} else if(wavFile.GetSampleFormat() == WAVFormatChunk::fmtMP3)
 	{
 		// MP3 in WAV
-		return ReadMP3Sample(nSample, sampleChunk);
+		return ReadMP3Sample(nSample, sampleChunk, true) || ReadMediaFoundationSample(nSample, sampleChunk, true);
 	} else if(!wavFile.IsExtensibleFormat() && wavFile.MayBeCoolEdit16_8() && wavFile.GetSampleFormat() == WAVFormatChunk::fmtPCM && wavFile.GetBitsPerSample() == 32 && wavFile.GetBlockAlign() == wavFile.GetNumChannels() * 4)
 	{
 		// Syntrillium Cool Edit hack to store IEEE 32bit floating point
@@ -437,7 +724,13 @@ bool CSoundFile::ReadWAVSample(SAMPLEINDEX nSample, FileReader &file, bool mayNo
 bool CSoundFile::SaveWAVSample(SAMPLEINDEX nSample, const mpt::PathString &filename) const
 //----------------------------------------------------------------------------------------
 {
-	WAVWriter file(filename);
+	mpt::ofstream f(filename, std::ios::binary);
+	if(!f)
+	{
+		return false;
+	}
+
+	WAVWriter file(&f);
 
 	if(!file.IsValid())
 	{
@@ -454,14 +747,18 @@ bool CSoundFile::SaveWAVSample(SAMPLEINDEX nSample, const mpt::PathString &filen
 		sample.uFlags[CHN_STEREO] ? SampleIO::stereoInterleaved : SampleIO::mono,
 		SampleIO::littleEndian,
 		sample.uFlags[CHN_16BIT] ? SampleIO::signedPCM : SampleIO::unsignedPCM)
-		.WriteSample(file.GetFile(), sample));
+		.WriteSample(f, sample));
 
 	file.WriteLoopInformation(sample);
 	file.WriteExtraInformation(sample, GetType());
+	if(sample.HasCustomCuePoints())
+	{
+		file.WriteCueInformation(sample);
+	}
 	
 	FileTags tags;
-	tags.title = mpt::ToWide(mpt::CharsetLocale, m_szNames[nSample]);
-	tags.encoder = mpt::ToWide(mpt::CharsetLocale, MptVersion::GetOpenMPTVersionStr());
+	tags.title = mpt::ToUnicode(GetCharsetLocaleOrModule(), m_szNames[nSample]);
+	tags.encoder = mpt::ToUnicode(mpt::CharsetUTF8, MptVersion::GetOpenMPTVersionStr());
 	file.WriteMetatags(tags);
 	
 	return true;
@@ -478,8 +775,11 @@ bool CSoundFile::SaveWAVSample(SAMPLEINDEX nSample, const mpt::PathString &filen
 bool CSoundFile::SaveRAWSample(SAMPLEINDEX nSample, const mpt::PathString &filename) const
 //----------------------------------------------------------------------------------------
 {
-	FILE *f;
-	if((f = mpt_fopen(filename, "wb")) == NULL) return false;
+	mpt::ofstream f(filename, std::ios::binary);
+	if(!f)
+	{
+		return false;
+	}
 
 	const ModSample &sample = Samples[nSample];
 	SampleIO(
@@ -489,7 +789,6 @@ bool CSoundFile::SaveRAWSample(SAMPLEINDEX nSample, const mpt::PathString &filen
 		SampleIO::signedPCM)
 		.WriteSample(f, sample);
 
-	fclose(f);
 	return true;
 }
 
@@ -711,7 +1010,7 @@ bool CSoundFile::ReadPATSample(SAMPLEINDEX nSample, FileReader &file)
 		|| memcmp(fileHeader.id, "ID#000002\0", 10)
 		|| !fileHeader.numInstr || !fileHeader.numSamples
 		|| !file.ReadConvertEndianness(instrHeader)
-		|| !instrHeader.layers
+		//|| !instrHeader.layers	// DOO.PAT has 0 layers
 		|| !file.ReadConvertEndianness(layerHeader)
 		|| !layerHeader.samples)
 	{
@@ -957,6 +1256,7 @@ bool CSoundFile::ReadXIInstrument(INSTRUMENTINDEX nInstr, FileReader &file)
 
 	// Read MPT crap
 	ReadExtendedInstrumentProperties(pIns, file);
+	pIns->Sanitize(GetType());
 	return true;
 }
 
@@ -1022,7 +1322,7 @@ bool CSoundFile::SaveXIInstrument(INSTRUMENTINDEX nInstr, const mpt::PathString 
 		}
 	}
 
-	int32 code = MULTICHAR4_LE_MSVC('M','P','T','X');
+	int32 code = MAGIC4BE('M','P','T','X');
 	fwrite(&code, 1, sizeof(int32), f);		// Write extension tag
 	WriteInstrumentHeaderStructOrField(pIns, f);	// Write full extended header.
 
@@ -1449,12 +1749,44 @@ bool CSoundFile::ReadITSSample(SAMPLEINDEX nSample, FileReader &file, bool rewin
 	}
 	DestroySampleThreadsafe(nSample);
 
-	file.Seek(sampleHeader.ConvertToMPT(Samples[nSample]));
+	ModSample &sample = Samples[nSample];
+	file.Seek(sampleHeader.ConvertToMPT(sample));
 	mpt::String::Read<mpt::String::spacePaddedNull>(m_szNames[nSample], sampleHeader.name);
-	Samples[nSample].Convert(MOD_TYPE_IT, GetType());
 
-	sampleHeader.GetSampleFormat().ReadSample(Samples[nSample], file);
-	Samples[nSample].PrecomputeLoops(*this, false);
+	if(!sample.uFlags[SMP_KEEPONDISK])
+	{
+		sampleHeader.GetSampleFormat().ReadSample(Samples[nSample], file);
+	} else
+	{
+		// External sample
+		size_t strLen;
+		file.ReadVarInt(strLen);
+#ifdef MPT_EXTERNAL_SAMPLES
+		std::string filenameU8;
+		file.ReadString<mpt::String::maybeNullTerminated>(filenameU8, strLen);
+		mpt::PathString filename = mpt::PathString::FromUTF8(filenameU8);
+
+		if(!filename.empty())
+		{
+			if(!file.GetFileName().empty())
+			{
+				filename = filename.RelativePathToAbsolute(file.GetFileName().GetPath());
+			}
+			if(!LoadExternalSample(nSample, filename))
+			{
+				AddToLog(LogWarning, MPT_USTRING("Unable to load sample: ") + filename.ToUnicode());
+			}
+		} else
+		{
+			sample.uFlags.reset(SMP_KEEPONDISK);
+		}
+#else
+		file.Skip(strLen);
+#endif // MPT_EXTERNAL_SAMPLES
+	}
+
+	sample.Convert(MOD_TYPE_IT, GetType());
+	sample.PrecomputeLoops(*this, false);
 	return true;
 }
 
@@ -1474,9 +1806,7 @@ bool CSoundFile::ReadITISample(SAMPLEINDEX nSample, FileReader &file)
 	file.Rewind();
 	ModInstrument dummy;
 	ITInstrToMPT(file, dummy, instrumentHeader.trkvers);
-	ReadITSSample(nSample, file, false);
-
-	return true;
+	return ReadITSSample(nSample, file, false);
 }
 
 
@@ -1541,6 +1871,7 @@ bool CSoundFile::ReadITIInstrument(INSTRUMENTINDEX nInstr, FileReader &file)
 		// Read MPT crap
 		ReadExtendedInstrumentProperties(pIns, file);
 	}
+	pIns->Sanitize(GetType());
 
 	return true;
 }
@@ -1548,8 +1879,8 @@ bool CSoundFile::ReadITIInstrument(INSTRUMENTINDEX nInstr, FileReader &file)
 
 #ifndef MODPLUG_NO_FILESAVE
 
-bool CSoundFile::SaveITIInstrument(INSTRUMENTINDEX nInstr, const mpt::PathString &filename, bool compress) const
-//--------------------------------------------------------------------------------------------------------------
+bool CSoundFile::SaveITIInstrument(INSTRUMENTINDEX nInstr, const mpt::PathString &filename, bool compress, bool allowExternal) const
+//----------------------------------------------------------------------------------------------------------------------------------
 {
 	ITInstrumentEx iti;
 	ModInstrument *pIns = Instruments[nInstr];
@@ -1593,7 +1924,8 @@ bool CSoundFile::SaveITIInstrument(INSTRUMENTINDEX nInstr, const mpt::PathString
 	for(std::vector<SAMPLEINDEX>::iterator iter = smptable.begin(); iter != smptable.end(); iter++)
 	{
 		ITSample itss;
-		itss.ConvertToIT(Samples[*iter], GetType(), compress, compress);
+		itss.ConvertToIT(Samples[*iter], GetType(), compress, compress, allowExternal);
+		const bool isExternal = itss.cvt == ITSample::cvtExternalSample;
 
 		mpt::String::Write<mpt::String::nullTerminated>(itss.name, m_szNames[*iter]);
 
@@ -1604,12 +1936,27 @@ bool CSoundFile::SaveITIInstrument(INSTRUMENTINDEX nInstr, const mpt::PathString
 		// Write sample
 		off_t curPos = ftell(f);
 		fseek(f, filePos, SEEK_SET);
-		filePos += mpt::saturate_cast<uint32>(itss.GetSampleFormat(0x0214).WriteSample(f, Samples[*iter]));
+		if(!isExternal)
+		{
+			filePos += mpt::saturate_cast<uint32>(itss.GetSampleFormat(0x0214).WriteSample(f, Samples[*iter]));
+		} else
+		{
+#ifdef MPT_EXTERNAL_SAMPLES
+			const std::string filenameU8 = GetSamplePath(*iter).AbsolutePathToRelative(filename.GetPath()).ToUTF8();
+			const size_t strSize = mpt::saturate_cast<uint16>(filenameU8.size());
+			size_t intBytes = 0;
+			if(mpt::IO::WriteVarInt(f, strSize, &intBytes))
+			{
+				filePos += intBytes + strSize;
+				mpt::IO::WriteRaw(f, &filenameU8[0], strSize);
+			}
+#endif // MPT_EXTERNAL_SAMPLES
+		}
 		fseek(f, curPos, SEEK_SET);
 	}
 
 	fseek(f, 0, SEEK_END);
-	int32 code = MULTICHAR4_LE_MSVC('M','P','T','X');
+	int32 code = MAGIC4BE('M','P','T','X');
 	SwapBytesLE(code);
 	fwrite(&code, 1, sizeof(int32), f);		// Write extension tag
 	WriteInstrumentHeaderStructOrField(pIns, f);	// Write full extended header.
@@ -1619,87 +1966,6 @@ bool CSoundFile::SaveITIInstrument(INSTRUMENTINDEX nInstr, const mpt::PathString
 }
 
 #endif // MODPLUG_NO_FILESAVE
-
-
-void ReadInstrumentExtensionField(ModInstrument* pIns, const uint32 code, const uint16 size, FileReader &file)
-//------------------------------------------------------------------------------------------------------------
-{
-	if(code == MULTICHAR4_LE_MSVC('K','[','.','.'))
-	{
-		// skip keyboard mapping
-		file.Skip(size);
-		return;
-	}
-
-	bool success = ReadInstrumentHeaderField(pIns, code, size, file);
-
-	if(!success)
-	{
-		file.Skip(size);
-		return;
-	}
-
-	if(code == MULTICHAR4_LE_MSVC('n','[','.','.'))
-		mpt::String::SetNullTerminator(pIns->name);
-	if(code == MULTICHAR4_LE_MSVC('f','n','[','.'))
-		mpt::String::SetNullTerminator(pIns->filename);
-
-	if(code == MULTICHAR4_LE_MSVC('d','F','.','.')) // 'dF..' field requires additional processing.
-		ConvertReadExtendedFlags(pIns);
-}
-
-
-void ReadExtendedInstrumentProperty(ModInstrument* pIns, const uint32 code, FileReader &file)
-//-------------------------------------------------------------------------------------------
-{
-	uint16 size = file.ReadUint16LE();
-	if(!file.CanRead(size))
-	{
-		return;
-	}
-	ReadInstrumentExtensionField(pIns, code, size, file);
-}
-
-
-void ReadExtendedInstrumentProperties(ModInstrument* pIns, FileReader &file)
-//--------------------------------------------------------------------------
-{
-	if(!file.ReadMagic("XTPM"))	// 'MPTX'
-	{
-		return;
-	}
-
-	while(file.CanRead(7))
-	{
-		ReadExtendedInstrumentProperty(pIns, file.ReadUint32LE(), file);
-	}
-}
-
-
-void ConvertReadExtendedFlags(ModInstrument *pIns)
-//------------------------------------------------
-{
-	const uint32 dwOldFlags = pIns->dwFlags;
-
-	pIns->VolEnv.dwFlags.set(ENV_ENABLED, (dwOldFlags & dFdd_VOLUME) != 0);
-	pIns->VolEnv.dwFlags.set(ENV_SUSTAIN, (dwOldFlags & dFdd_VOLSUSTAIN) != 0);
-	pIns->VolEnv.dwFlags.set(ENV_LOOP, (dwOldFlags & dFdd_VOLLOOP) != 0);
-	pIns->VolEnv.dwFlags.set(ENV_CARRY, (dwOldFlags & dFdd_VOLCARRY) != 0);
-
-	pIns->PanEnv.dwFlags.set(ENV_ENABLED, (dwOldFlags & dFdd_PANNING) != 0);
-	pIns->PanEnv.dwFlags.set(ENV_SUSTAIN, (dwOldFlags & dFdd_PANSUSTAIN) != 0);
-	pIns->PanEnv.dwFlags.set(ENV_LOOP, (dwOldFlags & dFdd_PANLOOP) != 0);
-	pIns->PanEnv.dwFlags.set(ENV_CARRY, (dwOldFlags & dFdd_PANCARRY) != 0);
-
-	pIns->PitchEnv.dwFlags.set(ENV_ENABLED, (dwOldFlags & dFdd_PITCH) != 0);
-	pIns->PitchEnv.dwFlags.set(ENV_SUSTAIN, (dwOldFlags & dFdd_PITCHSUSTAIN) != 0);
-	pIns->PitchEnv.dwFlags.set(ENV_LOOP, (dwOldFlags & dFdd_PITCHLOOP) != 0);
-	pIns->PitchEnv.dwFlags.set(ENV_CARRY, (dwOldFlags & dFdd_PITCHCARRY) != 0);
-	pIns->PitchEnv.dwFlags.set(ENV_FILTER, (dwOldFlags & dFdd_FILTER) != 0);
-
-	pIns->dwFlags.set(INS_SETPANNING, (dwOldFlags & dFdd_SETPANNING) != 0);
-	pIns->dwFlags.set(INS_MUTE, (dwOldFlags & dFdd_MUTE) != 0);
-}
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1745,7 +2011,7 @@ struct PACKED IFFChunk
 	size_t GetLength() const
 	{
 		if(length == 0)	// Broken files
-			return SIZE_MAX;
+			return std::numeric_limits<size_t>::max();
 		return SwapBytesReturnBE(length);
 	}
 
@@ -1755,7 +2021,7 @@ struct PACKED IFFChunk
 	}
 };
 
-STATIC_ASSERT(sizeof(AIFFChunk) == 8);
+STATIC_ASSERT(sizeof(IFFChunk) == 8);
 
 
 struct PACKED IFFSampleHeader
@@ -1852,12 +2118,7 @@ bool CSoundFile::ReadIFFSample(SAMPLEINDEX nSample, FileReader &file)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // FLAC Samples
 
-#ifndef NO_FLAC
-#define FLAC__NO_DLL
-#include <flac/include/FLAC/stream_decoder.h>
-#include <flac/include/FLAC/stream_encoder.h>
-#include <flac/include/FLAC/metadata.h>
-#include "SampleFormatConverters.h"
+#ifdef MPT_WITH_FLAC
 
 struct FLACDecoder
 {
@@ -1875,7 +2136,7 @@ struct FLACDecoder
 		{
 			FileReader::off_t readBytes = *bytes;
 			LimitMax(readBytes, file.BytesLeft());
-			file.ReadRaw(reinterpret_cast<char *>(buffer), readBytes);
+			file.ReadRaw(buffer, readBytes);
 			*bytes = readBytes;
 			if(*bytes == 0)
 				return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
@@ -1938,12 +2199,12 @@ struct FLACDecoder
 		// Source bit depth
 		const unsigned int bps = frame->header.bits_per_sample;
 
-		int8 *sampleData8 = static_cast<int8 *>(sample.pSample) + offset;
-		int16 *sampleData16 = static_cast<int16 *>(sample.pSample) + offset;
+		int8 *sampleData8 = sample.pSample8 + offset;
+		int16 *sampleData16 = sample.pSample16 + offset;
 
-		ASSERT((bps <= 8 && sample.GetElementarySampleSize() == 1) || (bps > 8 && sample.GetElementarySampleSize() == 2));
-		ASSERT(modChannels <= FLAC__stream_decoder_get_channels(decoder));
-		ASSERT(bps == FLAC__stream_decoder_get_bits_per_sample(decoder));
+		MPT_ASSERT((bps <= 8 && sample.GetElementarySampleSize() == 1) || (bps > 8 && sample.GetElementarySampleSize() == 2));
+		MPT_ASSERT(modChannels <= FLAC__stream_decoder_get_channels(decoder));
+		MPT_ASSERT(bps == FLAC__stream_decoder_get_bits_per_sample(decoder));
 		MPT_UNREFERENCED_PARAMETER(decoder); // decoder is unused if ASSERTs are compiled out
 
 		// Do the sample conversion
@@ -1990,7 +2251,7 @@ struct FLACDecoder
 		} else if(metadata->type == FLAC__METADATA_TYPE_APPLICATION && !memcmp(metadata->data.application.id, "riff", 4) && client.ready)
 		{
 			// Try reading RIFF loop points and other sample information
-			ChunkReader data(reinterpret_cast<const char*>(metadata->data.application.data), metadata->length);
+			ChunkReader data(mpt::as_span(metadata->data.application.data, metadata->length));
 			ChunkReader::ChunkList<RIFFChunk> chunks = data.ReadChunks<RIFFChunk>(2);
 
 			// We're not really going to read a WAV file here because there will be only one RIFF chunk per metadata event, but we can still re-use the code for parsing RIFF metadata...
@@ -1999,16 +2260,33 @@ struct FLACDecoder
 			riffReader.ApplySampleSettings(sample, client.sndFile.m_szNames[client.sample]);
 		} else if(metadata->type == FLAC__METADATA_TYPE_VORBIS_COMMENT && client.ready)
 		{
-			// Try reading Vorbis Comments for sample title
+			// Try reading Vorbis Comments for sample title, sample rate and loop points
+			SmpLength loopStart = 0, loopLength = 0;
 			for(FLAC__uint32 i = 0; i < metadata->data.vorbis_comment.num_comments; i++)
 			{
-				const char *tag = reinterpret_cast<const char *>(metadata->data.vorbis_comment.comments[i].entry);
+				const char *tag = mpt::byte_cast<const char *>(metadata->data.vorbis_comment.comments[i].entry);
 				const FLAC__uint32 length = metadata->data.vorbis_comment.comments[i].length;
-				if(length > 6 && !mpt::strnicmp(tag, "TITLE=", 6))
+				if(length > 6 && !mpt::CompareNoCaseAscii(tag, "TITLE=", 6))
 				{
 					mpt::String::Read<mpt::String::maybeNullTerminated>(client.sndFile.m_szNames[client.sample], tag + 6, length - 6);
-					break;
+				} else if(length > 11 && !mpt::CompareNoCaseAscii(tag, "SAMPLERATE=", 11))
+				{
+					uint32 sampleRate = ConvertStrTo<uint32>(tag + 11);
+					if(sampleRate > 0) sample.nC5Speed = sampleRate;
+				} else if(length > 10 && !mpt::CompareNoCaseAscii(tag, "LOOPSTART=", 10))
+				{
+					loopStart = ConvertStrTo<SmpLength>(tag + 10);
+				} else if(length > 11 && !mpt::CompareNoCaseAscii(tag, "LOOPLENGTH=", 11))
+				{
+					loopLength = ConvertStrTo<SmpLength>(tag + 11);
 				}
+			}
+			if(loopLength > 0)
+			{
+				sample.nLoopStart = loopStart;
+				sample.nLoopEnd = loopStart + loopLength;
+				sample.uFlags.set(CHN_LOOP);
+				sample.SanitizeLoops();
 			}
 		}
 	}
@@ -2018,17 +2296,178 @@ struct FLACDecoder
 	}
 };
 
-#endif // NO_FLAC
+#endif // MPT_WITH_FLAC
 
 
 bool CSoundFile::ReadFLACSample(SAMPLEINDEX sample, FileReader &file)
 //-------------------------------------------------------------------
 {
-#ifndef NO_FLAC
-	// Check if we're dealing with FLAC in an OGG container.
-	// <del>We won't check for the "fLaC" signature but let libFLAC decide whether a file is valid or not, as some FLAC files might have e.g. leading ID3v2 data.</del> Apparently we do that now.
+#ifdef MPT_WITH_FLAC
 	file.Rewind();
-	if(!file.ReadMagic("fLaC"))
+	bool isOgg = false;
+#ifdef MPT_WITH_OGG
+	uint32 oggFlacBitstreamSerial = 0;
+#endif
+	// Check whether we are dealing with native FLAC, OggFlac or no FLAC at all.
+	if(file.ReadMagic("fLaC"))
+	{ // ok
+		isOgg = false;
+#ifdef MPT_WITH_OGG
+	} else if(file.ReadMagic("OggS"))
+	{ // use libogg to find the first OggFlac stream header
+		file.Rewind();
+		bool oggOK = false;
+		bool needMoreData = true;
+		static const long bufsize = 65536;
+		std::size_t readSize = 0;
+		char *buf = nullptr;
+		ogg_sync_state oy;
+		MemsetZero(oy);
+		ogg_page og;
+		MemsetZero(og);
+		std::map<uint32, ogg_stream_state*> oggStreams;
+		ogg_packet op;
+		MemsetZero(op);
+		if(ogg_sync_init(&oy) != 0)
+		{
+			return false;
+		}
+		while(needMoreData)
+		{
+			if(file.NoBytesLeft())
+			{ // stop at EOF
+				oggOK = false;
+				needMoreData = false;
+				break;
+			}
+			buf = ogg_sync_buffer(&oy, bufsize);
+			if(!buf)
+			{
+				oggOK = false;
+				needMoreData = false;
+				break;
+			}
+			readSize = file.ReadRaw(buf, bufsize);
+			if(ogg_sync_wrote(&oy, static_cast<long>(readSize)) != 0)
+			{
+				oggOK = false;
+				needMoreData = false;
+				break;
+			}
+			while(ogg_sync_pageout(&oy, &og) == 1)
+			{
+				if(!ogg_page_bos(&og))
+				{ // we stop scanning when seeing the first noo-begin-of-stream page
+					oggOK = false;
+					needMoreData = false;
+					break;
+				}
+				uint32 serial = ogg_page_serialno(&og);
+				if(!oggStreams[serial])
+				{ // previously unseen stream serial
+					oggStreams[serial] = new ogg_stream_state();
+					MemsetZero(*(oggStreams[serial]));
+					if(ogg_stream_init(oggStreams[serial], serial) != 0)
+					{
+						delete oggStreams[serial];
+						oggStreams.erase(serial);
+						oggOK = false;
+						needMoreData = false;
+						break;
+					}
+				}
+				if(ogg_stream_pagein(oggStreams[serial], &og) != 0)
+				{ // invalid page
+					oggOK = false;
+					needMoreData = false;
+					break;
+				}
+				if(ogg_stream_packetout(oggStreams[serial], &op) != 1)
+				{ // partial or broken packet, continue with more data
+					continue;
+				}
+				if(op.packetno != 0)
+				{ // non-begin-of-stream packet.
+					// This should not appear on first page for any known ogg codec,
+					// but deal gracefully with badly mused streams in that regard.
+					continue;
+				}
+				FileReader packet(op.packet, op.bytes);
+				if(packet.ReadIntLE<uint8>() == 0x7f && packet.ReadMagic("FLAC"))
+				{ // looks like OggFlac
+					oggOK = true;
+					oggFlacBitstreamSerial = serial;
+					needMoreData = false;
+					break;
+				}
+			}
+		}
+		while(oggStreams.size() > 0)
+		{
+			uint32 serial = oggStreams.begin()->first;
+			ogg_stream_clear(oggStreams[serial]);
+			delete oggStreams[serial];
+			oggStreams.erase(serial);
+		}
+		ogg_sync_clear(&oy);
+		if(!oggOK)
+		{
+			return false;
+		}
+		isOgg = true;
+#else // !MPT_WITH_OGG
+	} else if(file.CanRead(78) && file.ReadMagic("OggS"))
+	{ // first OggFlac page is exactly 78 bytes long
+		// only support plain OggFlac here with the FLAC logical bitstream being the first one
+		uint8 oggPageVersion = file.ReadIntLE<uint8>();
+		uint8 oggPageHeaderType = file.ReadIntLE<uint8>();
+		uint64 oggPageGranulePosition = file.ReadIntLE<uint64>();
+		uint32 oggPageBitstreamSerialNumber = file.ReadIntLE<uint32>();
+		uint32 oggPageSequenceNumber = file.ReadIntLE<uint32>();
+		uint32 oggPageChecksum = file.ReadIntLE<uint32>();
+		uint8 oggPageSegments = file.ReadIntLE<uint8>();
+		uint8 oggPageSegmentLength = file.ReadIntLE<uint8>();
+		if(oggPageVersion != 0)
+		{ // unknown Ogg version
+			return false;
+		}
+		if(!(oggPageHeaderType & 0x02) || (oggPageHeaderType& 0x01))
+		{ // not BOS or continuation
+			return false;
+		}
+		if(oggPageGranulePosition != 0)
+		{ // not starting position
+			return false;
+		}
+		if(oggPageSequenceNumber != 0)
+		{ // not first page
+			return false;
+		}
+		// skip CRC check for now
+		if(oggPageSegments != 1)
+		{ // first OggFlac page must contain exactly 1 segment
+			return false;
+		}
+		if(oggPageSegmentLength != 51)
+		{ // segment length must be 51 bytes in OggFlac mapping
+			return false;
+		}
+		if(file.ReadIntLE<uint8>() != 0x7f)
+		{ // OggFlac mapping demands 0x7f packet type
+			return false;
+		}
+		if(!file.ReadMagic("FLAC"))
+		{ // OggFlac magic
+			return false;
+		}
+		if(file.ReadIntLE<uint8>() != 0x01)
+		{ // OggFlac major version
+			return false;
+		}
+		// by now, we are pretty confident that we are not parsing random junk
+		isOgg = true;
+#endif // MPT_WITH_OGG
+	} else
 	{
 		return false;
 	}
@@ -2040,15 +2479,32 @@ bool CSoundFile::ReadFLACSample(SAMPLEINDEX sample, FileReader &file)
 		return false;
 	}
 
+#ifdef MPT_WITH_OGG
+	if(isOgg)
+	{
+		// force flac decoding of the logical bitstream that actually is OggFlac
+		if(!FLAC__stream_decoder_set_ogg_serial_number(decoder, oggFlacBitstreamSerial))
+		{
+			FLAC__stream_decoder_delete(decoder);
+			return false;
+		}
+	}
+#endif
+
 	// Give me all the metadata!
 	FLAC__stream_decoder_set_metadata_respond_all(decoder);
 
 	FLACDecoder client(file, *this, sample);
 
 	// Init decoder
-	FLAC__StreamDecoderInitStatus initStatus = FLAC__stream_decoder_init_stream(decoder, FLACDecoder::read_cb, FLACDecoder::seek_cb, FLACDecoder::tell_cb, FLACDecoder::length_cb, FLACDecoder::eof_cb, FLACDecoder::write_cb, FLACDecoder::metadata_cb, FLACDecoder::error_cb, &client);
+	FLAC__StreamDecoderInitStatus initStatus = isOgg ?
+		FLAC__stream_decoder_init_ogg_stream(decoder, FLACDecoder::read_cb, FLACDecoder::seek_cb, FLACDecoder::tell_cb, FLACDecoder::length_cb, FLACDecoder::eof_cb, FLACDecoder::write_cb, FLACDecoder::metadata_cb, FLACDecoder::error_cb, &client)
+		:
+		FLAC__stream_decoder_init_stream(decoder, FLACDecoder::read_cb, FLACDecoder::seek_cb, FLACDecoder::tell_cb, FLACDecoder::length_cb, FLACDecoder::eof_cb, FLACDecoder::write_cb, FLACDecoder::metadata_cb, FLACDecoder::error_cb, &client)
+		;
 	if(initStatus != FLAC__STREAM_DECODER_INIT_STATUS_OK)
 	{
+		FLAC__stream_decoder_delete(decoder);
 		return false;
 	}
 
@@ -2066,20 +2522,19 @@ bool CSoundFile::ReadFLACSample(SAMPLEINDEX sample, FileReader &file)
 #else
 	MPT_UNREFERENCED_PARAMETER(sample);
 	MPT_UNREFERENCED_PARAMETER(file);
-#endif // NO_FLAC
+#endif // MPT_WITH_FLAC
 	return false;
 }
 
 
-#ifndef NO_FLAC
+#ifdef MPT_WITH_FLAC
 // Helper function for copying OpenMPT's sample data to FLAC's int32 buffer.
 template<typename T>
-inline static void SampleToFLAC32(FLAC__int32 *dst, const void *src, SmpLength numSamples)
+inline static void SampleToFLAC32(FLAC__int32 *dst, const T *src, SmpLength numSamples)
 {
-	const T *in = reinterpret_cast<const T *>(src);
 	for(SmpLength i = 0; i < numSamples; i++)
 	{
-		dst[i] = in[i];
+		dst[i] = src[i];
 	}
 };
 
@@ -2106,7 +2561,7 @@ struct FLAC__StreamEncoder_RAII
 bool CSoundFile::SaveFLACSample(SAMPLEINDEX nSample, const mpt::PathString &filename) const
 //-----------------------------------------------------------------------------------------
 {
-#ifndef NO_FLAC
+#ifdef MPT_WITH_FLAC
 	FLAC__StreamEncoder_RAII encoder;
 	if(encoder == nullptr)
 	{
@@ -2114,16 +2569,18 @@ bool CSoundFile::SaveFLACSample(SAMPLEINDEX nSample, const mpt::PathString &file
 	}
 
 	const ModSample &sample = Samples[nSample];
+	uint32 sampleRate = sample.GetSampleRate(GetType());
 
 	// First off, set up all the metadata...
 	FLAC__StreamMetadata *metadata[] =
 	{
 		FLAC__metadata_object_new(FLAC__METADATA_TYPE_VORBIS_COMMENT),
-		FLAC__metadata_object_new(FLAC__METADATA_TYPE_APPLICATION),
-		FLAC__metadata_object_new(FLAC__METADATA_TYPE_APPLICATION),
+		FLAC__metadata_object_new(FLAC__METADATA_TYPE_APPLICATION),	// MPT sample information
+		FLAC__metadata_object_new(FLAC__METADATA_TYPE_APPLICATION),	// Loop points
+		FLAC__metadata_object_new(FLAC__METADATA_TYPE_APPLICATION),	// Cue points
 	};
 
-	const bool writeLoopData = sample.uFlags[CHN_LOOP | CHN_SUSTAINLOOP];
+	unsigned numBlocks = 2;
 	if(metadata[0])
 	{
 		// Store sample name
@@ -2132,6 +2589,13 @@ bool CSoundFile::SaveFLACSample(SAMPLEINDEX nSample, const mpt::PathString &file
 		FLAC__metadata_object_vorbiscomment_append_comment(metadata[0], entry, false);
 		FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair(&entry, "ENCODER", MptVersion::GetOpenMPTVersionStr().c_str());
 		FLAC__metadata_object_vorbiscomment_append_comment(metadata[0], entry, false);
+		if(sampleRate > FLAC__MAX_SAMPLE_RATE)
+		{
+			// FLAC only supports a sample rate of up to 655350 Hz.
+			// Store the real sample rate in a custom Vorbis comment.
+			FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair(&entry, "SAMPLERATE", mpt::ToString(sampleRate).c_str());
+			FLAC__metadata_object_vorbiscomment_append_comment(metadata[0], entry, false);
+		}
 	}
 	if(metadata[1])
 	{
@@ -2155,10 +2619,10 @@ bool CSoundFile::SaveFLACSample(SAMPLEINDEX nSample, const mpt::PathString &file
 
 		FLAC__metadata_object_application_set_data(metadata[1], reinterpret_cast<FLAC__byte *>(&chunk), length, true);
 	}
-	if(metadata[2] && writeLoopData)
+	if(metadata[numBlocks] && sample.uFlags[CHN_LOOP | CHN_SUSTAINLOOP])
 	{
 		// Store loop points
-		memcpy(metadata[2]->data.application.id, "riff", 4);
+		memcpy(metadata[numBlocks]->data.application.id, "riff", 4);
 
 		struct
 		{
@@ -2189,45 +2653,87 @@ bool CSoundFile::SaveFLACSample(SAMPLEINDEX nSample, const mpt::PathString &file
 		chunk.loops[0].ConvertEndianness();
 		chunk.loops[1].ConvertEndianness();
 		
-		FLAC__metadata_object_application_set_data(metadata[2], reinterpret_cast<FLAC__byte *>(&chunk), length, true);
+		FLAC__metadata_object_application_set_data(metadata[numBlocks], reinterpret_cast<FLAC__byte *>(&chunk), length, true);
+		numBlocks++;
+	}
+	if(metadata[numBlocks] && sample.HasCustomCuePoints())
+	{
+		// Store cue points
+		memcpy(metadata[numBlocks]->data.application.id, "riff", 4);
+
+		struct
+		{
+			RIFFChunk header;
+			uint32 numPoints;
+			WAVCuePoint cues[CountOf(sample.cues)];
+		} chunk;
+
+		chunk.header.id = RIFFChunk::idcue_;
+		chunk.header.length = 4 + sizeof(chunk.cues);
+
+		for(uint32 i = 0; i < CountOf(sample.cues); i++)
+		{
+			chunk.cues[i].ConvertToWAV(i, sample.cues[i]);
+			chunk.cues[i].ConvertEndianness();
+		}
+
+		const uint32 length = sizeof(RIFFChunk) + chunk.header.length;
+		chunk.header.ConvertEndianness();
+
+		FLAC__metadata_object_application_set_data(metadata[numBlocks], reinterpret_cast<FLAC__byte *>(&chunk), length, true);
+		numBlocks++;
 	}
 
+	// FLAC allows a maximum sample rate of 655350 Hz.
+	// If the real rate is higher, we store it in a Vorbis comment above.
+	LimitMax(sampleRate, FLAC__MAX_SAMPLE_RATE);
+	if(!FLAC__format_sample_rate_is_subset(sampleRate))
+	{
+		// FLAC only supports 10 Hz granularity for frequencies above 65535 Hz if the streamable subset is chosen.
+		FLAC__stream_encoder_set_streamable_subset(encoder, false);
+	}
 	FLAC__stream_encoder_set_channels(encoder, sample.GetNumChannels());
 	FLAC__stream_encoder_set_bits_per_sample(encoder, sample.GetElementarySampleSize() * 8);
-	FLAC__stream_encoder_set_sample_rate(encoder, sample.GetSampleRate(GetType()));
+	FLAC__stream_encoder_set_sample_rate(encoder, sampleRate);
 	FLAC__stream_encoder_set_total_samples_estimate(encoder, sample.nLength);
-	FLAC__stream_encoder_set_metadata(encoder, metadata, writeLoopData ? 3 : 2);
+	FLAC__stream_encoder_set_metadata(encoder, metadata, numBlocks);
 #ifdef MODPLUG_TRACKER
 	FLAC__stream_encoder_set_compression_level(encoder, TrackerSettings::Instance().m_FLACCompressionLevel);
 #endif // MODPLUG_TRACKER
 
+	bool result = false;
+	FLAC__int32 *sampleData = nullptr;
+
 	encoder.f = mpt_fopen(filename, "wb");
 	if(encoder.f == nullptr || FLAC__stream_encoder_init_FILE(encoder, encoder.f, nullptr, nullptr) != FLAC__STREAM_ENCODER_INIT_STATUS_OK)
 	{
-		return false;
+		goto fail;
 	}
 
 	// Convert sample data to signed 32-Bit integer array.
 	const SmpLength numSamples = sample.nLength * sample.GetNumChannels();
-	FLAC__int32 *sampleData = new (std::nothrow) FLAC__int32[numSamples];
+	sampleData = new (std::nothrow) FLAC__int32[numSamples];
 	if(sampleData == nullptr)
 	{
-		return false;
+		goto fail;
 	}
 
 	if(sample.GetElementarySampleSize() == 1)
 	{
-		SampleToFLAC32<int8>(sampleData, sample.pSample, numSamples);
+		SampleToFLAC32(sampleData, sample.pSample8, numSamples);
 	} else if(sample.GetElementarySampleSize() == 2)
 	{
-		SampleToFLAC32<int16>(sampleData, sample.pSample, numSamples);
+		SampleToFLAC32(sampleData, sample.pSample16, numSamples);
 	} else
 	{
-		ASSERT(false);
+		MPT_ASSERT_NOTREACHED();
 	}
 
 	// Do the actual conversion.
 	FLAC__stream_encoder_process_interleaved(encoder, sampleData, sample.nLength);
+	result = true;
+	
+fail:
 	FLAC__stream_encoder_finish(encoder);
 
 	delete[] sampleData;
@@ -2236,46 +2742,542 @@ bool CSoundFile::SaveFLACSample(SAMPLEINDEX nSample, const mpt::PathString &file
 		FLAC__metadata_object_delete(metadata[i]);
 	}
 
-	return true;
+	return result;
 #else
 	MPT_UNREFERENCED_PARAMETER(nSample);
 	MPT_UNREFERENCED_PARAMETER(filename);
 	return false;
-#endif // NO_FLAC
+#endif // MPT_WITH_FLAC
 }
 #endif // MODPLUG_NO_FILESAVE
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Opus
+
+#if defined(MPT_WITH_OPUSFILE)
+
+static mpt::ustring UStringFromOpus(const char *str)
+//--------------------------------------------------
+{
+	return str ? mpt::ToUnicode(mpt::CharsetUTF8, str) : mpt::ustring();
+}
+
+static FileTags GetOpusFileTags(OggOpusFile *of)
+//----------------------------------------------
+{
+	FileTags tags;
+	const OpusTags *ot = op_tags(of, -1);
+	if(!ot)
+	{
+		return tags;
+	}
+	tags.encoder = UStringFromOpus(opus_tags_query(ot, "ENCODER", 0));
+	tags.title = UStringFromOpus(opus_tags_query(ot, "TITLE", 0));
+	tags.comments = UStringFromOpus(opus_tags_query(ot, "DESCRIPTION", 0));
+	tags.bpm = UStringFromOpus(opus_tags_query(ot, "BPM", 0)); // non-standard
+	tags.artist = UStringFromOpus(opus_tags_query(ot, "ARTIST", 0));
+	tags.album = UStringFromOpus(opus_tags_query(ot, "ALBUM", 0));
+	tags.trackno = UStringFromOpus(opus_tags_query(ot, "TRACKNUMBER", 0));
+	tags.year = UStringFromOpus(opus_tags_query(ot, "DATE", 0));
+	tags.url = UStringFromOpus(opus_tags_query(ot, "CONTACT", 0));
+	tags.genre = UStringFromOpus(opus_tags_query(ot, "GENRE", 0));
+	return tags;
+}
+
+#endif // MPT_WITH_OPUSFILE
+
+bool CSoundFile::ReadOpusSample(SAMPLEINDEX sample, FileReader &file)
+{
+	file.Rewind();
+
+#if defined(MPT_WITH_OPUSFILE)
+
+	int rate = 0;
+	int channels = 0;
+	std::vector<int16> raw_sample_data;
+
+	FileReader initial = file.GetChunk(65536); // 512 is recommended by libopusfile
+	if(op_test(NULL, initial.GetRawData<unsigned char>(), initial.GetLength()) != 0)
+	{
+		return false;
+	}
+
+	OggOpusFile *of = op_open_memory(file.GetRawData<unsigned char>(), file.GetLength(), NULL);
+	if(!of)
+	{
+		return false;
+	}
+
+	rate = 48000;
+	channels = op_channel_count(of, -1);
+	if(rate <= 0 || channels <= 0)
+	{
+		op_free(of);
+		of = NULL;
+		return false;
+	}
+	if(channels > 2 || op_link_count(of) != 1)
+	{
+		// We downmix multichannel to stereo as recommended by Opus specification in
+		// case we are not able to handle > 2 channels.
+		// We also decode chained files as stereo even if they start with a mono
+		// stream, which simplifies handling of link boundaries for us.
+		channels = 2;
+	}
+
+	std::vector<int16> decodeBuf(120 * 48000 / 1000); // 120ms (max Opus packet), 48kHz
+	bool eof = false;
+	while(!eof)
+	{
+		int framesRead = 0;
+		if(channels == 2)
+		{
+			framesRead = op_read_stereo(of, &(decodeBuf[0]), static_cast<int>(decodeBuf.size()));
+		} else if(channels == 1)
+		{
+			framesRead = op_read(of, &(decodeBuf[0]), static_cast<int>(decodeBuf.size()), NULL);
+		}
+		if(framesRead > 0)
+		{
+			raw_sample_data.insert(raw_sample_data.end(), decodeBuf.begin(), decodeBuf.begin() + (framesRead * channels));
+		} else if(framesRead == 0)
+		{
+			eof = true;
+		} else if(framesRead == OP_HOLE)
+		{
+			// continue
+		} else
+		{
+			// other errors are fatal, stop decoding
+			eof = true;
+		}
+	}
+
+	op_free(of);
+	of = NULL;
+
+	if(raw_sample_data.empty())
+	{
+		return false;
+	}
+
+	DestroySampleThreadsafe(sample);
+	strcpy(m_szNames[sample], "");
+	Samples[sample].Initialize();
+	Samples[sample].nC5Speed = rate;
+	Samples[sample].nLength = raw_sample_data.size() / channels;
+
+	Samples[sample].uFlags.set(CHN_16BIT);
+	Samples[sample].uFlags.set(CHN_STEREO, channels == 2);
+	Samples[sample].AllocateSample();
+
+	std::copy(raw_sample_data.begin(), raw_sample_data.end(), Samples[sample].pSample16);
+
+	Samples[sample].Convert(MOD_TYPE_IT, GetType());
+	Samples[sample].PrecomputeLoops(*this, false);
+
+	return Samples[sample].pSample != nullptr;
+
+#else // !MPT_WITH_OPUSFILE
+
+	MPT_UNREFERENCED_PARAMETER(sample);
+	MPT_UNREFERENCED_PARAMETER(file);
+
+	return false;
+
+#endif // MPT_WITH_OPUSFILE
+
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Vorbis
+
+#if defined(MPT_WITH_VORBISFILE)
+
+static size_t VorbisfileFilereaderRead(void *ptr, size_t size, size_t nmemb, void *datasource)
+{
+	FileReader &file = *reinterpret_cast<FileReader*>(datasource);
+	return file.ReadRaw(mpt::void_cast<mpt::byte*>(ptr), size * nmemb) / size;
+}
+
+static int VorbisfileFilereaderSeek(void *datasource, ogg_int64_t offset, int whence)
+{
+	FileReader &file = *reinterpret_cast<FileReader*>(datasource);
+	switch(whence)
+	{
+	case SEEK_SET:
+		{
+			if(!Util::TypeCanHoldValue<FileReader::off_t>(offset))
+			{
+				return -1;
+			}
+			return file.Seek(mpt::saturate_cast<FileReader::off_t>(offset)) ? 0 : -1;
+		}
+		break;
+	case SEEK_CUR:
+		{
+			if(offset < 0)
+			{
+				if(offset == std::numeric_limits<ogg_int64_t>::min())
+				{
+					return -1;
+				}
+				if(!Util::TypeCanHoldValue<FileReader::off_t>(0-offset))
+				{
+					return -1;
+				}
+				return file.SkipBack(mpt::saturate_cast<FileReader::off_t>(0 - offset)) ? 0 : -1;
+			} else
+			{
+				if(!Util::TypeCanHoldValue<FileReader::off_t>(offset))
+				{
+					return -1;
+				}
+				return file.Skip(mpt::saturate_cast<FileReader::off_t>(offset)) ? 0 : -1;
+			}
+		}
+		break;
+	case SEEK_END:
+		{
+			if(!Util::TypeCanHoldValue<FileReader::off_t>(offset))
+			{
+				return -1;
+			}
+			if(!Util::TypeCanHoldValue<FileReader::off_t>(file.GetLength() + offset))
+			{
+				return -1;
+			}
+			return file.Seek(mpt::saturate_cast<FileReader::off_t>(file.GetLength() + offset)) ? 0 : -1;
+		}
+		break;
+	default:
+		return -1;
+	}
+}
+
+static long VorbisfileFilereaderTell(void *datasource)
+{
+	FileReader &file = *reinterpret_cast<FileReader*>(datasource);
+	return file.GetPosition();
+}
+
+#if defined(MPT_WITH_VORBIS)
+static mpt::ustring UStringFromVorbis(const char *str)
+//----------------------------------------------------
+{
+	return str ? mpt::ToUnicode(mpt::CharsetUTF8, str) : mpt::ustring();
+}
+#endif // MPT_WITH_VORBIS
+
+static FileTags GetVorbisFileTags(OggVorbis_File &vf)
+//---------------------------------------------------
+{
+	FileTags tags;
+	#if defined(MPT_WITH_VORBIS)
+		vorbis_comment *vc = ov_comment(&vf, -1);
+		if(!vc)
+		{
+			return tags;
+		}
+		tags.encoder = UStringFromVorbis(vorbis_comment_query(vc, "ENCODER", 0));
+		tags.title = UStringFromVorbis(vorbis_comment_query(vc, "TITLE", 0));
+		tags.comments = UStringFromVorbis(vorbis_comment_query(vc, "DESCRIPTION", 0));
+		tags.bpm = UStringFromVorbis(vorbis_comment_query(vc, "BPM", 0)); // non-standard
+		tags.artist = UStringFromVorbis(vorbis_comment_query(vc, "ARTIST", 0));
+		tags.album = UStringFromVorbis(vorbis_comment_query(vc, "ALBUM", 0));
+		tags.trackno = UStringFromVorbis(vorbis_comment_query(vc, "TRACKNUMBER", 0));
+		tags.year = UStringFromVorbis(vorbis_comment_query(vc, "DATE", 0));
+		tags.url = UStringFromVorbis(vorbis_comment_query(vc, "CONTACT", 0));
+		tags.genre = UStringFromVorbis(vorbis_comment_query(vc, "GENRE", 0));
+	#endif // MPT_WITH_VORBIS
+	return tags;
+}
+
+#endif // MPT_WITH_VORBISFILE
+
+bool CSoundFile::ReadVorbisSample(SAMPLEINDEX sample, FileReader &file)
+//---------------------------------------------------------------------
+{
+
+#if defined(MPT_WITH_VORBISFILE) || defined(MPT_WITH_STBVORBIS)
+
+	file.Rewind();
+
+	int rate = 0;
+	int channels = 0;
+	std::vector<int16> raw_sample_data;
+
+	std::string sampleName;
+
+#endif // VORBIS
+
+#if defined(MPT_WITH_VORBISFILE)
+
+	bool unsupportedSample = false;
+
+	ov_callbacks callbacks = {
+		&VorbisfileFilereaderRead,
+		&VorbisfileFilereaderSeek,
+		NULL,
+		&VorbisfileFilereaderTell
+	};
+	OggVorbis_File vf;
+	MemsetZero(vf);
+	if(ov_open_callbacks(&file, &vf, NULL, 0, callbacks) == 0)
+	{
+		if(ov_streams(&vf) == 1)
+		{ // we do not support chained vorbis samples
+			vorbis_info *vi = ov_info(&vf, -1);
+			if(vi && vi->rate > 0 && vi->channels > 0)
+			{
+				sampleName = mpt::ToCharset(GetCharsetLocaleOrModule(), GetSampleNameFromTags(GetVorbisFileTags(vf)));
+				rate = vi->rate;
+				channels = vi->channels;
+				std::size_t offset = 0;
+				int current_section = 0;
+				long decodedSamples = 0;
+				bool eof = false;
+				while(!eof)
+				{
+					float **output = nullptr;
+					long ret = ov_read_float(&vf, &output, 1024, &current_section);
+					if(ret == 0)
+					{
+						eof = true;
+					} else if(ret < 0)
+					{
+						// stream error, just try to continue
+					} else
+					{
+						decodedSamples = ret;
+						if(decodedSamples > 0 && (channels == 1 || channels == 2))
+						{
+							raw_sample_data.resize(raw_sample_data.size() + (channels * decodedSamples));
+							for(int chn = 0; chn < channels; chn++)
+							{
+								CopyChannelToInterleaved<SC::Convert<int16, float> >(&(raw_sample_data[0]) + offset * channels, output[chn], channels, decodedSamples, chn);
+							}
+							offset += decodedSamples;
+						}
+					}
+				}
+			} else
+			{
+				unsupportedSample = true;
+			}
+		} else
+		{
+			unsupportedSample = true;
+		}
+		ov_clear(&vf);
+	} else
+	{
+		unsupportedSample = true;
+	}
+
+	if(unsupportedSample)
+	{
+		return false;
+	}
+
+#elif defined(MPT_WITH_STBVORBIS)
+
+	// NOTE/TODO: stb_vorbis does not handle inferred negative PCM sample position
+	// at stream start. (See 
+	// <https://www.xiph.org/vorbis/doc/Vorbis_I_spec.html#x1-132000A.2>). This
+	// means that, for remuxed and re-aligned/cutted (at stream start) Vorbis
+	// files, stb_vorbis will include superfluous samples at the beginning.
+
+	FileReader::PinnedRawDataView fileView = file.GetPinnedRawDataView();
+	const mpt::byte* data = fileView.data();
+	std::size_t dataLeft = fileView.size();
+
+	std::size_t offset = 0;
+	int consumed = 0;
+	int error = 0;
+	stb_vorbis *vorb = stb_vorbis_open_pushdata(data, mpt::saturate_cast<int>(dataLeft), &consumed, &error, nullptr);
+	file.Skip(consumed);
+	data += consumed;
+	dataLeft -= consumed;
+	if(!vorb)
+	{
+		return false;
+	}
+	rate = stb_vorbis_get_info(vorb).sample_rate;
+	channels = stb_vorbis_get_info(vorb).channels;
+	if(rate <= 0 || channels <= 0)
+	{
+		return false;
+	}
+	while((error == VORBIS__no_error || (error == VORBIS_need_more_data && dataLeft > 0)))
+	{
+		int frame_channels = 0;
+		int decodedSamples = 0;
+		float **output = nullptr;
+		consumed = stb_vorbis_decode_frame_pushdata(vorb, data, mpt::saturate_cast<int>(dataLeft), &frame_channels, &output, &decodedSamples);
+		file.Skip(consumed);
+		data += consumed;
+		dataLeft -= consumed;
+		LimitMax(frame_channels, channels);
+		if(decodedSamples > 0 && (frame_channels == 1 || frame_channels == 2))
+		{
+			raw_sample_data.resize(raw_sample_data.size() + (channels * decodedSamples));
+			for(int chn = 0; chn < frame_channels; chn++)
+			{
+				CopyChannelToInterleaved<SC::Convert<int16, float> >(&(raw_sample_data[0]) + offset * channels, output[chn], channels, decodedSamples, chn);
+			}
+			offset += decodedSamples;
+		}
+		error = stb_vorbis_get_error(vorb);
+	}
+	stb_vorbis_close(vorb);
+
+#endif // VORBIS
+
+#if defined(MPT_WITH_VORBISFILE) || defined(MPT_WITH_STBVORBIS)
+	
+	if(rate <= 0 || channels <= 0 || raw_sample_data.empty())
+	{
+		return false;
+	}
+
+	DestroySampleThreadsafe(sample);
+	mpt::String::Copy(m_szNames[sample], sampleName);
+	Samples[sample].Initialize();
+	Samples[sample].nC5Speed = rate;
+	Samples[sample].nLength = raw_sample_data.size() / channels;
+
+	Samples[sample].uFlags.set(CHN_16BIT);
+	Samples[sample].uFlags.set(CHN_STEREO, channels == 2);
+	Samples[sample].AllocateSample();
+
+	std::copy(raw_sample_data.begin(), raw_sample_data.end(), Samples[sample].pSample16);
+
+	Samples[sample].Convert(MOD_TYPE_IT, GetType());
+	Samples[sample].PrecomputeLoops(*this, false);
+
+	return Samples[sample].pSample != nullptr;
+
+#else // !VORBIS
+
+	MPT_UNREFERENCED_PARAMETER(sample);
+	MPT_UNREFERENCED_PARAMETER(file);
+
+	return false;
+
+#endif // VORBIS
+
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // MP3 Samples
 
-#ifndef NO_MP3_SAMPLES
+#if defined(MPT_WITH_MPG123) || defined(MPT_ENABLE_MPG123_DYNBIND)
 
-namespace mpg123
-{
+#if !defined(MPT_WITH_MPG123) && defined(MPT_ENABLE_MPG123_DYNBIND)
+
+	enum mpg123_parms
+	{
+		MPG123_VERBOSE = 0,
+		MPG123_FLAGS,
+		MPG123_ADD_FLAGS,
+		MPG123_FORCE_RATE,
+		MPG123_DOWN_SAMPLE,
+		MPG123_RVA,
+		MPG123_DOWNSPEED,
+		MPG123_UPSPEED,
+		MPG123_START_FRAME,
+		MPG123_DECODE_FRAMES,
+		MPG123_ICY_INTERVAL,
+		MPG123_OUTSCALE,
+		MPG123_TIMEOUT,
+		MPG123_REMOVE_FLAGS,
+		MPG123_RESYNC_LIMIT,
+		MPG123_INDEX_SIZE,
+		MPG123_PREFRAMES,
+		MPG123_FEEDPOOL,
+		MPG123_FEEDBUFFER
+	};
+	
+	enum mpg123_parms_flags
+	{
+		MPG123_QUIET = 0x20
+	};
+  
+	enum mpg123_enc_enum
+	{
+		MPG123_ENC_16 = 0x040, MPG123_ENC_SIGNED = 0x080
+	};
+
 	typedef struct {int foo;} mpg123_handle;
-	typedef int (*pfn_init )();
-	typedef mpg123_handle* (*pfn_new )(char*,int*);
-	typedef void (*pfn_delete )(mpg123_handle*);
-	typedef int (*pfn_open_handle )(mpg123_handle*, void*);
-	typedef int (*pfn_replace_reader_handle)(mpg123_handle*, 
+
+#endif // !MPT_WITH_MPG123 && MPT_ENABLE_MPG123_DYNBIND
+
+class ComponentMPG123
+#if defined(MPT_WITH_MPG123)
+	: public ComponentBuiltin
+#elif defined(MPT_ENABLE_MPG123_DYNBIND)
+	: public ComponentLibrary
+#endif
+{
+	MPT_DECLARE_COMPONENT_MEMBERS
+public:
+
+	int (*mpg123_init )(void);
+	void (*mpg123_exit )(void);
+	mpg123_handle* (*mpg123_new )(const char*,int*);
+	void (*mpg123_delete )(mpg123_handle*);
+	int (*mpg123_param )(mpg123_handle*, enum mpg123_parms, long, double);
+	int (*mpg123_open_handle )(mpg123_handle*, void*);
+#if !defined(MPT_WITH_MPG123) && defined(MPT_ENABLE_MPG123_DYNBIND)
+	int (*mpg123_open_handle_64 )(mpg123_handle*, void*);
+#endif // !MPT_WITH_MPG123 && MPT_ENABLE_MPG123_DYNBIND
+#if MPT_COMPILER_MSVC
+	int (*mpg123_replace_reader_handle)(mpg123_handle*, 
 		size_t(*)(void *, void *, size_t),
 		off_t(*)(void *, off_t, int),
 		void(*)(void *));
-	typedef int (*pfn_read )(mpg123_handle*, unsigned char*, size_t, size_t*);
-	typedef int (*pfn_getformat )(mpg123_handle*, long*, int*, int*);
-	typedef int (*pfn_scan )(mpg123_handle*);
-	typedef off_t (*pfn_length )(mpg123_handle*);
+#if !defined(MPT_WITH_MPG123) && defined(MPT_ENABLE_MPG123_DYNBIND)
+	int (*mpg123_replace_reader_handle_64)(mpg123_handle*, 
+		size_t(*)(void *, void *, size_t),
+		off_t(*)(void *, off_t, int),
+		void(*)(void *));
+#endif // !MPT_WITH_MPG123 && MPT_ENABLE_MPG123_DYNBIND
+#else // !MPT_COMPILER_MSVC
+	int (*mpg123_replace_reader_handle)(mpg123_handle*, 
+		ssize_t(*)(void *, void *, size_t),
+		off_t(*)(void *, off_t, int),
+		void(*)(void *));
+#if !defined(MPT_WITH_MPG123) && defined(MPT_ENABLE_MPG123_DYNBIND)
+	int (*mpg123_replace_reader_handle_64)(mpg123_handle*, 
+		ssize_t(*)(void *, void *, size_t),
+		off_t(*)(void *, off_t, int),
+		void(*)(void *));
+#endif // !MPT_WITH_MPG123 && MPT_ENABLE_MPG123_DYNBIND
+#endif // MPT_COMPILER_MSVC
+	int (*mpg123_read )(mpg123_handle*, unsigned char*, size_t, size_t*);
+	int (*mpg123_getformat )(mpg123_handle*, long*, int*, int*);
+	int (*mpg123_scan )(mpg123_handle*);
+	off_t (*mpg123_length )(mpg123_handle*);
+#if !defined(MPT_WITH_MPG123) && defined(MPT_ENABLE_MPG123_DYNBIND)
+	off_t (*mpg123_length_64 )(mpg123_handle*);
+#endif // !MPT_WITH_MPG123 && MPT_ENABLE_MPG123_DYNBIND
 
-	size_t FileReaderRead(void *fp, void *buf, size_t count)
+#if MPT_COMPILER_MSVC
+	static size_t FileReaderRead(void *fp, void *buf, size_t count)
+#else // !MPT_COMPILER_MSVC
+	static ssize_t FileReaderRead(void *fp, void *buf, size_t count)
+#endif // MPT_COMPILER_MSVC
 	{
 		FileReader &file = *static_cast<FileReader *>(fp);
 		size_t readBytes = std::min(count, static_cast<size_t>(file.BytesLeft()));
 		file.ReadRaw(static_cast<char *>(buf), readBytes);
 		return readBytes;
 	}
-
-	off_t FileReaderLSeek(void *fp, off_t offset, int whence)
+	static off_t FileReaderLSeek(void *fp, off_t offset, int whence)
 	{
 		FileReader &file = *static_cast<FileReader *>(fp);
 		if(whence == SEEK_CUR) file.Seek(file.GetPosition() + offset);
@@ -2284,19 +3286,95 @@ namespace mpg123
 		return file.GetPosition();
 	}
 
-	enum mpg123_enc_enum
+public:
+	ComponentMPG123()
+#if defined(MPT_WITH_MPG123)
+		: ComponentBuiltin()
+#elif defined(MPT_ENABLE_MPG123_DYNBIND)
+		: ComponentLibrary(ComponentTypeForeign)
+#endif
 	{
-		MPG123_ENC_16 = 0x040, MPG123_ENC_SIGNED = 0x080,
-	};
+		return;
+	}
+	bool DoInitialize()
+	{
+#if defined(MPT_WITH_MPG123)
+		MPT_GLOBAL_BIND("mpg123", mpg123_init);
+		MPT_GLOBAL_BIND("mpg123", mpg123_exit);
+		MPT_GLOBAL_BIND("mpg123", mpg123_new);
+		MPT_GLOBAL_BIND("mpg123", mpg123_delete);
+		MPT_GLOBAL_BIND("mpg123", mpg123_param);
+		MPT_GLOBAL_BIND("mpg123", mpg123_open_handle);
+		MPT_GLOBAL_BIND("mpg123", mpg123_replace_reader_handle);
+		MPT_GLOBAL_BIND("mpg123", mpg123_read);
+		MPT_GLOBAL_BIND("mpg123", mpg123_getformat);
+		MPT_GLOBAL_BIND("mpg123", mpg123_scan);
+		MPT_GLOBAL_BIND("mpg123", mpg123_length);
+#elif defined(MPT_ENABLE_MPG123_DYNBIND)
+		AddLibrary("mpg123", mpt::LibraryPath::AppFullName(MPT_PATHSTRING("libmpg123-0")));
+		AddLibrary("mpg123", mpt::LibraryPath::AppFullName(MPT_PATHSTRING("libmpg123")));
+		AddLibrary("mpg123", mpt::LibraryPath::AppFullName(MPT_PATHSTRING("mpg123-0")));
+		AddLibrary("mpg123", mpt::LibraryPath::AppFullName(MPT_PATHSTRING("mpg123")));
+		MPT_COMPONENT_BIND("mpg123", mpg123_init);
+		MPT_COMPONENT_BIND("mpg123", mpg123_exit);
+		MPT_COMPONENT_BIND("mpg123", mpg123_new);
+		MPT_COMPONENT_BIND("mpg123", mpg123_delete);
+		MPT_COMPONENT_BIND("mpg123", mpg123_param);
+		MPT_COMPONENT_BIND_OPTIONAL("mpg123", mpg123_open_handle);
+		MPT_COMPONENT_BIND_OPTIONAL("mpg123", mpg123_open_handle_64);
+		if(!mpg123_open_handle && !mpg123_open_handle_64)
+		{
+			return false;
+		}
+		MPT_COMPONENT_BIND_OPTIONAL("mpg123", mpg123_replace_reader_handle);
+		MPT_COMPONENT_BIND_OPTIONAL("mpg123", mpg123_replace_reader_handle_64);
+		if(!mpg123_replace_reader_handle && !mpg123_replace_reader_handle_64)
+		{
+			return false;
+		}
+		MPT_COMPONENT_BIND("mpg123", mpg123_read);
+		MPT_COMPONENT_BIND("mpg123", mpg123_getformat);
+		MPT_COMPONENT_BIND("mpg123", mpg123_scan);
+		MPT_COMPONENT_BIND_OPTIONAL("mpg123", mpg123_length);
+		MPT_COMPONENT_BIND_OPTIONAL("mpg123", mpg123_length_64);
+		if(!mpg123_length && !mpg123_length_64)
+		{
+			return false;
+		}
+		#if MPT_COMPILER_MSVC
+			if(!mpg123_open_handle || !mpg123_replace_reader_handle || !mpg123_length)
+			{
+				return false;
+			}
+		#endif
+		if(HasBindFailed())
+		{
+			return false;
+		}
+#endif
+		if(mpg123_init() != 0)
+		{
+			return false;
+		}
+		return true;
+	}
+	virtual ~ComponentMPG123()
+	{
+		if(IsAvailable())
+		{
+			mpg123_exit();
+		}
+	}
 };
+MPT_REGISTERED_COMPONENT(ComponentMPG123, "Mpg123")
 
-#endif // NO_MP3_SAMPLES
+#endif // MPT_WITH_MPG123 || MPT_ENABLE_MPG123_DYNBIND
 
 
-bool CSoundFile::ReadMP3Sample(SAMPLEINDEX sample, FileReader &file)
-//------------------------------------------------------------------
+bool CSoundFile::ReadMP3Sample(SAMPLEINDEX sample, FileReader &file, bool mo3Decode)
+//----------------------------------------------------------------------------------
 {
-#ifndef NO_MP3_SAMPLES
+#if defined(MPT_WITH_MPG123) || defined(MPT_ENABLE_MPG123_DYNBIND) || defined(MPT_WITH_MINIMP3)
 
 	// Check file for validity, or else mpg123 will happily munch many files that start looking vaguely resemble an MPEG stream mid-file.
 	file.Rewind();
@@ -2331,7 +3409,7 @@ bool CSoundFile::ReadMP3Sample(SAMPLEINDEX sample, FileReader &file)
 		{
 			// This might be some padding, followed by an MPEG header, so try again.
 			file.SkipBack(2);
-		} else if(IsMPEG(header))
+		} else if(MPEGFrame::IsMPEGHeader(header))
 		{
 			// This is what we want!
 			break;
@@ -2342,74 +3420,680 @@ bool CSoundFile::ReadMP3Sample(SAMPLEINDEX sample, FileReader &file)
 		}
 	}
 
-	mpt::Library mp3lib;
+#endif // MPT_WITH_MPG123 || MPT_ENABLE_MPG123_DYNBIND || MPT_WITH_MINIMP3
 
-	if(!mp3lib.IsValid()) mp3lib = mpt::Library(mpt::LibraryPath::AppFullName(MPT_PATHSTRING("libmpg123-0")));
-	if(!mp3lib.IsValid()) mp3lib = mpt::Library(mpt::LibraryPath::AppFullName(MPT_PATHSTRING("libmpg123")));
-	if(!mp3lib.IsValid()) mp3lib = mpt::Library(mpt::LibraryPath::AppFullName(MPT_PATHSTRING("mpg123-0")));
-	if(!mp3lib.IsValid()) mp3lib = mpt::Library(mpt::LibraryPath::AppFullName(MPT_PATHSTRING("mpg123")));
-	if(!mp3lib.IsValid()) return false;
+#if defined(MPT_WITH_MINIMP3)
 
-	#define MP3_DYNAMICBIND(f) mpg123::pfn_ ## f mpg123_ ## f = nullptr; if(!mp3lib.Bind( mpg123_ ## f , "mpg123_" #f )) return false
-
-	MP3_DYNAMICBIND(init);
-	MP3_DYNAMICBIND(new);
-	MP3_DYNAMICBIND(delete);
-	MP3_DYNAMICBIND(open_handle);
-	MP3_DYNAMICBIND(replace_reader_handle);
-	MP3_DYNAMICBIND(read);
-	MP3_DYNAMICBIND(getformat);
-	MP3_DYNAMICBIND(scan);
-	MP3_DYNAMICBIND(length);
-
-	#undef MP3_DYNAMICBIND
-
-	if(mpg123_init()) return false;
-
-	mpg123::mpg123_handle *mh;
-	int err;
-	if((mh = mpg123_new(0, &err)) == nullptr) return false;
 	file.Rewind();
+	FileReader::PinnedRawDataView rawDataView = file.GetPinnedRawDataView();
+	int64 bytes_left = rawDataView.size();
+	const uint8 *stream_pos = mpt::byte_cast<const uint8 *>(rawDataView.data());
 
-	long rate; int nchannels, encoding;
-	SmpLength length;
+	std::vector<int16> raw_sample_data;
 
-	// Set up decoder...
-	if(mpg123_replace_reader_handle(mh, mpg123::FileReaderRead, mpg123::FileReaderLSeek, 0)
-		|| mpg123_open_handle(mh, &file)
-		|| mpg123_scan(mh)
-		|| mpg123_getformat(mh, &rate, &nchannels, &encoding)
-		|| !nchannels || nchannels > 2
-		|| (encoding & mpg123::MPG123_ENC_16 | mpg123::MPG123_ENC_SIGNED) == 0
-		|| (length = mpg123_length(mh)) == 0)
+	mp3_decoder_t *mp3 = reinterpret_cast<mp3_decoder_t *>(mp3_create()); // workaround minimp3 header typo
+
+	int rate = 0;
+	int channels = 0;
+
+	mp3_info_t info;
+	int frame_size = 0;
+	do
 	{
-		mpg123_delete(mh);
+		int16 sample_buf[MP3_MAX_SAMPLES_PER_FRAME];
+		frame_size = mp3_decode(mp3, const_cast<uint8 *>(stream_pos), bytes_left, sample_buf, &info); // workaround lack of const qualifier in mp3_decode (all internal functions have the required const correctness)
+		if(rate != 0 && rate != info.sample_rate) break; // inconsistent stream
+		if(channels != 0 && channels != info.channels) break; // inconsistent stream
+		rate = info.sample_rate;
+		channels = info.channels;
+		if(rate <= 0) break; // broken stream
+		if(channels != 1 && channels != 2) break; // broken stream
+		stream_pos += frame_size;
+		bytes_left -= frame_size;
+		if(info.audio_bytes >= 0)
+		{
+			try
+			{
+				raw_sample_data.insert(raw_sample_data.end(), sample_buf, sample_buf + (info.audio_bytes / sizeof(int16)));
+			} catch(MPTMemoryException)
+			{
+				break;
+			}
+		}
+	} while((bytes_left >= 0) && (frame_size > 0));
+
+	mp3_free(mp3);
+
+	if(rate == 0 || channels == 0 || raw_sample_data.empty())
+	{
 		return false;
 	}
 
 	DestroySampleThreadsafe(sample);
-	strcpy(m_szNames[sample], "");
-	Samples[sample].Initialize();
+	if(!mo3Decode)
+	{
+		strcpy(m_szNames[sample], "");
+		Samples[sample].Initialize();
+		Samples[sample].nC5Speed = rate;
+	}
+	Samples[sample].nLength = raw_sample_data.size() / channels;
+
+	Samples[sample].uFlags.set(CHN_16BIT);
+	Samples[sample].uFlags.set(CHN_STEREO, channels == 2);
+	Samples[sample].AllocateSample();
+
+	if(Samples[sample].pSample != nullptr)
+	{
+		std::copy(raw_sample_data.begin(), raw_sample_data.end(), Samples[sample].pSample16);
+	}
+
+	if(!mo3Decode)
+	{
+		Samples[sample].Convert(MOD_TYPE_IT, GetType());
+		Samples[sample].PrecomputeLoops(*this, false);
+	}
+	return Samples[sample].pSample != nullptr;
+
+#elif defined(MPT_WITH_MPG123) || defined(MPT_ENABLE_MPG123_DYNBIND)
+
+	ComponentHandle<ComponentMPG123> mpg123;
+	if(!IsComponentAvailable(mpg123))
+	{
+		return false;
+	}
+
+	mpg123_handle *mh;
+	int err;
+	if((mh = mpg123->mpg123_new(0, &err)) == nullptr) return false;
+	file.Rewind();
+
+	long rate; int nchannels, encoding;
+	SmpLength length;
+	// Set up decoder...
+	if(mpg123->mpg123_param(mh, MPG123_ADD_FLAGS, MPG123_QUIET, 0.0))
+	{
+		mpg123->mpg123_delete(mh);
+		return false;
+	}
+#if !defined(MPT_WITH_MPG123) && defined(MPT_ENABLE_MPG123_DYNBIND) && !MPT_COMPILER_MSVC
+	if(mpg123->mpg123_replace_reader_handle_64 && mpg123->mpg123_replace_reader_handle_64(mh, ComponentMPG123::FileReaderRead, ComponentMPG123::FileReaderLSeek, 0))
+	{
+		mpg123->mpg123_delete(mh);
+		return false;
+	} else
+#endif // !MPT_WITH_MPG123 && MPT_ENABLE_MPG123_DYNBIND
+	if(mpg123->mpg123_replace_reader_handle(mh, ComponentMPG123::FileReaderRead, ComponentMPG123::FileReaderLSeek, 0))
+	{
+		mpg123->mpg123_delete(mh);
+		return false;
+	}
+#if !defined(MPT_WITH_MPG123) && defined(MPT_ENABLE_MPG123_DYNBIND) && !MPT_COMPILER_MSVC
+	if(mpg123->mpg123_open_handle_64 && mpg123->mpg123_open_handle_64(mh, &file))
+	{
+		mpg123->mpg123_delete(mh);
+		return false;	
+	} else
+#endif // !MPT_WITH_MPG123 && MPT_ENABLE_MPG123_DYNBIND
+	if(mpg123->mpg123_open_handle(mh, &file))
+	{
+		mpg123->mpg123_delete(mh);
+		return false;
+	}
+	if(mpg123->mpg123_scan(mh))
+	{
+		mpg123->mpg123_delete(mh);
+		return false;
+	}
+	if(mpg123->mpg123_getformat(mh, &rate, &nchannels, &encoding))
+	{
+		mpg123->mpg123_delete(mh);
+		return false;
+	}
+	if(!nchannels || nchannels > 2
+		|| (encoding & (MPG123_ENC_16 | MPG123_ENC_SIGNED)) != (MPG123_ENC_16 | MPG123_ENC_SIGNED)
+		)
+	{
+		mpg123->mpg123_delete(mh);
+		return false;
+	}
+#if !defined(MPT_WITH_MPG123) && defined(MPT_ENABLE_MPG123_DYNBIND) && !MPT_COMPILER_MSVC
+	if(mpg123->mpg123_length_64)
+	{
+		length = mpg123->mpg123_length_64(mh);
+	} else
+#endif // !MPT_WITH_MPG123 && MPT_ENABLE_MPG123_DYNBIND
+	{
+		length = mpg123->mpg123_length(mh);
+	}
+	if(length == 0)
+	{
+		mpg123->mpg123_delete(mh);
+		return false;	
+	}
+
+	DestroySampleThreadsafe(sample);
+	if(!mo3Decode)
+	{
+		strcpy(m_szNames[sample], "");
+		Samples[sample].Initialize();
+		Samples[sample].nC5Speed = rate;
+	}
 	Samples[sample].nLength = length;
 
-	Samples[sample].nC5Speed = rate;
 	Samples[sample].uFlags.set(CHN_16BIT);
 	Samples[sample].uFlags.set(CHN_STEREO, nchannels == 2);
 	Samples[sample].AllocateSample();
 
-	size_t ndecoded;
-	mpg123_read(mh, static_cast<unsigned char *>(Samples[sample].pSample), Samples[sample].GetSampleSizeInBytes(), &ndecoded);
-	mpg123_delete(mh);
-
 	if(Samples[sample].pSample != nullptr)
+	{
+		size_t ndecoded;
+		mpg123->mpg123_read(mh, static_cast<unsigned char *>(Samples[sample].pSample), Samples[sample].GetSampleSizeInBytes(), &ndecoded);
+	}
+	mpg123->mpg123_delete(mh);
+
+	if(!mo3Decode)
 	{
 		Samples[sample].Convert(MOD_TYPE_IT, GetType());
 		Samples[sample].PrecomputeLoops(*this, false);
-		return true;
 	}
+	return Samples[sample].pSample != nullptr;
+
 #else
+
 	MPT_UNREFERENCED_PARAMETER(sample);
 	MPT_UNREFERENCED_PARAMETER(file);
-#endif // NO_MP3_SAMPLES
+	MPT_UNREFERENCED_PARAMETER(mo3Decode);
+
+#endif // MPT_WITH_MPG123 || MPT_ENABLE_MPG123_DYNBIND || MPT_WITH_MINIMP3
+
 	return false;
 }
+
+
+#if defined(MPT_WITH_MEDIAFOUNDATION)
+
+template <typename T>
+static void mptMFSafeRelease(T **ppT)
+{
+	if(*ppT)
+	{
+		(*ppT)->Release();
+		*ppT = NULL;
+	}
+}
+
+#define MPT_MF_CHECKED(x) MPT_DO { \
+	HRESULT hr = (x); \
+	if(!SUCCEEDED(hr)) \
+	{ \
+		goto fail; \
+	} \
+} MPT_WHILE_0
+
+// Implementing IMFByteStream is apparently not enough to stream raw bytes
+// data to MediaFoundation.
+// Additionally, one has to also implement a custom IMFAsyncResult for the
+// BeginRead/EndRead interface which allows transferring the number of read
+// bytes around.
+// To make things even worse, MediaFoundation fails to detect some AAC and MPEG
+// files if a non-file-based or read-only stream is used for opening.
+// The only sane option which remains if we do not have an on-disk filename
+// available:
+//  1 - write a temporary file
+//  2 - close it
+//  3 - open it using MediaFoundation.
+// We use FILE_ATTRIBUTE_TEMPORARY which will try to keep the file data in
+// memory just like regular allocated memory and reduce the overhead basically
+// to memcpy.
+
+static FileTags ReadMFMetadata(IMFMediaSource *mediaSource)
+//---------------------------------------------------------
+{
+
+	FileTags tags;
+
+	IMFPresentationDescriptor *presentationDescriptor = NULL;
+	DWORD streams = 0;
+	IMFMetadataProvider *metadataProvider = NULL;
+	IMFMetadata *metadata = NULL;
+	PROPVARIANT varPropNames;
+	PropVariantInit(&varPropNames);
+
+	MPT_MF_CHECKED(mediaSource->CreatePresentationDescriptor(&presentationDescriptor));
+	MPT_MF_CHECKED(presentationDescriptor->GetStreamDescriptorCount(&streams));
+	MPT_MF_CHECKED(MFGetService(mediaSource, MF_METADATA_PROVIDER_SERVICE, IID_IMFMetadataProvider, (void**)&metadataProvider));
+	MPT_MF_CHECKED(metadataProvider->GetMFMetadata(presentationDescriptor, 0, 0, &metadata));
+
+	MPT_MF_CHECKED(metadata->GetAllPropertyNames(&varPropNames));
+	for(DWORD propIndex = 0; propIndex < varPropNames.calpwstr.cElems; ++propIndex)
+	{
+
+		PROPVARIANT propVal;
+		PropVariantInit(&propVal);
+
+		LPWSTR propName = varPropNames.calpwstr.pElems[propIndex];
+		if(S_OK != metadata->GetProperty(propName, &propVal))
+		{
+			PropVariantClear(&propVal);
+			break;
+		}
+
+		std::wstring stringVal;
+		std::vector<WCHAR> wcharVal(256);
+		for(;;)
+		{
+			HRESULT hrToString = PropVariantToString(propVal, &wcharVal[0], wcharVal.size());
+			if(hrToString == S_OK)
+			{
+				stringVal = &wcharVal[0];
+				break;
+			} else if(hrToString == ERROR_INSUFFICIENT_BUFFER)
+			{
+				wcharVal.resize(wcharVal.size() * 2);
+			} else
+			{
+				break;
+			}
+		}
+
+		PropVariantClear(&propVal);
+
+		if(stringVal.length() > 0)
+		{
+			if(propName == std::wstring(L"Author")) tags.artist = mpt::ToUnicode(stringVal);
+			if(propName == std::wstring(L"Title")) tags.title = mpt::ToUnicode(stringVal);
+			if(propName == std::wstring(L"WM/AlbumTitle")) tags.album = mpt::ToUnicode(stringVal);
+			if(propName == std::wstring(L"WM/Track")) tags.trackno = mpt::ToUnicode(stringVal);
+			if(propName == std::wstring(L"WM/Year")) tags.year = mpt::ToUnicode(stringVal);
+			if(propName == std::wstring(L"WM/Genre")) tags.genre = mpt::ToUnicode(stringVal);
+		}
+	}
+
+fail:
+
+	PropVariantClear(&varPropNames);
+	mptMFSafeRelease(&metadata);
+	mptMFSafeRelease(&metadataProvider);
+	mptMFSafeRelease(&presentationDescriptor);
+
+	return tags;
+
+}
+
+
+class ComponentMediaFoundation : public ComponentLibrary
+{
+	MPT_DECLARE_COMPONENT_MEMBERS
+public:
+	ComponentMediaFoundation()
+		: ComponentLibrary(ComponentTypeSystem)
+	{
+		return;
+	}
+	virtual bool DoInitialize()
+	{
+		if(!mpt::Windows::Version::Current().IsAtLeast(mpt::Windows::Version::Win7))
+		{
+			return false;
+		}
+		if(!(true
+			&& AddLibrary("mf", mpt::LibraryPath::System(MPT_PATHSTRING("mf")))
+			&& AddLibrary("mfplat", mpt::LibraryPath::System(MPT_PATHSTRING("mfplat")))
+			&& AddLibrary("mfreadwrite", mpt::LibraryPath::System(MPT_PATHSTRING("mfreadwrite")))
+			&& AddLibrary("propsys", mpt::LibraryPath::System(MPT_PATHSTRING("propsys")))
+			))
+		{
+			return false;
+		}
+		if(!SUCCEEDED(MFStartup(MF_VERSION)))
+		{
+			return false;
+		}
+		return true;
+	}
+	virtual ~ComponentMediaFoundation()
+	{
+		if(IsAvailable())
+		{
+			MFShutdown();
+		}
+	}
+};
+MPT_REGISTERED_COMPONENT(ComponentMediaFoundation, "MediaFoundation")
+
+#endif // MPT_WITH_MEDIAFOUNDATION
+
+
+#ifdef MODPLUG_TRACKER
+std::vector<FileType> CSoundFile::GetMediaFoundationFileTypes()
+//-------------------------------------------------------------
+{
+	std::vector<FileType> result;
+
+#if defined(MPT_WITH_MEDIAFOUNDATION)
+
+	ComponentHandle<ComponentMediaFoundation> mf;
+	if(!IsComponentAvailable(mf))
+	{
+		return result;
+	}
+
+	std::map<std::wstring, FileType> guidMap;
+
+	HKEY hkHandlers = NULL;
+	LSTATUS regResult = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows Media Foundation\\ByteStreamHandlers", 0, KEY_READ, &hkHandlers);
+	if(regResult != ERROR_SUCCESS)
+	{
+		return result;
+	}
+
+	for(DWORD handlerIndex = 0; ; ++handlerIndex)
+	{
+
+		WCHAR handlerTypeBuf[256];
+		MemsetZero(handlerTypeBuf);
+		regResult = RegEnumKeyW(hkHandlers, handlerIndex, handlerTypeBuf, 256);
+		if(regResult != ERROR_SUCCESS)
+		{
+			break;
+		}
+
+		std::wstring handlerType = handlerTypeBuf;
+
+		if(handlerType.length() < 1)
+		{
+			continue;
+		}
+
+		HKEY hkHandler = NULL;
+		regResult = RegOpenKeyExW(hkHandlers, handlerTypeBuf, 0, KEY_READ, &hkHandler);
+		if(regResult != ERROR_SUCCESS)
+		{
+			continue;
+		}
+
+		for(DWORD valueIndex = 0; ; ++valueIndex)
+		{
+			WCHAR valueNameBuf[16384];
+			MemsetZero(valueNameBuf);
+			DWORD valueNameBufLen = 16384;
+			DWORD valueType = 0;
+			BYTE valueData[16384];
+			MemsetZero(valueData);
+			DWORD valueDataLen = 16384;
+			regResult = RegEnumValueW(hkHandler, valueIndex, valueNameBuf, &valueNameBufLen, NULL, &valueType, valueData, &valueDataLen);
+			if(regResult != ERROR_SUCCESS)
+			{
+				break;
+			}
+			if(valueNameBufLen <= 0 || valueType != REG_SZ || valueDataLen <= 0)
+			{
+				continue;
+			}
+
+			std::wstring guid = std::wstring(valueNameBuf);
+
+			mpt::ustring description = mpt::ToUnicode(std::wstring(reinterpret_cast<WCHAR*>(valueData)));
+			description = mpt::String::Replace(description, MPT_USTRING("Byte Stream Handler"), MPT_USTRING("Files"));
+			description = mpt::String::Replace(description, MPT_USTRING("ByteStreamHandler"), MPT_USTRING("Files"));
+
+			guidMap[guid]
+				.ShortName(MPT_USTRING("mf"))
+				.Description(description)
+				;
+
+			if(handlerType[0] == L'.')
+			{
+				guidMap[guid].AddExtension(mpt::PathString::FromWide(handlerType.substr(1)));
+			} else
+			{
+				guidMap[guid].AddMimeType(mpt::ToCharset(mpt::CharsetASCII, handlerType));
+			}
+
+		}
+
+		RegCloseKey(hkHandler);
+		hkHandler = NULL;
+
+	}
+
+	RegCloseKey(hkHandlers);
+	hkHandlers = NULL;
+
+	for(std::map<std::wstring, FileType>::const_iterator it = guidMap.begin(); it != guidMap.end(); ++it)
+	{
+		result.push_back(it->second);
+	}
+
+#endif // MPT_WITH_MEDIAFOUNDATION
+
+	return result;
+}
+#endif // MODPLUG_TRACKER
+
+
+bool CSoundFile::ReadMediaFoundationSample(SAMPLEINDEX sample, FileReader &file, bool mo3Decode)
+//----------------------------------------------------------------------------------------------
+{
+
+#if !defined(MPT_WITH_MEDIAFOUNDATION)
+
+	MPT_UNREFERENCED_PARAMETER(sample);
+	MPT_UNREFERENCED_PARAMETER(file);
+	MPT_UNREFERENCED_PARAMETER(mo3Decode);
+	return false;
+
+#else
+
+	ComponentHandle<ComponentMediaFoundation> mf;
+	if(!IsComponentAvailable(mf))
+	{
+		return false;
+	}
+
+	file.Rewind();
+	// When using MF to decode MP3 samples in MO3 files, we need the mp3 file extension
+	// for some of them or otherwise MF refuses to recognize them.
+	mpt::PathString tmpfileExtension = (mo3Decode ? MPT_PATHSTRING("mp3") : MPT_PATHSTRING("tmp"));
+	OnDiskFileWrapper diskfile(file, tmpfileExtension);
+	if(!diskfile.IsValid())
+	{
+		return false;
+	}
+
+	bool result = false;
+
+	std::vector<char> rawData;
+	FileTags tags;
+	std::string sampleName;
+
+	IMFSourceResolver *sourceResolver = NULL;
+	MF_OBJECT_TYPE objectType = MF_OBJECT_INVALID;
+	IUnknown *unknownMediaSource = NULL;
+	IMFMediaSource *mediaSource = NULL;
+	IMFSourceReader *sourceReader = NULL;
+	IMFMediaType *uncompressedAudioType = NULL;
+	IMFMediaType *partialType = NULL;
+	UINT32 numChannels = 0;
+	UINT32 samplesPerSecond = 0;
+	UINT32 bitsPerSample = 0;
+
+	IMFSample *mfSample = NULL;
+	DWORD mfSampleFlags = 0;
+	IMFMediaBuffer *buffer = NULL;
+
+	MPT_MF_CHECKED(MFCreateSourceResolver(&sourceResolver));
+	MPT_MF_CHECKED(sourceResolver->CreateObjectFromURL(diskfile.GetFilename().AsNative().c_str(), MF_RESOLUTION_MEDIASOURCE | MF_RESOLUTION_CONTENT_DOES_NOT_HAVE_TO_MATCH_EXTENSION_OR_MIME_TYPE | MF_RESOLUTION_READ, NULL, &objectType, &unknownMediaSource));
+	if(objectType != MF_OBJECT_MEDIASOURCE) goto fail;
+	MPT_MF_CHECKED(unknownMediaSource->QueryInterface(&mediaSource));
+
+	tags = ReadMFMetadata(mediaSource);
+
+	MPT_MF_CHECKED(MFCreateSourceReaderFromMediaSource(mediaSource, NULL, &sourceReader));
+	MPT_MF_CHECKED(MFCreateMediaType(&partialType));
+	MPT_MF_CHECKED(partialType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio));
+	MPT_MF_CHECKED(partialType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM));
+	MPT_MF_CHECKED(sourceReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM, NULL, partialType));
+	MPT_MF_CHECKED(sourceReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM, &uncompressedAudioType));
+	MPT_MF_CHECKED(sourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM, TRUE));
+	MPT_MF_CHECKED(uncompressedAudioType->GetUINT32(MF_MT_AUDIO_NUM_CHANNELS, &numChannels));
+	MPT_MF_CHECKED(uncompressedAudioType->GetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, &samplesPerSecond));
+	MPT_MF_CHECKED(uncompressedAudioType->GetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, &bitsPerSample));
+	if(numChannels <= 0 || numChannels > 2) goto fail;
+	if(samplesPerSecond <= 0) goto fail;
+	if(bitsPerSample != 8 && bitsPerSample != 16 && bitsPerSample != 24 && bitsPerSample != 32) goto fail;
+
+	for(;;)
+	{
+		mfSampleFlags = 0;
+		MPT_MF_CHECKED(sourceReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, NULL, &mfSampleFlags, NULL, &mfSample));
+		if(mfSampleFlags & MF_SOURCE_READERF_CURRENTMEDIATYPECHANGED)
+		{
+			break;
+		}
+		if(mfSampleFlags & MF_SOURCE_READERF_ENDOFSTREAM)
+		{
+			break;
+		}
+		MPT_MF_CHECKED(mfSample->ConvertToContiguousBuffer(&buffer));
+		{
+			BYTE *data = NULL;
+			DWORD dataSize = 0;
+			MPT_MF_CHECKED(buffer->Lock(&data, NULL, &dataSize));
+			rawData.insert(rawData.end(), mpt::byte_cast<char*>(data), mpt::byte_cast<char*>(data + dataSize));
+			MPT_MF_CHECKED(buffer->Unlock());
+		}
+		mptMFSafeRelease(&buffer);
+		mptMFSafeRelease(&mfSample);
+	}
+
+	mptMFSafeRelease(&uncompressedAudioType);
+	mptMFSafeRelease(&partialType);
+	mptMFSafeRelease(&sourceReader);
+
+	sampleName = mpt::ToCharset(GetCharsetLocaleOrModule(), GetSampleNameFromTags(tags));
+
+	SmpLength length = rawData.size() / numChannels / (bitsPerSample/8);
+
+	DestroySampleThreadsafe(sample);
+	if(!mo3Decode)
+	{
+		mpt::String::Copy(m_szNames[sample], sampleName);
+		Samples[sample].Initialize();
+		Samples[sample].nC5Speed = samplesPerSecond;
+	}
+	Samples[sample].nLength = length;
+	Samples[sample].uFlags.set(CHN_16BIT, bitsPerSample >= 16);
+	Samples[sample].uFlags.set(CHN_STEREO, numChannels == 2);
+	Samples[sample].AllocateSample();
+	if(Samples[sample].pSample == nullptr)
+	{
+		result = false;
+		goto fail;
+	}
+
+	if(bitsPerSample == 24)
+	{
+		if(numChannels == 2)
+		{
+			CopyStereoInterleavedSample<SC::ConversionChain<SC::Convert<int16, int32>, SC::DecodeInt24<0, littleEndian24> > >(Samples[sample], &rawData[0], rawData.size());
+		} else
+		{
+			CopyMonoSample<SC::ConversionChain<SC::Convert<int16, int32>, SC::DecodeInt24<0, littleEndian24> > >(Samples[sample], &rawData[0], rawData.size());
+		}
+	} else if(bitsPerSample == 32)
+	{
+		if(numChannels == 2)
+		{
+			CopyStereoInterleavedSample<SC::ConversionChain<SC::Convert<int16, int32>, SC::DecodeInt32<0, littleEndian32> > >(Samples[sample], &rawData[0], rawData.size());
+		} else
+		{
+			CopyMonoSample<SC::ConversionChain<SC::Convert<int16, int32>, SC::DecodeInt32<0, littleEndian32> > >(Samples[sample], &rawData[0], rawData.size());
+		}
+	} else
+	{
+		// just copy
+		std::copy(&rawData[0], &rawData[0] + rawData.size(), mpt::void_cast<char*>(Samples[sample].pSample));
+	}
+
+	result = true;
+
+fail:
+
+	mptMFSafeRelease(&buffer);
+	mptMFSafeRelease(&mfSample);
+	mptMFSafeRelease(&uncompressedAudioType);
+	mptMFSafeRelease(&partialType);
+	mptMFSafeRelease(&sourceReader);
+	mptMFSafeRelease(&mediaSource);
+	mptMFSafeRelease(&unknownMediaSource);
+	mptMFSafeRelease(&sourceResolver);
+
+	return result;
+
+#endif
+
+}
+
+
+bool CSoundFile::CanReadMP3()
+//---------------------------
+{
+	bool result = false;
+	#if defined(MPT_WITH_MPG123)
+		if(!result)
+		{
+			result = true;
+		}
+	#endif
+	#if defined(MPT_WITH_MINIMP3)
+		if(!result)
+		{
+			result = true;
+		}
+	#endif
+	#if defined(MPT_ENABLE_MPG123_DYNBIND)
+		if(!result)
+		{
+			ComponentHandle<ComponentMPG123> mpg123;
+			if(IsComponentAvailable(mpg123))
+			{
+				result = true;
+			}
+		}
+	#endif
+	#if defined(MPT_WITH_MEDIAFOUNDATION)
+		if(!result)
+		{
+			ComponentHandle<ComponentMediaFoundation> mf;
+			if(IsComponentAvailable(mf))
+			{
+				result = true;
+			}
+		}
+	#endif
+	return result;
+}
+
+
+bool CSoundFile::CanReadVorbis()
+//------------------------------
+{
+	bool result = false;
+	#if defined(MPT_WITH_OGG) && defined(MPT_WITH_VORBIS) && defined(MPT_WITH_VORBISFILE)
+		if(!result)
+		{
+			result = true;
+		}
+	#endif
+	#if defined(MPT_WITH_STBVORBIS)
+		if(!result)
+		{
+			result = true;
+		}
+	#endif
+	return result;
+}
+
+
+OPENMPT_NAMESPACE_END

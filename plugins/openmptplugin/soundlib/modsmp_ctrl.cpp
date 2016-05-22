@@ -10,10 +10,12 @@
 
 #include "stdafx.h"
 #include "modsmp_ctrl.h"
-#include "../common/AudioCriticalSection.h"
+#include "../soundlib/AudioCriticalSection.h"
 #include "Sndfile.h"
 
 #define new DEBUG_NEW
+
+OPENMPT_NAMESPACE_BEGIN
 
 namespace ctrlSmp
 {
@@ -32,7 +34,7 @@ void ReplaceSample(ModSample &smp, void *pNewSample, const SmpLength nNewLength,
 
 	CriticalSection cs;
 
-	ctrlChn::ReplaceSample(sndFile.m_PlayState.Chn, &smp, pNewSample, nNewLength, setFlags, resetFlags);
+	ctrlChn::ReplaceSample(sndFile.m_PlayState.Chn, smp, pNewSample, nNewLength, setFlags, resetFlags);
 	smp.pSample = pNewSample;
 	smp.nLength = nNewLength;
 	ModSample::FreeSample(pOldSmp);
@@ -71,6 +73,10 @@ SmpLength InsertSilence(ModSample &smp, const SmpLength nSilenceLength, const Sm
 		// Update loop points if necessary.
 		if(smp.nLoopStart >= nStartFrom) smp.nLoopStart += nSilenceLength;
 		if(smp.nLoopEnd >= nStartFrom) smp.nLoopEnd += nSilenceLength;
+		for(std::size_t i = 0; i < CountOf(smp.cues); i++)
+		{
+			if(smp.cues[i] >= nStartFrom) smp.cues[i] += nSilenceLength;
+		}
 	} else
 	{
 		// Set loop points automatically
@@ -82,6 +88,50 @@ SmpLength InsertSilence(ModSample &smp, const SmpLength nSilenceLength, const Sm
 	ReplaceSample(smp, pNewSmp, newLength, sndFile);
 	PrecomputeLoops(smp, sndFile, true);
 
+	return smp.nLength;
+}
+
+
+namespace
+{
+	// Update loop points and cues after deleting a sample selection
+	static void AdjustLoopPoints(SmpLength selStart, SmpLength selEnd, SmpLength &loopStart, SmpLength &loopEnd, SmpLength length)
+	{
+		Util::DeleteRange(selStart, selEnd - 1, loopStart, loopEnd);
+
+		LimitMax(loopEnd, length);
+		if(loopStart + 2 >= loopEnd)
+		{
+			loopStart = loopEnd = 0;
+		}
+	}
+}
+
+SmpLength RemoveRange(ModSample &smp, SmpLength selStart, SmpLength selEnd, CSoundFile &sndFile)
+//----------------------------------------------------------------------------------------------
+{
+	LimitMax(selEnd, smp.nLength);
+	if(selEnd <= selStart)
+	{
+		return smp.nLength;
+	}
+	const uint8 bps = smp.GetBytesPerSample();
+	memmove(smp.pSample8 + selStart * bps, smp.pSample8 + selEnd * bps, (smp.nLength - selEnd) * bps);
+	smp.nLength -= (selEnd - selStart);
+
+	// Did loops or cue points cover the deleted selection?
+	AdjustLoopPoints(selStart, selEnd, smp.nLoopStart, smp.nLoopEnd, smp.nLength);
+	AdjustLoopPoints(selStart, selEnd, smp.nSustainStart, smp.nSustainEnd, smp.nLength);
+
+	if(smp.nLoopEnd == 0) smp.uFlags.reset(CHN_LOOP | CHN_PINGPONGLOOP);
+	if(smp.nSustainEnd == 0) smp.uFlags.reset(CHN_SUSTAINLOOP | CHN_PINGPONGSUSTAIN);
+
+	for(std::size_t i = 0; i < CountOf(smp.cues); i++)
+	{
+		Util::DeleteItem(selStart, selEnd - 1, smp.cues[i]);
+	}
+
+	smp.PrecomputeLoops(sndFile);
 	return smp.nLength;
 }
 
@@ -214,7 +264,7 @@ void PrecomputeLoopsImpl(ModSample &smp, const CSoundFile &sndFile)
 	const int copySamples = numChannels * InterpolationMaxLookahead;
 	// Optimization: Put normal loop wraparound buffer right at the sample end if the normal loop ends there.
 	// Note that we can't do this for sustain loops, as we would get clicks at the sample end after releasing the loop.
-	const bool loopEndsAtSampleEnd = smp.uFlags[CHN_LOOP] && smp.nLoopEnd == smp.nLength;
+	const bool loopEndsAtSampleEnd = smp.uFlags[CHN_LOOP] && smp.nLoopEnd == smp.nLength && smp.nLength >= InterpolationMaxLookahead;
 	
 	T *sampleData = static_cast<T *>(smp.pSample);
 	T *afterSampleStart = sampleData + smp.nLength * numChannels;
@@ -239,7 +289,7 @@ void PrecomputeLoopsImpl(ModSample &smp, const CSoundFile &sndFile)
 			smp.nLoopEnd - smp.nLoopStart,
 			numChannels,
 			smp.uFlags[CHN_PINGPONGLOOP],
-			sndFile.IsITPingPongMode());
+			sndFile.m_playBehaviour[kITPingPongMode]);
 	}
 	if(smp.uFlags[CHN_SUSTAINLOOP])
 	{
@@ -248,7 +298,7 @@ void PrecomputeLoopsImpl(ModSample &smp, const CSoundFile &sndFile)
 			smp.nSustainEnd - smp.nSustainStart,
 			numChannels,
 			smp.uFlags[CHN_PINGPONGSUSTAIN],
-			sndFile.IsITPingPongMode());
+			sndFile.m_playBehaviour[kITPingPongMode]);
 	}
 }
 
@@ -282,7 +332,7 @@ bool PrecomputeLoops(ModSample &smp, CSoundFile &sndFile, bool updateChannels)
 bool UpdateLoopPoints(const ModSample &smp, CSoundFile &sndFile)
 //--------------------------------------------------------------
 {
-	if(!smp.nLength || !smp.pSample)
+	if(!smp.HasSampleData())
 		return false;
 
 	CriticalSection cs;
@@ -446,7 +496,7 @@ float RemoveDCOffset(ModSample &smp,
 					 CSoundFile &sndFile)
 //---------------------------------------
 {
-	if(smp.pSample == nullptr || smp.nLength < 1)
+	if(!smp.HasSampleData())
 		return 0;
 
 	if (iEnd > smp.nLength) iEnd = smp.nLength;
@@ -465,9 +515,9 @@ float RemoveDCOffset(ModSample &smp,
 	// step 1: Calculate offset.
 	OffsetData oData = {0,0,0};
 	if(smp.GetElementarySampleSize() == 2)
-		oData = CalculateOffset(static_cast<int16 *>(smp.pSample) + iStart, iEnd - iStart);
+		oData = CalculateOffset(smp.pSample16 + iStart, iEnd - iStart);
 	else if(smp.GetElementarySampleSize() == 1)
-		oData = CalculateOffset(static_cast<int8*>(smp.pSample) + iStart, iEnd - iStart);
+		oData = CalculateOffset(smp.pSample8 + iStart, iEnd - iStart);
 
 	double dMin = oData.dMin, dMax = oData.dMax, dOffset = oData.dOffset;
 
@@ -481,26 +531,30 @@ float RemoveDCOffset(ModSample &smp,
 	dMin += dOffset;
 
 	// ... and that might cause distortion, so we will normalize this.
-	const double dAmplify = 1 / MAX(dMax, -dMin);
+	const double dAmplify = 1 / std::max(dMax, -dMin);
 
 	// step 2: centralize + normalize sample
 	dOffset *= dMaxAmplitude * dAmplify;
 	if(smp.GetElementarySampleSize() == 2)
-		RemoveOffsetAndNormalize( static_cast<int16 *>(smp.pSample) + iStart, iEnd - iStart, dOffset, dAmplify);
+		RemoveOffsetAndNormalize(smp.pSample16 + iStart, iEnd - iStart, dOffset, dAmplify);
 	else if(smp.GetElementarySampleSize() == 1)
-		RemoveOffsetAndNormalize( static_cast<int8 *>(smp.pSample) + iStart, iEnd - iStart, dOffset, dAmplify);
+		RemoveOffsetAndNormalize(smp.pSample8 + iStart, iEnd - iStart, dOffset, dAmplify);
 
 	// step 3: adjust global vol (if available)
 	if((modtype & (MOD_TYPE_IT | MOD_TYPE_MPT)) && (iStart == 0) && (iEnd == smp.nLength * smp.GetNumChannels()))
 	{
 		CriticalSection cs;
 
-		smp.nGlobalVol = MIN((uint16)(smp.nGlobalVol / dAmplify), 64);
+		smp.nGlobalVol = std::min((uint16)(smp.nGlobalVol / dAmplify), uint16(64));
 		for (CHANNELINDEX i = 0; i < MAX_CHANNELS; i++)
 		{
 			if(sndFile.m_PlayState.Chn[i].pModSample == &smp)
 			{
-				sndFile.m_PlayState.Chn[i].nGlobalVol = smp.nGlobalVol;
+				sndFile.m_PlayState.Chn[i].nInsVol = smp.nGlobalVol;
+				if(sndFile.m_PlayState.Chn[i].pModInstrument)
+				{
+					sndFile.m_PlayState.Chn[i].nInsVol = (smp.nGlobalVol * sndFile.m_PlayState.Chn[i].pModInstrument->nGlobalVol) >> 6;
+				}
 			}
 		}
 	}
@@ -512,8 +566,8 @@ float RemoveDCOffset(ModSample &smp,
 
 
 template <class T>
-void ReverseSampleImpl(T *pStart, const SmpLength nLength)
-//--------------------------------------------------------
+static void ReverseSampleImpl(T *pStart, const SmpLength nLength)
+//---------------------------------------------------------------
 {
 	for(SmpLength i = 0; i < nLength / 2; i++)
 	{
@@ -525,7 +579,7 @@ void ReverseSampleImpl(T *pStart, const SmpLength nLength)
 bool ReverseSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile &sndFile)
 //---------------------------------------------------------------------------------------
 {
-	if(smp.pSample == nullptr) return false;
+	if(!smp.HasSampleData()) return false;
 	if(iEnd == 0 || iStart > smp.nLength || iEnd > smp.nLength)
 	{
 		iStart = 0;
@@ -538,9 +592,9 @@ bool ReverseSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile 
 	if(smp.GetBytesPerSample() == 4)	// 16 bit stereo
 		ReverseSampleImpl(static_cast<int32 *>(smp.pSample) + iStart, iEnd - iStart);
 	else if(smp.GetBytesPerSample() == 2)	// 16 bit mono / 8 bit stereo
-		ReverseSampleImpl(static_cast<int16 *>(smp.pSample) + iStart, iEnd - iStart);
+		ReverseSampleImpl(smp.pSample16 + iStart, iEnd - iStart);
 	else if(smp.GetBytesPerSample() == 1)	// 8 bit mono
-		ReverseSampleImpl(static_cast<int8 *>(smp.pSample) + iStart, iEnd - iStart);
+		ReverseSampleImpl(smp.pSample8 + iStart, iEnd - iStart);
 	else
 		return false;
 
@@ -550,8 +604,8 @@ bool ReverseSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile 
 
 
 template <class T>
-void UnsignSampleImpl(T *pStart, const SmpLength nLength)
-//-------------------------------------------------------
+static void UnsignSampleImpl(T *pStart, const SmpLength nLength)
+//--------------------------------------------------------------
 {
 	const T offset = (std::numeric_limits<T>::min)();
 	for(SmpLength i = 0; i < nLength; i++)
@@ -564,7 +618,7 @@ void UnsignSampleImpl(T *pStart, const SmpLength nLength)
 bool UnsignSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile &sndFile)
 //--------------------------------------------------------------------------------------
 {
-	if(smp.pSample == nullptr) return false;
+	if(!smp.HasSampleData()) return false;
 	if(iEnd == 0 || iStart > smp.nLength || iEnd > smp.nLength)
 	{
 		iStart = 0;
@@ -573,9 +627,9 @@ bool UnsignSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile &
 	iStart *= smp.GetNumChannels();
 	iEnd *= smp.GetNumChannels();
 	if(smp.GetElementarySampleSize() == 2)
-		UnsignSampleImpl(static_cast<int16 *>(smp.pSample) + iStart, iEnd - iStart);
+		UnsignSampleImpl(smp.pSample16 + iStart, iEnd - iStart);
 	else if(smp.GetElementarySampleSize() == 1)
-		UnsignSampleImpl(static_cast<int8 *>(smp.pSample) + iStart, iEnd - iStart);
+		UnsignSampleImpl(smp.pSample8 + iStart, iEnd - iStart);
 	else
 		return false;
 
@@ -585,8 +639,8 @@ bool UnsignSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile &
 
 
 template <class T>
-void InvertSampleImpl(T *pStart, const SmpLength nLength)
-//-------------------------------------------------------
+static void InvertSampleImpl(T *pStart, const SmpLength nLength)
+//--------------------------------------------------------------
 {
 	for(SmpLength i = 0; i < nLength; i++)
 	{
@@ -598,7 +652,7 @@ void InvertSampleImpl(T *pStart, const SmpLength nLength)
 bool InvertSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile &sndFile)
 //--------------------------------------------------------------------------------------
 {
-	if(smp.pSample == nullptr) return false;
+	if(!smp.HasSampleData()) return false;
 	if(iEnd == 0 || iStart > smp.nLength || iEnd > smp.nLength)
 	{
 		iStart = 0;
@@ -607,9 +661,9 @@ bool InvertSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile &
 	iStart *= smp.GetNumChannels();
 	iEnd *= smp.GetNumChannels();
 	if(smp.GetElementarySampleSize() == 2)
-		InvertSampleImpl(static_cast<int16 *>(smp.pSample) + iStart, iEnd - iStart);
+		InvertSampleImpl(smp.pSample16 + iStart, iEnd - iStart);
 	else if(smp.GetElementarySampleSize() == 1)
-		InvertSampleImpl(static_cast<int8 *>(smp.pSample) + iStart, iEnd - iStart);
+		InvertSampleImpl(smp.pSample8 + iStart, iEnd - iStart);
 	else
 		return false;
 
@@ -619,35 +673,52 @@ bool InvertSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile &
 
 
 template <class T>
-void XFadeSampleImpl(T *pStart, const SmpLength nOffset, SmpLength nFadeLength)
-//-----------------------------------------------------------------------------
+static void XFadeSampleImpl(const T *srcIn, const T *srcOut, T *output, const SmpLength fadeLength, double e)
+//-----------------------------------------------------------------------------------------------------------
 {
-	for(SmpLength i = 0; i < nFadeLength; i++)
+	const double length = 1.0 / static_cast<double>(fadeLength);
+	for(SmpLength i = 0; i < fadeLength; i++, srcIn++, srcOut++, output++)
 	{
-		double dPercentage = sqrt((double)i / (double)nFadeLength); // linear fades are boring
-		pStart[nOffset + i] = (T)(((double)pStart[nOffset + i]) * (1 - dPercentage) + ((double)pStart[i]) * dPercentage);
+		double fact1 = std::pow(i * length, e);
+		double fact2 = std::pow((fadeLength - i) * length, e);
+		int32 val = static_cast<int32>(
+			static_cast<double>(*srcIn) * fact1 +
+			static_cast<double>(*srcOut) * fact2);
+		Limit(val, std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+		*output = static_cast<T>(val);
 	}
 }
 
 // X-Fade sample data to create smooth loop transitions
-bool XFadeSample(ModSample &smp, SmpLength iFadeLength, CSoundFile &sndFile)
-//--------------------------------------------------------------------------
+bool XFadeSample(ModSample &smp, SmpLength fadeLength, int fadeLaw, bool afterloopFade, bool useSustainLoop, CSoundFile &sndFile)
+//-------------------------------------------------------------------------------------------------------------------------------
 {
-	if(smp.pSample == nullptr) return false;
-	if(smp.nLoopEnd <= smp.nLoopStart || smp.nLoopEnd > smp.nLength) return false;
-	if(smp.nLoopStart < iFadeLength) return false;
+	if(!smp.HasSampleData()) return false;
+	const SmpLength loopStart = useSustainLoop ? smp.nSustainStart : smp.nLoopStart;
+	const SmpLength loopEnd = useSustainLoop ? smp.nSustainEnd : smp.nLoopEnd;
+	
+	if(loopEnd <= loopStart || loopEnd > smp.nLength) return false;
+	if(loopStart < fadeLength) return false;
 
-	SmpLength iStart = smp.nLoopStart - iFadeLength;
-	SmpLength iEnd = smp.nLoopEnd - iFadeLength;
-	iStart *= smp.GetNumChannels();
-	iEnd *= smp.GetNumChannels();
-	iFadeLength *= smp.GetNumChannels();
+	const SmpLength start = (loopStart - fadeLength) * smp.GetNumChannels();
+	const SmpLength end = (loopEnd - fadeLength) * smp.GetNumChannels();
+	const SmpLength afterloopStart = loopStart * smp.GetNumChannels();
+	const SmpLength afterloopEnd = loopEnd * smp.GetNumChannels();
+	const SmpLength afterLoopLength = std::min(smp.nLength - loopEnd, fadeLength) * smp.GetNumChannels();
+	fadeLength *= smp.GetNumChannels();
+
+	// e=0.5: constant power crossfade (for uncorrelated samples), e=1.0: constant volume crossfade (for perfectly correlated samples)
+	const double e = 1.0 - fadeLaw / 200000.0;
 
 	if(smp.GetElementarySampleSize() == 2)
-		XFadeSampleImpl(static_cast<int16 *>(smp.pSample) + iStart, iEnd - iStart, iFadeLength);
-	else if(smp.GetElementarySampleSize() == 1)
-		XFadeSampleImpl(static_cast<int8 *>(smp.pSample) + iStart, iEnd - iStart, iFadeLength);
-	else
+	{
+		XFadeSampleImpl(smp.pSample16 + start, smp.pSample16 + end, smp.pSample16 + end, fadeLength, e);
+		if(afterloopFade) XFadeSampleImpl(smp.pSample16 + afterloopEnd, smp.pSample16 + afterloopStart, smp.pSample16 + afterloopEnd, afterLoopLength, e);
+	} else if(smp.GetElementarySampleSize() == 1)
+	{
+		XFadeSampleImpl(smp.pSample8 + start, smp.pSample8 + end, smp.pSample8 + end, fadeLength, e);
+		if(afterloopFade) XFadeSampleImpl(smp.pSample8 + afterloopEnd, smp.pSample8 + afterloopStart, smp.pSample8 + afterloopEnd, afterLoopLength, e);
+	} else
 		return false;
 
 	PrecomputeLoops(smp, sndFile, true);
@@ -656,8 +727,51 @@ bool XFadeSample(ModSample &smp, SmpLength iFadeLength, CSoundFile &sndFile)
 
 
 template <class T>
-void ConvertStereoToMonoMixImpl(T *pDest, const SmpLength length)
-//---------------------------------------------------------------
+static void SilenceSampleImpl(T *p, SmpLength length, SmpLength inc, bool fromStart, bool toEnd)
+//----------------------------------------------------------------------------------------------
+{
+	const int dest = toEnd ? 0 : p[(length - 1) * inc];
+	const int base = fromStart ? 0 :p[0];
+	const int delta = dest - base;
+	const int64 len_m1 = length - 1;
+	for(SmpLength i = 0; i < length; i++)
+	{
+		int n = base + static_cast<int>((static_cast<int64>(delta) * static_cast<int64>(i)) / len_m1);
+		*p = static_cast<T>(n);
+		p += inc;
+	}
+}
+
+// X-Fade sample data to create smooth loop transitions
+bool SilenceSample(ModSample &smp, SmpLength start, SmpLength end, CSoundFile &sndFile)
+//-------------------------------------------------------------------------------------
+{
+	LimitMax(end, smp.nLength);
+	if(!smp.HasSampleData() || start >= end) return false;
+
+	const SmpLength length = end - start;
+	const bool fromStart = start == 0;
+	const bool toEnd = end == smp.nLength;
+	const uint8 numChn = smp.GetNumChannels();
+
+	for(uint8 chn = 0; chn < numChn; chn++)
+	{
+		if(smp.GetElementarySampleSize() == 2)
+			SilenceSampleImpl(smp.pSample16 + start * numChn + chn, length, numChn, fromStart, toEnd);
+		else if(smp.GetElementarySampleSize() == 1)
+			SilenceSampleImpl(smp.pSample8 + start * numChn + chn, length, numChn, fromStart, toEnd);
+		else
+			return false;
+	}
+
+	PrecomputeLoops(smp, sndFile, false);
+	return true;
+}
+
+
+template <class T>
+static void ConvertStereoToMonoMixImpl(T *pDest, const SmpLength length)
+//----------------------------------------------------------------------
 {
 	const T *pEnd = pDest + length;
 	for(T *pSource = pDest; pDest != pEnd; pDest++, pSource += 2)
@@ -668,8 +782,8 @@ void ConvertStereoToMonoMixImpl(T *pDest, const SmpLength length)
 
 
 template <class T>
-void ConvertStereoToMonoOneChannelImpl(T *pDest, const SmpLength length)
-//----------------------------------------------------------------------
+static void ConvertStereoToMonoOneChannelImpl(T *pDest, const SmpLength length)
+//-----------------------------------------------------------------------------
 {
 	const T *pEnd = pDest + length;
 	for(T *pSource = pDest; pDest != pEnd; pDest++, pSource += 2)
@@ -683,15 +797,15 @@ void ConvertStereoToMonoOneChannelImpl(T *pDest, const SmpLength length)
 bool ConvertToMono(ModSample &smp, CSoundFile &sndFile, StereoToMonoMode conversionMode)
 //--------------------------------------------------------------------------------------
 {
-	if(smp.pSample == nullptr || smp.nLength == 0 || smp.GetNumChannels() != 2) return false;
+	if(!smp.HasSampleData() || smp.GetNumChannels() != 2) return false;
 
 	// Note: Sample is overwritten in-place! Unused data is not deallocated!
 	if(conversionMode == mixChannels)
 	{
 		if(smp.GetElementarySampleSize() == 2)
-			ConvertStereoToMonoMixImpl(static_cast<int16 *>(smp.pSample), smp.nLength);
+			ConvertStereoToMonoMixImpl(smp.pSample16, smp.nLength);
 		else if(smp.GetElementarySampleSize() == 1)
-			ConvertStereoToMonoMixImpl(static_cast<int8 *>(smp.pSample), smp.nLength);
+			ConvertStereoToMonoMixImpl(smp.pSample8, smp.nLength);
 		else
 			return false;
 	} else
@@ -701,9 +815,9 @@ bool ConvertToMono(ModSample &smp, CSoundFile &sndFile, StereoToMonoMode convers
 			conversionMode = onlyLeft;
 		}
 		if(smp.GetElementarySampleSize() == 2)
-			ConvertStereoToMonoOneChannelImpl(static_cast<int16 *>(smp.pSample) + (conversionMode == onlyLeft ? 0 : 1), smp.nLength);
+			ConvertStereoToMonoOneChannelImpl(smp.pSample16 + (conversionMode == onlyLeft ? 0 : 1), smp.nLength);
 		else if(smp.GetElementarySampleSize() == 1)
-			ConvertStereoToMonoOneChannelImpl(static_cast<int8 *>(smp.pSample) + (conversionMode == onlyLeft ? 0 : 1), smp.nLength);
+			ConvertStereoToMonoOneChannelImpl(smp.pSample8 + (conversionMode == onlyLeft ? 0 : 1), smp.nLength);
 		else
 			return false;
 	}
@@ -723,6 +837,48 @@ bool ConvertToMono(ModSample &smp, CSoundFile &sndFile, StereoToMonoMode convers
 }
 
 
+template <class T>
+static void ConvertMonoToStereoImpl(const T * MPT_RESTRICT src, T * MPT_RESTRICT dst, SmpLength length)
+//-----------------------------------------------------------------------------------------------------
+{
+	while(length--)
+	{
+		dst[0] = *src;
+		dst[1] = *src;
+		dst += 2;
+		src++;
+	}
+}
+
+
+// Convert a multichannel sample to mono (currently only implemented for stereo)
+bool ConvertToStereo(ModSample &smp, CSoundFile &sndFile)
+//-------------------------------------------------------
+{
+	if(!smp.HasSampleData() || smp.GetNumChannels() != 1) return false;
+
+	void *newSample = ModSample::AllocateSample(smp.nLength, smp.GetBytesPerSample() * 2);
+	if(newSample == nullptr)
+	{
+		return 0;
+	}
+
+	if(smp.GetElementarySampleSize() == 2)
+		ConvertMonoToStereoImpl(smp.pSample16, (int16 *)newSample, smp.nLength);
+	else if(smp.GetElementarySampleSize() == 1)
+		ConvertMonoToStereoImpl(smp.pSample8, (int8 *)newSample, smp.nLength);
+	else
+		return false;
+
+	CriticalSection cs;
+	smp.uFlags.set(CHN_STEREO);
+	ReplaceSample(smp, newSample, smp.nLength, sndFile);
+
+	PrecomputeLoops(smp, sndFile, false);
+	return true;
+}
+
+
 } // namespace ctrlSmp
 
 
@@ -731,7 +887,7 @@ namespace ctrlChn
 {
 
 void ReplaceSample( ModChannel (&Chn)[MAX_CHANNELS],
-					const ModSample * const pSample,
+					const ModSample &sample,
 					const void * const pNewSample,
 					const SmpLength nNewLength,
 					FlagSet<ChannelFlags> setFlags,
@@ -739,14 +895,23 @@ void ReplaceSample( ModChannel (&Chn)[MAX_CHANNELS],
 {
 	for (CHANNELINDEX i = 0; i < MAX_CHANNELS; i++)
 	{
-		if (Chn[i].pModSample == pSample)
+		if (Chn[i].pModSample == &sample)
 		{
 			if (Chn[i].pCurrentSample != nullptr)
 				Chn[i].pCurrentSample = pNewSample;
 			if (Chn[i].nPos > nNewLength)
 				Chn[i].nPos = 0;
 			if (Chn[i].nLength > 0)
-				Chn[i].nLength = nNewLength;
+				LimitMax(Chn[i].nLength, nNewLength);
+			if(Chn[i].InSustainLoop())
+			{
+				Chn[i].nLoopStart = sample.nSustainStart;
+				Chn[i].nLoopEnd = sample.nSustainEnd;
+			} else
+			{
+				Chn[i].nLoopStart = sample.nLoopStart;
+				Chn[i].nLoopEnd = sample.nLoopEnd;
+			}
 			Chn[i].dwFlags.set(setFlags);
 			Chn[i].dwFlags.reset(resetFlags);
 		}
@@ -754,3 +919,6 @@ void ReplaceSample( ModChannel (&Chn)[MAX_CHANNELS],
 }
 
 } // namespace ctrlChn
+
+
+OPENMPT_NAMESPACE_END

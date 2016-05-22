@@ -10,9 +10,11 @@
 
 #pragma once
 
-#include "../soundlib/Endianness.h"
 
-struct ModSample;
+#include "../common/Endianness.h"
+
+
+OPENMPT_NAMESPACE_BEGIN
 
 
 // Byte offsets, from lowest significant to highest significant byte (for various functor template parameters)
@@ -35,96 +37,96 @@ namespace SC { // SC = _S_ample_C_onversion
 // and has to provide a static const input_inc member
 // which describes by how many input_t elements inBuf has to be incremented between invocations.
 // input_inc is normally 1 except when decoding e.g. bigger sample values
-// from multiple char values.
+// from multiple mpt::byte values.
 
 
 // decodes signed 7bit values stored as signed int8
 struct DecodeInt7
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef int8 output_t;
 	static const int input_inc = 1;
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		return Clamp(int8(*inBuf), int8(-64), int8(63)) * 2;
+		return Clamp(static_cast<int8>(*inBuf), static_cast<int8>(-64), static_cast<int8>(63)) * 2;
 	}
 };
 
 struct DecodeInt8
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef int8 output_t;
 	static const int input_inc = 1;
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		return int8(*inBuf);
+		return static_cast<int8>(*inBuf);
 	}
 };
 
 struct DecodeUint8
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef int8 output_t;
 	static const int input_inc = 1;
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		return int8(int(uint8(*inBuf)) - 128);
+		return static_cast<int8>(int(static_cast<uint8>(*inBuf)) - 128);
 	}
 };
 
 struct DecodeInt8Delta
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef int8 output_t;
 	static const int input_inc = 1;
 	uint8 delta;
 	DecodeInt8Delta() : delta(0) { }
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		delta += uint8(*inBuf);
-		return int8(delta);
+		delta += static_cast<uint8>(*inBuf);
+		return static_cast<int8>(delta);
 	}
 };
 
 template <uint16 offset, size_t loByteIndex, size_t hiByteIndex>
 struct DecodeInt16
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef int16 output_t;
 	static const int input_inc = 2;
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		return (uint8(inBuf[loByteIndex]) | (uint8(inBuf[hiByteIndex]) << 8)) - offset;
+		return (static_cast<uint8>(inBuf[loByteIndex]) | (static_cast<uint8>(inBuf[hiByteIndex]) << 8)) - offset;
 	}
 };
 
 template <size_t loByteIndex, size_t hiByteIndex>
 struct DecodeInt16Delta
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef int16 output_t;
 	static const int input_inc = 2;
 	uint16 delta;
 	DecodeInt16Delta() : delta(0) { }
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		delta += uint8(inBuf[loByteIndex]) | (uint8(inBuf[hiByteIndex]) << 8);
-		return int16(delta);
+		delta += static_cast<uint8>(inBuf[loByteIndex]) | (static_cast<uint8>(inBuf[hiByteIndex]) << 8);
+		return static_cast<int16>(delta);
 	}
 };
 
 struct DecodeInt16Delta8
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef int16 output_t;
 	static const int input_inc = 2;
 	uint16 delta;
 	DecodeInt16Delta8() : delta(0) { }
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		delta += uint8(inBuf[0]);
+		delta += static_cast<uint8>(inBuf[0]);
 		int16 result = delta & 0xFF;
-		delta += uint8(inBuf[1]);
+		delta += static_cast<uint8>(inBuf[1]);
 		result |= (delta << 8);
 		return result;
 	}
@@ -133,49 +135,49 @@ struct DecodeInt16Delta8
 template <uint32 offset, size_t loByteIndex, size_t midByteIndex, size_t hiByteIndex>
 struct DecodeInt24
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef int32 output_t;
 	static const int input_inc = 3;
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		return ((uint8(inBuf[loByteIndex]) << 8) | (uint8(inBuf[midByteIndex]) << 16) | (uint8(inBuf[hiByteIndex]) << 24)) - offset;
+		return ((static_cast<uint8>(inBuf[loByteIndex]) << 8) | (static_cast<uint8>(inBuf[midByteIndex]) << 16) | (static_cast<uint8>(inBuf[hiByteIndex]) << 24)) - offset;
 	}
 };
 
 template <uint32 offset, size_t loLoByteIndex, size_t loHiByteIndex, size_t hiLoByteIndex, size_t hiHiByteIndex>
 struct DecodeInt32
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef int32 output_t;
 	static const int input_inc = 4;
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		return (uint8(inBuf[loLoByteIndex]) | (uint8(inBuf[loHiByteIndex]) << 8) | (uint8(inBuf[hiLoByteIndex]) << 16) | (uint8(inBuf[hiHiByteIndex]) << 24)) - offset;
+		return (static_cast<uint8>(inBuf[loLoByteIndex]) | (static_cast<uint8>(inBuf[loHiByteIndex]) << 8) | (static_cast<uint8>(inBuf[hiLoByteIndex]) << 16) | (static_cast<uint8>(inBuf[hiHiByteIndex]) << 24)) - offset;
 	}
 };
 
 template <size_t loLoByteIndex, size_t loHiByteIndex, size_t hiLoByteIndex, size_t hiHiByteIndex>
 struct DecodeFloat32
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef float32 output_t;
 	static const int input_inc = 4;
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		return DecodeFloatLE(uint8_4(uint8(inBuf[loLoByteIndex]), uint8(inBuf[loHiByteIndex]), uint8(inBuf[hiLoByteIndex]), uint8(inBuf[hiHiByteIndex])));
+		return IEEE754binary32LE(static_cast<uint8>(inBuf[loLoByteIndex]), static_cast<uint8>(inBuf[loHiByteIndex]), static_cast<uint8>(inBuf[hiLoByteIndex]), static_cast<uint8>(inBuf[hiHiByteIndex]));
 	}
 };
 
 template <size_t loLoByteIndex, size_t loHiByteIndex, size_t hiLoByteIndex, size_t hiHiByteIndex>
 struct DecodeScaledFloat32
 {
-	typedef char input_t;
+	typedef mpt::byte input_t;
 	typedef float32 output_t;
 	static const int input_inc = 4;
 	float factor;
 	forceinline output_t operator() (const input_t *inBuf)
 	{
-		return factor * DecodeFloatLE(uint8_4(uint8(inBuf[loLoByteIndex]), uint8(inBuf[loHiByteIndex]), uint8(inBuf[hiLoByteIndex]), uint8(inBuf[hiHiByteIndex])));
+		return factor * IEEE754binary32LE(static_cast<uint8>(inBuf[loLoByteIndex]), static_cast<uint8>(inBuf[loHiByteIndex]), static_cast<uint8>(inBuf[hiLoByteIndex]), static_cast<uint8>(inBuf[hiHiByteIndex]));
 	}
 	forceinline DecodeScaledFloat32(float scaleFactor)
 		: factor(scaleFactor)
@@ -212,6 +214,20 @@ struct ConvertShift
 
 
 
+// Shift input_t up by shift and saturate to output_t.
+template <typename Tdst, typename Tsrc, int shift>
+struct ConvertShiftUp
+{
+	typedef Tsrc input_t;
+	typedef Tdst output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		return mpt::saturate_cast<output_t>(val << shift);
+	}
+};
+
+
+
 
 // Every sample conversion functor has to typedef its input_t and output_t.
 // The input_t argument is taken by value because we only deal with per-single-sample conversions here.
@@ -239,7 +255,7 @@ struct Convert<int8, int16>
 	typedef int8 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return int8(val >> 8);
+		return static_cast<int8>(val >> 8);
 	}
 };
 
@@ -250,7 +266,7 @@ struct Convert<int8, int24>
 	typedef int8 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return int8(val >> 16);
+		return static_cast<int8>(val >> 16);
 	}
 };
 
@@ -261,7 +277,7 @@ struct Convert<int8, int32>
 	typedef int8 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return int8(val >> 24);
+		return static_cast<int8>(val >> 24);
 	}
 };
 
@@ -287,7 +303,7 @@ struct Convert<int16, int8>
 	typedef int16 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return int16(val << 8);
+		return static_cast<int16>(val << 8);
 	}
 };
 
@@ -298,7 +314,7 @@ struct Convert<int16, int24>
 	typedef int16 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return int16(val >> 8);
+		return static_cast<int16>(val >> 8);
 	}
 };
 
@@ -309,7 +325,7 @@ struct Convert<int16, int32>
 	typedef int16 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return int16(val >> 16);
+		return static_cast<int16>(val >> 16);
 	}
 };
 
@@ -329,13 +345,43 @@ struct Convert<int16, float32>
 };
 
 template <>
+struct Convert<int8, double>
+{
+	typedef double input_t;
+	typedef int8 output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		Limit(val, -1.0, 1.0);
+		val *= 128.0;
+		// MSVC with x87 floating point math calls floor for the more intuitive version
+		// return mpt::saturate_cast<int16>(static_cast<int>(std::floor(val + 0.5)));
+		return mpt::saturate_cast<int8>(static_cast<int>(val * 2.0 + 1.0) >> 1);
+	}
+};
+
+template <>
+struct Convert<int16, double>
+{
+	typedef double input_t;
+	typedef int16 output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		Limit(val, -1.0, 1.0);
+		val *= 32768.0;
+		// MSVC with x87 floating point math calls floor for the more intuitive version
+		// return mpt::saturate_cast<int16>(static_cast<int>(std::floor(val + 0.5)));
+		return mpt::saturate_cast<int16>(static_cast<int>(val * 2.0 + 1.0) >> 1);
+	}
+};
+
+template <>
 struct Convert<int24, int8>
 {
 	typedef int8 input_t;
 	typedef int24 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return int24(val << 8);
+		return static_cast<int24>(val << 16);
 	}
 };
 
@@ -346,7 +392,7 @@ struct Convert<int24, int16>
 	typedef int24 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return int24(val << 8);
+		return static_cast<int24>(val << 8);
 	}
 };
 
@@ -357,7 +403,70 @@ struct Convert<int24, int32>
 	typedef int24 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return int24(val >> 8);
+		return static_cast<int24>(val >> 8);
+	}
+};
+
+template <>
+struct Convert<int32, int8>
+{
+	typedef int8 input_t;
+	typedef int32 output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		return static_cast<int32>(val << 24);
+	}
+};
+
+template <>
+struct Convert<int32, int16>
+{
+	typedef int16 input_t;
+	typedef int32 output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		return static_cast<int32>(val << 16);
+	}
+};
+
+template <>
+struct Convert<int32, int24>
+{
+	typedef int24 input_t;
+	typedef int32 output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		return static_cast<int32>(val << 8);
+	}
+};
+
+template <>
+struct Convert<int32, float32>
+{
+	typedef float32 input_t;
+	typedef int32 output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		Limit(val, -1.0f, 1.0f);
+		val *= 2147483648.0f;
+		// MSVC with x87 floating point math calls floor for the more intuitive version
+		// return mpt::saturate_cast<int32>(static_cast<int64>(std::floor(val + 0.5f)));
+		return mpt::saturate_cast<int32>(static_cast<int64>(val * 2.0f + 1.0f) >> 1);
+	}
+};
+
+template <>
+struct Convert<int32, double>
+{
+	typedef double input_t;
+	typedef int32 output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		Limit(val, -1.0, 1.0);
+		val *= 2147483648.0;
+		// MSVC with x87 floating point math calls floor for the more intuitive version
+		// return mpt::saturate_cast<int32>(static_cast<int64>(std::floor(val + 0.5)));
+		return mpt::saturate_cast<int32>(static_cast<int64>(val * 2.0 + 1.0) >> 1);
 	}
 };
 
@@ -368,7 +477,7 @@ struct Convert<float32, int8>
 	typedef float32 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return val * (1.0f / static_cast<float>((unsigned int)1<<7));
+		return val * (1.0f / static_cast<float>(static_cast<unsigned int>(1)<<7));
 	}
 };
 
@@ -379,7 +488,7 @@ struct Convert<float32, int16>
 	typedef float32 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return val * (1.0f / static_cast<float>((unsigned int)1<<15));
+		return val * (1.0f / static_cast<float>(static_cast<unsigned int>(1)<<15));
 	}
 };
 
@@ -390,7 +499,29 @@ struct Convert<float32, int32>
 	typedef float32 output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return val * (1.0f / static_cast<float>((unsigned int)1<<31));
+		return val * (1.0f / static_cast<float>(static_cast<unsigned int>(1)<<31));
+	}
+};
+
+template <>
+struct Convert<double, int8>
+{
+	typedef int8 input_t;
+	typedef double output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		return val * (1.0 / static_cast<double>(static_cast<unsigned int>(1)<<7));
+	}
+};
+
+template <>
+struct Convert<double, int16>
+{
+	typedef int16 input_t;
+	typedef double output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		return val * (1.0 / static_cast<double>(static_cast<unsigned int>(1)<<15));
 	}
 };
 
@@ -401,7 +532,7 @@ struct Convert<double, int32>
 	typedef double output_t;
 	forceinline output_t operator() (input_t val)
 	{
-		return val * (1.0 / static_cast<double>((unsigned int)1<<31));
+		return val * (1.0 / static_cast<double>(static_cast<unsigned int>(1)<<31));
 	}
 };
 
@@ -444,7 +575,7 @@ struct ConvertFixedPoint<uint8, int32, fractionalBits, clipOutput>
 		val = (val + (1<<(shiftBits-1))) >> shiftBits; // round
 		if(val < int8_min) val = int8_min;
 		if(val > int8_max) val = int8_max;
-		return (uint8)(val+0x80); // unsigned
+		return static_cast<uint8>(val+0x80); // unsigned
 	}
 };
 
@@ -461,7 +592,7 @@ struct ConvertFixedPoint<int16, int32, fractionalBits, clipOutput>
 		val = (val + (1<<(shiftBits-1))) >> shiftBits; // round
 		if(val < int16_min) val = int16_min;
 		if(val > int16_max) val = int16_max;
-		return (int16)val;
+		return static_cast<int16>(val);
 	}
 };
 
@@ -478,7 +609,7 @@ struct ConvertFixedPoint<int24, int32, fractionalBits, clipOutput>
 		val = (val + (1<<(shiftBits-1))) >> shiftBits; // round
 		if(val < int24_min) val = int24_min;
 		if(val > int24_max) val = int24_max;
-		return (int24)val;
+		return static_cast<int24>(val);
 	}
 };
 
@@ -490,7 +621,7 @@ struct ConvertFixedPoint<int32, int32, fractionalBits, clipOutput>
 	forceinline output_t operator() (input_t val)
 	{
 		STATIC_ASSERT(fractionalBits >= 0 && fractionalBits <= sizeof(input_t)*8-1);
-		return (int32)(Clamp(val, (int)-((1<<fractionalBits)-1), (int)(1<<fractionalBits)-1)) << (sizeof(input_t)*8-1-fractionalBits);
+		return static_cast<int32>(Clamp(val, static_cast<int>(-((1<<fractionalBits)-1)), static_cast<int>(1<<fractionalBits)-1)) << (sizeof(input_t)*8-1-fractionalBits);
 	}
 };
 
@@ -508,7 +639,7 @@ struct ConvertFixedPoint<float32, int32, fractionalBits, clipOutput>
 	forceinline output_t operator() (input_t val)
 	{
 		STATIC_ASSERT(fractionalBits >= 0 && fractionalBits <= sizeof(input_t)*8-1);
-		if(clipOutput)
+		MPT_CONSTANT_IF(clipOutput)
 		{
 			float32 out = val * factor;
 			if(out < -1.0f) out = -1.0f;
@@ -521,6 +652,81 @@ struct ConvertFixedPoint<float32, int32, fractionalBits, clipOutput>
 	}
 };
 
+
+template <typename Tdst, typename Tsrc, int fractionalBits>
+struct ConvertToFixedPoint;
+
+template <int fractionalBits>
+struct ConvertToFixedPoint<int32, uint8, fractionalBits>
+{
+	typedef uint8 input_t;
+	typedef int32 output_t;
+	static const int shiftBits = fractionalBits + 1 - sizeof(input_t) * 8;
+	forceinline output_t operator() (input_t val)
+	{
+		STATIC_ASSERT(fractionalBits >= 0 && fractionalBits <= sizeof(output_t)*8-1);
+		STATIC_ASSERT(shiftBits >= 1);
+		return static_cast<output_t>(static_cast<int>(val)-0x80) << shiftBits;
+	}
+};
+
+template <int fractionalBits>
+struct ConvertToFixedPoint<int32, int16, fractionalBits>
+{
+	typedef int16 input_t;
+	typedef int32 output_t;
+	static const int shiftBits = fractionalBits + 1 - sizeof(input_t) * 8;
+	forceinline output_t operator() (input_t val)
+	{
+		STATIC_ASSERT(fractionalBits >= 0 && fractionalBits <= sizeof(output_t)*8-1);
+		STATIC_ASSERT(shiftBits >= 1);
+		return static_cast<output_t>(val) << shiftBits;
+	}
+};
+
+template <int fractionalBits>
+struct ConvertToFixedPoint<int32, int24, fractionalBits>
+{
+	typedef int24 input_t;
+	typedef int32 output_t;
+	static const int shiftBits = fractionalBits + 1 - sizeof(input_t) * 8;
+	forceinline output_t operator() (input_t val)
+	{
+		STATIC_ASSERT(fractionalBits >= 0 && fractionalBits <= sizeof(output_t)*8-1);
+		STATIC_ASSERT(shiftBits >= 1);
+		return static_cast<output_t>(val) << shiftBits;
+	}
+};
+
+template <int fractionalBits>
+struct ConvertToFixedPoint<int32, int32, fractionalBits>
+{
+	typedef int32 input_t;
+	typedef int32 output_t;
+	forceinline output_t operator() (input_t val)
+	{
+		STATIC_ASSERT(fractionalBits >= 0 && fractionalBits <= sizeof(output_t)*8-1);
+		return static_cast<output_t>(val) >> (sizeof(input_t)*8-1-fractionalBits);
+	}
+};
+
+template <int fractionalBits>
+struct ConvertToFixedPoint<int32, float32, fractionalBits>
+{
+	typedef float32 input_t;
+	typedef int32 output_t;
+	const float factor;
+	forceinline ConvertToFixedPoint()
+		: factor( static_cast<float>(1 << fractionalBits) )
+	{
+		return;
+	}
+	forceinline output_t operator() (input_t val)
+	{
+		STATIC_ASSERT(fractionalBits >= 0 && fractionalBits <= sizeof(input_t)*8-1);
+		return mpt::saturate_cast<output_t>(std::floor(val * factor + 0.5f));
+	}
+};
 
 
 
@@ -582,7 +788,7 @@ struct Normalize<int32>
 	}
 	forceinline output_t operator() (input_t val)
 	{
-		return Util::muldivrfloor(val, (uint32)1 << 31, maxVal);
+		return Util::muldivrfloor(val, static_cast<uint32>(1) << 31, maxVal);
 	}
 	forceinline peak_t GetSrcPeak() const
 	{
@@ -676,6 +882,10 @@ struct NormalizationChain
 
 
 
+#if defined(LIBOPENMPT_BUILD) || (defined(MODPLUG_TRACKER) && !defined(MPT_BUILD_WINESUPPORT))
+
+struct ModSample;
+
 //////////////////////////////////////////////////////
 // Actual sample conversion functions
 
@@ -731,25 +941,25 @@ template <typename SampleConversion>
 void CopyInterleavedSampleStreams(typename SampleConversion::output_t * MPT_RESTRICT outBuf, const typename SampleConversion::input_t * MPT_RESTRICT inBuf, size_t numFrames, size_t numChannels, std::vector<SampleConversion> &conv)
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 {
-	ASSERT(conv.size() >= numChannels);
+	MPT_ASSERT(conv.size() >= numChannels);
 	CopyInterleavedSampleStreams(outBuf, inBuf, numFrames, numChannels, &(conv[0]));
 }
 
 
 // Copy a mono sample data buffer.
-template <typename SampleConversion>
-size_t CopyMonoSample(ModSample &sample, const char *sourceBuffer, size_t sourceSize, SampleConversion conv = SampleConversion())
+template <typename SampleConversion, typename Tbyte>
+size_t CopyMonoSample(ModSample &sample, const Tbyte *sourceBuffer, size_t sourceSize, SampleConversion conv = SampleConversion())
 //-------------------------------------------------------------------------------------------------------------------------------
 {
-	ASSERT(sample.GetNumChannels() == 1);
-	ASSERT(sample.GetElementarySampleSize() == sizeof(typename SampleConversion::output_t));
+	MPT_ASSERT(sample.GetNumChannels() == 1);
+	MPT_ASSERT(sample.GetElementarySampleSize() == sizeof(typename SampleConversion::output_t));
 
 	const size_t frameSize =  SampleConversion::input_inc;
 	const size_t countFrames = std::min<size_t>(sourceSize / frameSize, sample.nLength);
 	size_t numFrames = countFrames;
 	SampleConversion sampleConv(conv);
-	const char * MPT_RESTRICT inBuf = sourceBuffer;
-	typename SampleConversion::output_t * MPT_RESTRICT outBuf = reinterpret_cast<typename SampleConversion::output_t *>(sample.pSample);
+	const mpt::byte * MPT_RESTRICT inBuf = mpt::byte_cast<const mpt::byte*>(sourceBuffer);
+	typename SampleConversion::output_t * MPT_RESTRICT outBuf = static_cast<typename SampleConversion::output_t *>(sample.pSample);
 	while(numFrames--)
 	{
 		*outBuf = sampleConv(inBuf);
@@ -761,20 +971,20 @@ size_t CopyMonoSample(ModSample &sample, const char *sourceBuffer, size_t source
 
 
 // Copy a stereo interleaved sample data buffer.
-template <typename SampleConversion>
-size_t CopyStereoInterleavedSample(ModSample &sample, const char *sourceBuffer, size_t sourceSize, SampleConversion conv = SampleConversion())
+template <typename SampleConversion, typename Tbyte>
+size_t CopyStereoInterleavedSample(ModSample &sample, const Tbyte *sourceBuffer, size_t sourceSize, SampleConversion conv = SampleConversion())
 //--------------------------------------------------------------------------------------------------------------------------------------------
 {
-	ASSERT(sample.GetNumChannels() == 2);
-	ASSERT(sample.GetElementarySampleSize() == sizeof(typename SampleConversion::output_t));
+	MPT_ASSERT(sample.GetNumChannels() == 2);
+	MPT_ASSERT(sample.GetElementarySampleSize() == sizeof(typename SampleConversion::output_t));
 
 	const size_t frameSize = 2 * SampleConversion::input_inc;
 	const size_t countFrames = std::min<size_t>(sourceSize / frameSize, sample.nLength);
 	size_t numFrames = countFrames;
 	SampleConversion sampleConvLeft(conv);
 	SampleConversion sampleConvRight(conv);
-	const char * MPT_RESTRICT inBuf = sourceBuffer;
-	typename SampleConversion::output_t * MPT_RESTRICT outBuf = reinterpret_cast<typename SampleConversion::output_t *>(sample.pSample);
+	const mpt::byte * MPT_RESTRICT inBuf = mpt::byte_cast<const mpt::byte*>(sourceBuffer);
+	typename SampleConversion::output_t * MPT_RESTRICT outBuf = static_cast<typename SampleConversion::output_t *>(sample.pSample);
 	while(numFrames--)
 	{
 		*outBuf = sampleConvLeft(inBuf);
@@ -789,12 +999,12 @@ size_t CopyStereoInterleavedSample(ModSample &sample, const char *sourceBuffer, 
 
 
 // Copy a stereo split sample data buffer.
-template <typename SampleConversion>
-size_t CopyStereoSplitSample(ModSample &sample, const char *sourceBuffer, size_t sourceSize, SampleConversion conv = SampleConversion())
+template <typename SampleConversion, typename Tbyte>
+size_t CopyStereoSplitSample(ModSample &sample, const Tbyte *sourceBuffer, size_t sourceSize, SampleConversion conv = SampleConversion())
 //--------------------------------------------------------------------------------------------------------------------------------------
 {
-	ASSERT(sample.GetNumChannels() == 2);
-	ASSERT(sample.GetElementarySampleSize() == sizeof(typename SampleConversion::output_t));
+	MPT_ASSERT(sample.GetNumChannels() == 2);
+	MPT_ASSERT(sample.GetElementarySampleSize() == sizeof(typename SampleConversion::output_t));
 
 	const size_t sampleSize = SampleConversion::input_inc;
 	const size_t sourceSizeLeft = std::min<size_t>(sample.nLength * SampleConversion::input_inc, sourceSize);
@@ -804,8 +1014,8 @@ size_t CopyStereoSplitSample(ModSample &sample, const char *sourceBuffer, size_t
 
 	size_t numSamplesLeft = countSamplesLeft;
 	SampleConversion sampleConvLeft(conv);
-	const char * MPT_RESTRICT inBufLeft = sourceBuffer;
-	typename SampleConversion::output_t * MPT_RESTRICT outBufLeft = reinterpret_cast<typename SampleConversion::output_t *>(sample.pSample);
+	const mpt::byte * MPT_RESTRICT inBufLeft = mpt::byte_cast<const mpt::byte*>(sourceBuffer);
+	typename SampleConversion::output_t * MPT_RESTRICT outBufLeft = static_cast<typename SampleConversion::output_t *>(sample.pSample);
 	while(numSamplesLeft--)
 	{
 		*outBufLeft = sampleConvLeft(inBufLeft);
@@ -815,8 +1025,8 @@ size_t CopyStereoSplitSample(ModSample &sample, const char *sourceBuffer, size_t
 
 	size_t numSamplesRight = countSamplesRight;
 	SampleConversion sampleConvRight(conv);
-	const char * MPT_RESTRICT inBufRight = sourceBuffer + sample.nLength * SampleConversion::input_inc;
-	typename SampleConversion::output_t * MPT_RESTRICT outBufRight = reinterpret_cast<typename SampleConversion::output_t *>(sample.pSample) + 1;
+	const mpt::byte * MPT_RESTRICT inBufRight = mpt::byte_cast<const mpt::byte*>(sourceBuffer) + sample.nLength * SampleConversion::input_inc;
+	typename SampleConversion::output_t * MPT_RESTRICT outBufRight = static_cast<typename SampleConversion::output_t *>(sample.pSample) + 1;
 	while(numSamplesRight--)
 	{
 		*outBufRight = sampleConvRight(inBufRight);
@@ -829,18 +1039,18 @@ size_t CopyStereoSplitSample(ModSample &sample, const char *sourceBuffer, size_t
 
 
 // Copy a sample data buffer and normalize it. Requires slightly advanced sample conversion functor.
-template<typename SampleConversion>
-size_t CopyAndNormalizeSample(ModSample &sample, const char *sourceBuffer, size_t sourceSize, typename SampleConversion::peak_t *srcPeak = nullptr, SampleConversion conv = SampleConversion())
+template <typename SampleConversion, typename Tbyte>
+size_t CopyAndNormalizeSample(ModSample &sample, const Tbyte *sourceBuffer, size_t sourceSize, typename SampleConversion::peak_t *srcPeak = nullptr, SampleConversion conv = SampleConversion())
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 {
 	const size_t inSize = sizeof(typename SampleConversion::input_t);
 
-	ASSERT(sample.GetElementarySampleSize() == sizeof(typename SampleConversion::output_t));
+	MPT_ASSERT(sample.GetElementarySampleSize() == sizeof(typename SampleConversion::output_t));
 
 	size_t numSamples = sample.nLength * sample.GetNumChannels();
 	LimitMax(numSamples, sourceSize / inSize);
 
-	const char * inBuf = sourceBuffer;
+	const mpt::byte * inBuf = mpt::byte_cast<const mpt::byte*>(sourceBuffer);
 	// Finding max value
 	SampleConversion sampleConv(conv);
 	for(size_t i = numSamples; i != 0; i--)
@@ -852,7 +1062,7 @@ size_t CopyAndNormalizeSample(ModSample &sample, const char *sourceBuffer, size_
 	// If buffer is silent (maximum is 0), don't bother normalizing the sample - just keep the already silent buffer.
 	if(!sampleConv.IsSilent())
 	{
-		const char * inBuf = sourceBuffer;
+		inBuf = sourceBuffer;
 		// Copying buffer.
 		typename SampleConversion::output_t *outBuf = static_cast<typename SampleConversion::output_t *>(sample.pSample);
 
@@ -915,3 +1125,24 @@ void CopyInterleavedToChannel(typename SampleConversion::output_t * MPT_RESTRICT
 		dst++;
 	}
 }
+
+
+// Copy buffer to an interleaed buffer of #channels.
+template <typename SampleConversion>
+void CopyChannelToInterleaved(typename SampleConversion::output_t * MPT_RESTRICT dst, const typename SampleConversion::input_t * MPT_RESTRICT src, std::size_t channels, std::size_t countChunk, std::size_t channel, SampleConversion conv = SampleConversion())
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{
+	SampleConversion sampleConv(conv);
+	dst += channel;
+	for(std::size_t i = 0; i < countChunk; ++i)
+	{
+		*dst = sampleConv(*src);
+		src++;
+		dst += channels;
+	}
+}
+
+#endif
+
+
+OPENMPT_NAMESPACE_END

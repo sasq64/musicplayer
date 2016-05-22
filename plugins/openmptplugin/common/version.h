@@ -13,6 +13,9 @@
 #include <string>
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 //Creates version number from version parts that appears in version string.
 //For example MAKE_VERSION_NUMERIC(1,17,02,28) gives version number of 
 //version 1.17.02.28. 
@@ -40,54 +43,60 @@ namespace MptVersion
 	// Return a version without build number (the last number in the version).
 	// The current versioning scheme uses this number only for test builds, and it should be 00 for official builds,
 	// So sometimes it might be wanted to do comparisons without the build number.
-	VersionNum RemoveBuildNumber(const VersionNum num);
+	VersionNum RemoveBuildNumber(const VersionNum num_);
 
 	// Returns true if a given version number is from a test build, false if it's a release build.
-	bool IsTestBuild(const VersionNum num = MptVersion::num);
+	bool IsTestBuild(const VersionNum num_ = MptVersion::num);
 
 	// Return true if this is a debug build with no optimizations
 	bool IsDebugBuild();
 
-	// Return the svn repository url (if built from a svn working copy and tsvn was available during build)
-	std::string GetUrl();
+	struct SourceInfo
+	{
+		std::string Url; // svn repository url (or empty string)
+		int Revision; // svn revision (or 0)
+		bool IsDirty; // svn working copy is dirty (or false)
+		bool HasMixedRevisions; // svn working copy has mixed revisions (or false)
+		bool IsPackage; // source code originates from a packaged version of the source code
+		std::string Date; // svn date (ór empty string)
+		SourceInfo() : Url(std::string()), Revision(0), IsDirty(false), HasMixedRevisions(false), IsPackage(false) { }
+	public:
+		std::string GetUrlWithRevision() const; // i.e. "https://source.openmpt.org/svn/openmpt/trunk/OpenMPT@1234" or empty string
+		std::string GetStateString() const; // i.e. "+dirty" or "clean"
+	};
+	SourceInfo GetSourceInfo();
 
-	// Return the svn revision (if built from a svn working copy and tsvn was available during build)
-	int GetRevision();
+	// Returns true if the build will run on ancient Windows versions.
+	bool IsForOlderWindows();
 
-	// Return if the svn working copy had local changes during build (if built from a svn working copy and tsvn was available during build)
-	bool IsDirty();
-
-	// Return if the svn working copy had files checked out from different revisions and/or branches (if built from a svn working copy and tsvn was available during build)
-	bool HasMixedRevisions();
-
-	// Return whether the build was done from packaged source code (i.e. from the genertaed .zip or .tar source)
-	bool IsPackage();
-
-	// Return a string decribing the working copy state (dirty and/or mixed revisions) (if built from a svn working copy and tsvn was available during build)
-	std::string GetStateString(); // e.g. "" or "+mixed" or "+mixed+dirty" or "+dirty"
+	// Returns either the URL to download release builds or the URL to download test builds, depending on the current build.
+	mpt::ustring GetDownloadURL();
 
 	// Return a string decribing the time of the build process (if built from a svn working copy and tsvn was available during build, otherwise it returns the time version.cpp was last rebuild which could be unreliable as it does not get rebuild every time without tsvn)
 	std::string GetBuildDateString();
 
-	// Return a string decribing some of the build flags
-	std::string GetBuildFlagsString(); // e.g. " TEST DEBUG"
-
 	// Return a string decribing some of the build features
 	std::string GetBuildFeaturesString(); // e.g. " NO_VST NO_DSOUND"
 
-	// Return a string decribing the revision of the svn working copy and if it was dirty (+) or had mixed revisions (!) (if built from a svn working copy and tsvn was available during build)
-	std::string GetRevisionString(); // e.g. "-r1234+"
+	// Return a string describing the compiler version used for building.
+	std::string GetBuildCompilerString(); // e.g. "Microsoft Compiler 15.00.20706.01"
 
-	// Returns MptVersion::str if the build is a clean release build straight from the repository or an extended strin otherwise (if built from a svn working copy and tsvn was available during build)
+	// Returns a simple version string
+	std::string GetVersionStringSimple(); // e.g. "1.17.02.08-r1234+ 32 bit"
+
+	// Returns MptVersion::str if the build is a clean release build straight from the repository or an extended string otherwise (if built from a svn working copy and tsvn was available during build)
 	std::string GetVersionStringExtended(); // e.g. "1.17.02.08-r1234+ 32 bit DEBUG"
 
-	// Returns a string combining the repository url and the revision, suitable for checkout if the working copy was clean (if built from a svn working copy and tsvn was available during build)
-	std::string GetVersionUrlString(); // e.g. "https://svn.code.sf.net/p/modplug/code/trunk/OpenMPT@1234+dirty"
+	// Returns a URL for the respective keys. Supported keys: "website", "forum", "bugtracker", "updates", "top_picks"
+	mpt::ustring GetURL(std::string key);
 
 	// Returns a multi-line string containing the full credits for the code base
-	std::string GetFullCreditsString();
+	mpt::ustring GetFullCreditsString();
 
-	// Returns a multi-line string containing developer contact and community addresses
-	std::string GetContactString();
+	// Returns the OpenMPT license text
+	mpt::ustring GetLicenseString();
 
 } //namespace MptVersion
+
+
+OPENMPT_NAMESPACE_END

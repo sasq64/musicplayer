@@ -10,8 +10,15 @@
 
 
 #include <stdafx.h>
+#include <ostream>
 #include "ITCompression.h"
 #include "../common/misc_util.h"
+#include "../common/mptIO.h"
+#include "ModSample.h"
+
+
+OPENMPT_NAMESPACE_BEGIN
+
 
 // Algorithm parameters for 16-Bit samples
 struct IT16BitParams
@@ -45,8 +52,8 @@ static const int ITWidthChangeSize[] = { 4, 5, 6, 7, 8, 9, 7, 8, 9, 10, 11, 12, 
 // IT 2.14 compression
 
 
-ITCompression::ITCompression(const ModSample &sample, bool it215, FILE *f) : file(f), mptSample(sample), is215(it215)
-//-------------------------------------------------------------------------------------------------------------------
+ITCompression::ITCompression(const ModSample &sample, bool it215, std::ostream *f) : file(f), mptSample(sample), is215(it215)
+//---------------------------------------------------------------------------------------------------------------------------
 {
 	packedData = new (std::nothrow) uint8[bufferSize];
 	sampleData = new (std::nothrow) uint8[blockSize];
@@ -69,11 +76,11 @@ ITCompression::ITCompression(const ModSample &sample, bool it215, FILE *f) : fil
 			byteVal = 0;
 
 			if(mptSample.GetElementarySampleSize() > 1)
-				Compress<IT16BitParams>(static_cast<const int16 *>(sample.pSample) + chn, offset, remain);
+				Compress<IT16BitParams>(sample.pSample16 + chn, offset, remain);
 			else
-				Compress<IT8BitParams>(static_cast<const int8 *>(sample.pSample) + chn, offset, remain);
+				Compress<IT8BitParams>(sample.pSample8 + chn, offset, remain);
 
-			if(file) fwrite(&packedData[0], packedLength, 1, file);
+			if(file) mpt::IO::WriteRaw(*file, &packedData[0], packedLength);
 			packedTotalLength += packedLength;
 
 			offset += baseLength;
@@ -147,7 +154,7 @@ void ITCompression::Compress(const void *data, SmpLength offset, SmpLength actua
 			if(width <= 6)
 			{
 				// Mode A: 1 to 6 bits
-				ASSERT(width);
+				MPT_ASSERT(width);
 				WriteBits(width, (1 << (width - 1)));
 				WriteBits(Properties::fetchA, ConvertWidth(width, bwt[i]));
 			} else if(width < defWidth)
@@ -158,7 +165,7 @@ void ITCompression::Compress(const void *data, SmpLength offset, SmpLength actua
 			} else
 			{
 				// Mode C: 9 / 17 bits
-				ASSERT((bwt[i] - 1) >= 0);
+				MPT_ASSERT((bwt[i] - 1) >= 0);
 				WriteBits(width, (1 << (width - 1)) + bwt[i] - 1);
 			}
 
@@ -177,7 +184,7 @@ void ITCompression::Compress(const void *data, SmpLength offset, SmpLength actua
 int ITCompression::GetWidthChangeSize(int w, bool is16)
 //-----------------------------------------------------
 {
-	ASSERT(w > 0 && static_cast<unsigned int>(w) <= CountOf(ITWidthChangeSize));
+	MPT_ASSERT(w > 0 && static_cast<unsigned int>(w) <= CountOf(ITWidthChangeSize));
 	int wcs = ITWidthChangeSize[w - 1];
 	if(w <= 6 && is16)
 		wcs++;
@@ -196,7 +203,7 @@ void ITCompression::SquishRecurse(int sWidth, int lWidth, int rWidth, int width,
 		return;
 	}
 
-	ASSERT(width >= 0 && static_cast<unsigned int>(width) < CountOf(Properties::lowerTab));
+	MPT_ASSERT(width >= 0 && static_cast<unsigned int>(width) < CountOf(Properties::lowerTab));
 
 	SmpLength i = offset;
 	SmpLength end = offset + length;
@@ -259,7 +266,7 @@ int ITCompression::ConvertWidth(int curWidth, int newWidth)
 {
 	curWidth--;
 	newWidth--;
-	ASSERT(newWidth != curWidth);
+	MPT_ASSERT(newWidth != curWidth);
 	if(newWidth > curWidth)
 		newWidth--;
 	return newWidth;
@@ -298,7 +305,7 @@ void ITCompression::WriteByte(uint8 v)
 	} else
 	{
 		// How could this happen, anyway?
-		ASSERT(false);
+		MPT_ASSERT_NOTREACHED();
 	}
 }
 
@@ -313,9 +320,10 @@ ITDecompression::ITDecompression(FileReader &file, ModSample &sample, bool it215
 	for(uint8 chn = 0; chn < mptSample.GetNumChannels(); chn++)
 	{
 		writtenSamples = writePos = 0;
-		while(writtenSamples < sample.nLength && file.AreBytesLeft())
+		while(writtenSamples < sample.nLength && file.CanRead(sizeof(uint16)))
 		{
 			chunk = file.ReadChunk(file.ReadUint16LE());
+			chunkView = chunk.GetPinnedRawDataView();
 
 			// Initialise bit reader
 			dataPos = 0;
@@ -324,17 +332,17 @@ ITDecompression::ITDecompression(FileReader &file, ModSample &sample, bool it215
 			mem1 = mem2 = 0;
 
 			if(mptSample.GetElementarySampleSize() > 1)
-				Uncompress<IT16BitParams>(static_cast<int16 *>(mptSample.pSample) + chn);
+				Uncompress<IT16BitParams>(mptSample.pSample16 + chn);
 			else
-				Uncompress<IT8BitParams>(static_cast<int8 *>(mptSample.pSample) + chn);
+				Uncompress<IT8BitParams>(mptSample.pSample8 + chn);
 		}
 	}
 }
 
 
 template<typename Properties>
-void ITDecompression::Uncompress(void *target)
-//--------------------------------------------
+void ITDecompression::Uncompress(typename Properties::sample_t *target)
+//---------------------------------------------------------------------
 {
 	curLength = std::min(mptSample.nLength - writtenSamples, SmpLength(ITCompression::blockSize / sizeof(typename Properties::sample_t)));
 
@@ -343,7 +351,7 @@ void ITDecompression::Uncompress(void *target)
 	int width = defWidth;
 	while(curLength > 0)
 	{
-		if(width < 1 || width > defWidth || dataPos >= chunk.GetLength())
+		if(width < 1 || width > defWidth || dataPos >= chunkView.size())
 		{
 			// Error!
 			return;
@@ -384,7 +392,7 @@ void ITDecompression::ChangeWidth(int &curWidth, int width)
 	if(width >= curWidth)
 		width++;
 
-	ASSERT(curWidth != width);
+	MPT_ASSERT(curWidth != width);
 	curWidth = width;
 }
 
@@ -392,9 +400,9 @@ void ITDecompression::ChangeWidth(int &curWidth, int width)
 int ITDecompression::ReadBits(int width)
 //--------------------------------------
 {
-	const uint8 *data = reinterpret_cast<const uint8 *>(chunk.GetRawData());
+	const mpt::byte *data = chunkView.begin();
 	int v = 0, vPos = 0, vMask = (1 << width) - 1;
-	while(width >= remBits && dataPos < chunk.GetLength())
+	while(width >= remBits && dataPos < chunkView.size())
 	{
 		v |= (data[dataPos] >> bitPos) << vPos;
 		vPos += remBits;
@@ -404,7 +412,7 @@ int ITDecompression::ReadBits(int width)
 		bitPos = 0;
 	}
 
-	if(width > 0 && dataPos < chunk.GetLength())
+	if(width > 0 && dataPos < chunkView.size())
 	{
 		v |= (data[dataPos] >> bitPos) << vPos;
 		v &= vMask;
@@ -416,15 +424,18 @@ int ITDecompression::ReadBits(int width)
 
 
 template<typename Properties>
-void ITDecompression::Write(int v, int topBit, void *target)
-//----------------------------------------------------------
+void ITDecompression::Write(int v, int topBit, typename Properties::sample_t *target)
+//-----------------------------------------------------------------------------------
 {
 	if(v & topBit)
 		v -= (topBit << 1);
 	mem1 += v;
 	mem2 += mem1;
-	static_cast<typename Properties::sample_t *>(target)[writePos] = static_cast<typename Properties::sample_t>(is215 ? (int)mem2 : (int)mem1);
+	target[writePos] = static_cast<typename Properties::sample_t>(is215 ? (int)mem2 : (int)mem1);
 	writtenSamples++;
 	writePos += mptSample.GetNumChannels();
 	curLength--;
 }
+
+
+OPENMPT_NAMESPACE_END

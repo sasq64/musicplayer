@@ -10,16 +10,21 @@
 #pragma once
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 struct MixerSettings
 {
 
-	UINT m_nStereoSeparation;
-	UINT m_nMaxMixChannels;
-	DWORD DSPMask;
-	DWORD MixerFlags;
-	DWORD gdwMixingFreq;
-	DWORD gnChannels;
-	DWORD m_nPreAmp;
+	int32 m_nStereoSeparation;
+	static const int32 StereoSeparationScale = 128;
+	
+	uint32 m_nMaxMixChannels;
+	uint32 DSPMask;
+	uint32 MixerFlags;
+	uint32 gdwMixingFreq;
+	uint32 gnChannels;
+	uint32 m_nPreAmp;
 
 	int32 VolumeRampUpMicroseconds;
 	int32 VolumeRampDownMicroseconds;
@@ -42,3 +47,6 @@ struct MixerSettings
 	MixerSettings();
 
 };
+
+
+OPENMPT_NAMESPACE_END

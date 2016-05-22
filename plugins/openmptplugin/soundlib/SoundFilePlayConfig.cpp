@@ -13,6 +13,8 @@
 #include "Mixer.h"
 #include "SoundFilePlayConfig.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 CSoundFilePlayConfig::CSoundFilePlayConfig()
 //------------------------------------------
 {
@@ -24,14 +26,14 @@ CSoundFilePlayConfig::~CSoundFilePlayConfig()
 {
 }
 
-void CSoundFilePlayConfig::SetMixLevels(int mixLevelType)
-//-------------------------------------------------------
+void CSoundFilePlayConfig::SetMixLevels(MixLevels mixLevelType)
+//-------------------------------------------------------------
 {
 	switch (mixLevelType)
 	{
 
-		// Olivier's version gives us floats in [-0.5; 0.5] and slightly saturates VSTis. 
-		case mixLevels_original:
+		// Olivier's version gives us floats in [-0.5; 0.5] and slightly saturates VSTis.
+		case mixLevelsOriginal:
 			setVSTiAttenuation(NO_ATTENUATION);
 			setIntToFloat(1.0f/static_cast<float>(1<<28));
 			setFloatToInt(static_cast<float>(1<<28));
@@ -47,7 +49,7 @@ void CSoundFilePlayConfig::SetMixLevels(int mixLevelType)
 
 		// Ericus' version gives us floats in [-0.06;0.06] and requires attenuation to
 		// avoid massive VSTi saturation.
-		case mixLevels_117RC1:
+		case mixLevels1_17RC1:
 			setVSTiAttenuation(32.0f);
 			setIntToFloat(1.0f/static_cast<float>(0x07FFFFFFF));
 			setFloatToInt(static_cast<float>(0x07FFFFFFF));
@@ -61,10 +63,10 @@ void CSoundFilePlayConfig::SetMixLevels(int mixLevelType)
 			setExtraSampleAttenuation(MIXING_ATTENUATION);
 			break;
 
-		// 117RC2 gives us floats in [-1.0; 1.0] and hopefully plays VSTis at 
+		// 117RC2 gives us floats in [-1.0; 1.0] and hopefully plays VSTis at
 		// the right volume... but we attenuate by 2x to approx. match sample volume.
 	
-		case mixLevels_117RC2:
+		case mixLevels1_17RC2:
 			setVSTiAttenuation(2.0f);
 			setIntToFloat(1.0f/MIXING_SCALEF);
 			setFloatToInt(MIXING_SCALEF);
@@ -78,11 +80,11 @@ void CSoundFilePlayConfig::SetMixLevels(int mixLevelType)
 			setExtraSampleAttenuation(MIXING_ATTENUATION);
 			break;
 
-		// 117RC3 ignores the horrible global, system-specific pre-amp, 
+		// 117RC3 ignores the horrible global, system-specific pre-amp,
 		// treats panning as balance to avoid saturation on loud sample (and because I think it's better :),
 		// and allows display of attenuation in decibels.
 		default:
-		case mixLevels_117RC3:
+		case mixLevels1_17RC3:
 			setVSTiAttenuation(1.0f);
 			setIntToFloat(1.0f/MIXING_SCALEF);
 			setFloatToInt(MIXING_SCALEF);
@@ -99,17 +101,17 @@ void CSoundFilePlayConfig::SetMixLevels(int mixLevelType)
 		// A mixmode that is intended to be compatible to legacy trackers (IT/FT2/etc).
 		// This is basically derived from mixmode 1.17 RC3, with panning mode and volume levels changed.
 		// Sample attenuation is the same as in Schism Tracker (more attenuation than with RC3, thus VSTi attenuation is also higher).
-		case mixLevels_compatible:
-		case mixLevels_compatible_FT2:
+		case mixLevelsCompatible:
+		case mixLevelsCompatibleFT2:
 			setVSTiAttenuation(0.75f);
 			setIntToFloat(1.0f/MIXING_SCALEF);
 			setFloatToInt(MIXING_SCALEF);
 			setGlobalVolumeAppliesToMaster(true);
 			setUseGlobalPreAmp(false);
-			setForcePanningMode(mixLevelType == mixLevels_compatible ? forceNoSoftPanning : forceFT2Panning);
+			setForcePanningMode(mixLevelType == mixLevelsCompatible ? forceNoSoftPanning : forceFT2Panning);
 			setDisplayDBValues(true);
-			setNormalSamplePreAmp(256.0);
-			setNormalVSTiVol(256.0);
+			setNormalSamplePreAmp(mixLevelType == mixLevelsCompatible ? 256.0 : 192.0);
+			setNormalVSTiVol(mixLevelType == mixLevelsCompatible ? 256.0 : 192.0);
 			setNormalGlobalVol(256.0);
 			setExtraSampleAttenuation(1);
 			break;
@@ -118,3 +120,6 @@ void CSoundFilePlayConfig::SetMixLevels(int mixLevelType)
 
 	return;
 }
+
+
+OPENMPT_NAMESPACE_END

@@ -12,6 +12,8 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -108,7 +110,6 @@ bool CSoundFile::ReadMTM(FileReader &file, ModLoadingFlags loadFlags)
 		|| fileHeader.numChannels > 32
 		|| fileHeader.numChannels == 0
 		|| fileHeader.lastPattern >= MAX_PATTERNS
-		|| fileHeader.beatsPerTrack == 0
 		|| !file.CanRead(sizeof(MTMSampleHeader) * fileHeader.numSamples + 128 + 192 * fileHeader.numTracks + 64 * (fileHeader.lastPattern + 1) + fileHeader.commentSize))
 	{
 		return false;
@@ -117,12 +118,11 @@ bool CSoundFile::ReadMTM(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
-	mpt::String::Read<mpt::String::maybeNullTerminated>(songName, fileHeader.songName);
-	m_nType = MOD_TYPE_MTM;
+	InitializeGlobals(MOD_TYPE_MTM);
+	mpt::String::Read<mpt::String::maybeNullTerminated>(m_songName, fileHeader.songName);
 	m_nSamples = fileHeader.numSamples;
 	m_nChannels = fileHeader.numChannels;
-	madeWithTracker = mpt::String::Print("MultiTracker %1.%2", fileHeader.version >> 4, fileHeader.version & 0x0F);
+	m_madeWithTracker = mpt::String::Print("MultiTracker %1.%2", fileHeader.version >> 4, fileHeader.version & 0x0F);
 
 	// Reading instruments
 	for(SAMPLEINDEX smp = 1; smp <= GetNumSamples(); smp++)
@@ -142,15 +142,15 @@ bool CSoundFile::ReadMTM(FileReader &file, ModLoadingFlags loadFlags)
 
 	// Reading pattern order
 	const ORDERINDEX readOrders = fileHeader.lastOrder + 1;
-	Order.ReadAsByte(file, 128, readOrders);
+	Order.ReadAsByte(file, 128, readOrders, 0xFF, 0xFE);
 
 	// Reading Patterns
-	const ROWINDEX rowsPerPat = std::min(ROWINDEX(fileHeader.beatsPerTrack), MAX_PATTERN_ROWS);
+	const ROWINDEX rowsPerPat = fileHeader.beatsPerTrack ? std::min(ROWINDEX(fileHeader.beatsPerTrack), MAX_PATTERN_ROWS) : 64;
 	FileReader tracks = file.ReadChunk(192 * fileHeader.numTracks);
 
 	for(PATTERNINDEX pat = 0; pat <= fileHeader.lastPattern; pat++)
 	{
-		if(!(loadFlags & loadPatternData) || Patterns.Insert(pat, rowsPerPat))
+		if(!(loadFlags & loadPatternData) || !Patterns.Insert(pat, rowsPerPat))
 		{
 			break;
 		}
@@ -178,13 +178,21 @@ bool CSoundFile::ReadMTM(FileReader &file, ModLoadingFlags loadFlags)
 				if(cmd == 0x0A)
 				{
 					if(param & 0xF0) param &= 0xF0; else param &= 0x0F;
+				} else if(cmd == 0x08)
+				{
+					// No 8xx panning in MultiTracker, only E8x
+					cmd = param = 0;
 				}
 				m->command = cmd;
 				m->param = param;
 				if(cmd != 0 || param != 0)
 				{
 					ConvertModCommand(*m);
-					m->Convert(MOD_TYPE_MOD, MOD_TYPE_S3M);
+#ifdef MODPLUG_TRACKER
+					m->Convert(MOD_TYPE_MOD, MOD_TYPE_S3M, *this);
+					if(m->command == CMD_RETRIG && !m->param)
+						m->command = CMD_NONE;
+#endif
 				}
 			}
 		}
@@ -194,7 +202,7 @@ bool CSoundFile::ReadMTM(FileReader &file, ModLoadingFlags loadFlags)
 	{
 		// Read message with a fixed line length of 40 characters
 		// (actually the last character is always null, so make that 39 + 1 padding byte)
-		songMessage.ReadFixedLineLength(file, fileHeader.commentSize, 39, 1);
+		m_songMessage.ReadFixedLineLength(file, fileHeader.commentSize, 39, 1);
 	}
 
 	// Reading Samples
@@ -215,3 +223,6 @@ bool CSoundFile::ReadMTM(FileReader &file, ModLoadingFlags loadFlags)
 	m_nMaxPeriod = 32767;
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

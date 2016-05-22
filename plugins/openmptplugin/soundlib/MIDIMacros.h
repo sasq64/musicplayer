@@ -10,11 +10,17 @@
 
 #pragma once
 
+enum
+{
+	NUM_MACROS = 16,	// number of parametered macros
+	MACRO_LENGTH = 32,	// max number of chars per macro
+};
+
 #ifdef MODPLUG_TRACKER
-class CSoundFile;
-#include "plugins/PlugInterface.h"
-#include "Snd_defs.h"
+#include "plugins/PluginStructs.h"
 #endif // MODPLUG_TRACKER
+
+OPENMPT_NAMESPACE_BEGIN
 
 // Parametered macro presets
 enum parameteredMacroType
@@ -28,6 +34,7 @@ enum parameteredMacroType
 	sfx_cc,				// Type 6 - Z00 - Z7F controls MIDI CC
 	sfx_channelAT,		// Type 7 - Z00 - Z7F controls Channel Aftertouch
 	sfx_polyAT,			// Type 8 - Z00 - Z7F controls Poly Aftertouch
+	sfx_pitch,			// Type 9 - Z00 - Z7F controls Pitch Bend
 	sfx_custom,
 
 	sfx_max
@@ -45,6 +52,7 @@ enum fixedMacroType
 	zxx_resomode,		// Type 5 - Z80 - Z9F controls resonance + filter mode
 	zxx_channelAT,		// Type 6 - Z80 - ZFF controls Channel Aftertouch
 	zxx_polyAT,			// Type 7 - Z80 - ZFF controls Poly Aftertouch
+	zxx_pitch,			// Type 8 - Z80 - ZFF controls Pitch Bend
 	zxx_custom,
 
 	zxx_max
@@ -65,9 +73,6 @@ enum
 	MIDIOUT_PROGRAM,
 };
 
-
-#define NUM_MACROS 16	// number of parametered macros
-#define MACRO_LENGTH 32	// max number of chars per macro
 
 
 #ifdef NEEDS_PRAGMA_PACK
@@ -93,14 +98,14 @@ public:
 	MIDIMacroConfig() { Reset(); };
 
 	// Get macro type from a macro string
-	parameteredMacroType GetParameteredMacroType(size_t macroIndex) const;
+	parameteredMacroType GetParameteredMacroType(uint32 macroIndex) const;
 	fixedMacroType GetFixedMacroType() const;
 
 	// Create a new macro
 protected:
 	void CreateParameteredMacro(char (&parameteredMacro)[MACRO_LENGTH], parameteredMacroType macroType, int subType) const;
 public:
-	void CreateParameteredMacro(size_t macroIndex, parameteredMacroType macroType, int subType = 0)
+	void CreateParameteredMacro(uint32 macroIndex, parameteredMacroType macroType, int subType = 0)
 	{
 		CreateParameteredMacro(szMidiSFXExt[macroIndex], macroType, subType);
 	};
@@ -122,13 +127,13 @@ public:
 #ifdef MODPLUG_TRACKER
 
 	// Translate macro type or macro string to macro name
-	CString GetParameteredMacroName(size_t macroIndex, PLUGINDEX plugin, const CSoundFile &sndFile) const;
+	CString GetParameteredMacroName(uint32 macroIndex, IMixPlugin *plugin = nullptr) const;
 	CString GetParameteredMacroName(parameteredMacroType macroType) const;
 	CString GetFixedMacroName(fixedMacroType macroType) const;
 
 	// Extract information from a parametered macro string.
-	int MacroToPlugParam(size_t macroIndex) const;
-	int MacroToMidiCC(size_t macroIndex) const;
+	int MacroToPlugParam(uint32 macroIndex) const;
+	int MacroToMidiCC(uint32 macroIndex) const;
 
 	// Check if any macro can automate a given plugin parameter
 	int FindMacroForParam(PlugParamIndex param) const;
@@ -162,3 +167,5 @@ STATIC_ASSERT(sizeof(MIDIMacroConfig) == sizeof(MIDIMacroConfigData)); // this i
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(pop)
 #endif
+
+OPENMPT_NAMESPACE_END

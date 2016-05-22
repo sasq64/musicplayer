@@ -12,6 +12,10 @@
 
 #pragma once
 
+
+OPENMPT_NAMESPACE_BEGIN
+
+
 struct ModSample;
 class FileReader;
 
@@ -61,6 +65,11 @@ public:
 	{
 		littleEndian = 0,
 		bigEndian,
+#ifdef MPT_PLATFORM_LITTLE_ENDIAN
+		nativeEndian = littleEndian,
+#else
+		nativeEndian = bigEndian,
+#endif
 	};
 
 	// Sample encoding
@@ -135,6 +144,98 @@ public:
 		}
 	}
 
+	// Return 0 in case of variable-length encoded samples.
+	std::size_t GetEncodedBitsPerSample() const
+	{
+		std::size_t result = 0;
+		switch(GetEncoding())
+		{
+			case signedPCM:// Integer PCM, signed
+				result = GetBitDepth();
+				break;
+			case unsignedPCM://Integer PCM, unsigned
+				result = GetBitDepth();
+				break;
+			case deltaPCM:// Integer PCM, delta-encoded
+				result = GetBitDepth();
+				break;
+			case floatPCM:// Floating point PCM
+				result = GetBitDepth();
+				break;
+			case IT214:// Impulse Tracker 2.14 compressed
+				result = 0; // variable-length compressed
+				break;
+			case IT215:// Impulse Tracker 2.15 compressed
+				result = 0; // variable-length compressed
+				break;
+			case AMS:// AMS / Velvet Studio packed
+				result = 0; // variable-length compressed
+				break;
+			case DMF:// DMF Huffman compression
+				result = 0; // variable-length compressed
+				break;
+			case MDL:// MDL Huffman compression
+				result = 0; // variable-length compressed
+				break;
+			case PTM8Dto16:// PTM 8-Bit delta value -> 16-Bit sample
+				result = 16;
+				break;
+			case PCM7to8:// 8-Bit sample data with unused high bit
+				result = 8;
+				break;
+			case ADPCM:// 4-Bit ADPCM-packed
+				result = 4;
+				break;
+			case MT2:// MadTracker 2 stereo delta encoding
+				result = GetBitDepth();
+				break;
+			case floatPCM15:// Floating point PCM with 2^15 full scale
+				result = GetBitDepth();
+				break;
+			case floatPCM23:// Floating point PCM with 2^23 full scale
+				result = GetBitDepth();
+				break;
+			case floatPCMnormalize:// Floating point PCM and data will be normalized while reading
+				result = GetBitDepth();
+				break;
+			case signedPCMnormalize:// Integer PCM and data will be normalized while reading
+				result = GetBitDepth();
+				break;
+		}
+		return result;
+	}
+
+	// Return the static header size additional to the raw encoded sample data.
+	std::size_t GetEncodedHeaderSize() const
+	{
+		std::size_t result = 0;
+		if(GetEncoding() == ADPCM)
+		{
+			result = 16;
+		}
+		return result;
+	}
+
+	// Returns true if the encoded size cannot be calculated apriori from the encoding format and the sample length.
+	bool IsVariableLengthEncoded() const
+	{
+		return GetEncodedBitsPerSample() == 0;
+	}
+
+	bool UsesFileReaderForDecoding() const
+	{
+		if(GetEncoding() == IT214 || GetEncoding() == IT215)
+		{
+			// IT compressed samples use FileReader interface and thus do not need to call GetPinnedRawDataView()
+			return true;
+		}
+		if(GetEncoding() == AMS)
+		{
+			return true;
+		}
+		return false;
+	}
+
 	// Get bits per sample
 	uint8 GetBitDepth() const
 	{
@@ -161,11 +262,33 @@ public:
 		return static_cast<Encoding>((format & encodingMask) >> encodingOffset);
 	}
 
+	// Returns the encoded size of the sample. In case of variable-length encoding returns 0.
+	std::size_t CalculateEncodedSize(SmpLength length) const
+	{
+		if(IsVariableLengthEncoded())
+		{
+			return 0;
+		}
+		if(GetEncodedBitsPerSample() % 8 != 0)
+		{
+			MPT_ASSERT(GetEncoding() == ADPCM && GetEncodedBitsPerSample() == 4);
+			return GetEncodedHeaderSize() + (((length + 1) / 2) * GetNumChannels()); // round up
+		}
+		return GetEncodedHeaderSize() + (length * (GetEncodedBitsPerSample()/8) * GetNumChannels());
+	}
+
 	// Read a sample from memory
 	size_t ReadSample(ModSample &sample, FileReader &file) const;
 
 #ifndef MODPLUG_NO_FILESAVE
+	// Optionally write a sample to file
+	size_t WriteSample(std::ostream *f, const ModSample &sample, SmpLength maxSamples = 0) const;
+	// Write a sample to file
+	size_t WriteSample(std::ostream &f, const ModSample &sample, SmpLength maxSamples = 0) const;
 	// Write a sample to file
 	size_t WriteSample(FILE *f, const ModSample &sample, SmpLength maxSamples = 0) const;
 #endif // MODPLUG_NO_FILESAVE
 };
+
+
+OPENMPT_NAMESPACE_END

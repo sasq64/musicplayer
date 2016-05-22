@@ -16,6 +16,9 @@
 #include <vector>
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 #if defined(MODPLUG_TRACKER)
 
 //#define USE_PROFILER
@@ -52,7 +55,7 @@ public:
 class Profile
 {
 private:
-	mutable Util::mutex datamutex;
+	mutable mpt::mutex datamutex;
 public:
 	struct Data
 	{
@@ -112,8 +115,11 @@ public:
 	static std::string DumpProfiles() { return std::string(); }
 	static std::vector<double> DumpCategories() { return std::vector<double>(); }
 };
-#define OPENMPT_PROFILE_SCOPE(cat, name) do { } while(0)
-#define OPENMPT_PROFILE_FUNCTION(cat) do { } while(0)
+#define OPENMPT_PROFILE_SCOPE(cat, name) MPT_DO { } MPT_WHILE_0
+#define OPENMPT_PROFILE_FUNCTION(cat) MPT_DO { } MPT_WHILE_0
 
 
 #endif // USE_PROFILER
+
+
+OPENMPT_NAMESPACE_END

@@ -12,6 +12,8 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -156,7 +158,7 @@ static void ReadUMXExportTableEntry(FileReader &chunk, int32 &objClass, int32 &o
 	ReadUMXIndex(chunk);			// Object parent
 	if(packageVersion >= 60)
 	{
-		chunk.Skip(4);					// Internal package / group of the object
+		chunk.Skip(4);				// Internal package / group of the object
 	}
 	objName = ReadUMXIndex(chunk);	// Object name (offset into the name table)
 	chunk.Skip(4);					// Object flags
@@ -183,7 +185,7 @@ bool CSoundFile::ReadUMX(FileReader &file, ModLoadingFlags loadFlags)
 	// Read name table
 	std::vector<std::string> names;
 	names.reserve(fileHeader.nameCount);
-	for(uint32 i = 0; i < fileHeader.nameCount; i++)
+	for(uint32 i = 0; i < fileHeader.nameCount && file.CanRead(4); i++)
 	{
 		names.push_back(ReadUMXNameTableEntry(file, fileHeader.packageVersion));
 	}
@@ -196,7 +198,7 @@ bool CSoundFile::ReadUMX(FileReader &file, ModLoadingFlags loadFlags)
 
 	std::vector<int32> classes;
 	classes.reserve(fileHeader.importCount);
-	for(uint32 i = 0; i < fileHeader.importCount; i++)
+	for(uint32 i = 0; i < fileHeader.importCount && file.CanRead(4); i++)
 	{
 		int32 objName = ReadUMXImportTableEntry(file, fileHeader.packageVersion);
 		if(static_cast<size_t>(objName) < names.size())
@@ -213,9 +215,9 @@ bool CSoundFile::ReadUMX(FileReader &file, ModLoadingFlags loadFlags)
 
 	// Now we can be pretty sure that we're doing the right thing.
 	InitializeGlobals();
-	madeWithTracker = mpt::String::Print("Unreal Package v%1", fileHeader.packageVersion);
+	m_madeWithTracker = mpt::String::Print("Unreal Package v%1", fileHeader.packageVersion);
 	
-	for(uint32 i = 0; i < fileHeader.exportCount; i++)
+	for(uint32 i = 0; i < fileHeader.exportCount && file.CanRead(4); i++)
 	{
 		int32 objClass, objOffset, objSize, objName;
 		ReadUMXExportTableEntry(file, objClass, objOffset, objSize, objName, fileHeader.packageVersion);
@@ -251,7 +253,7 @@ bool CSoundFile::ReadUMX(FileReader &file, ModLoadingFlags loadFlags)
 			return true;
 		}
 
-		FileReader chunk = file.GetChunk(objOffset, objSize);
+		FileReader chunk = file.GetChunkAt(objOffset, objSize);
 
 		if(chunk.IsValid())
 		{
@@ -271,7 +273,7 @@ bool CSoundFile::ReadUMX(FileReader &file, ModLoadingFlags loadFlags)
 				// Can't bother to implement property reading, as no UMX files I've seen so far use properties for the relevant objects,
 				// and only the UAX files in the Unreal 1997/98 beta seem to use this and still load just fine when ignoring it.
 				// If it should be necessary to implement this, check CUnProperty.cpp in http://ut-files.com/index.php?dir=Utilities/&file=utcms_source.zip
-				ASSERT(false);
+				MPT_ASSERT_NOTREACHED();
 				continue;
 			}
 #else
@@ -341,7 +343,7 @@ bool CSoundFile::ReadUMX(FileReader &file, ModLoadingFlags loadFlags)
 	if(m_nSamples != 0)
 	{
 		InitializeChannels();
-		m_nType = MOD_TYPE_UAX;
+		SetType(MOD_TYPE_UAX);
 		m_nChannels = 4;
 		Patterns.Insert(0, 64);
 		Order[0] = 0;
@@ -352,3 +354,6 @@ bool CSoundFile::ReadUMX(FileReader &file, ModLoadingFlags loadFlags)
 		return false;
 	}
 }
+
+
+OPENMPT_NAMESPACE_END

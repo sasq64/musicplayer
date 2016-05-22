@@ -16,15 +16,17 @@
 
 #ifdef MODPLUG_TRACKER
 #include "Sndfile.h"
-#include "../mptrack/Vstplug.h"
+#include "plugins/PlugInterface.h"
 #endif // MODPLUG_TRACKER
 
-parameteredMacroType MIDIMacroConfig::GetParameteredMacroType(size_t macroIndex) const
+OPENMPT_NAMESPACE_BEGIN
+
+parameteredMacroType MIDIMacroConfig::GetParameteredMacroType(uint32 macroIndex) const
 //------------------------------------------------------------------------------------
 {
 	const std::string macro = GetSafeMacro(szMidiSFXExt[macroIndex]);
 
-	for(size_t i = 0; i < sfx_max; i++)
+	for(uint32 i = 0; i < sfx_max; i++)
 	{
 		parameteredMacroType sfx = static_cast<parameteredMacroType>(i);
 		if(sfx != sfx_custom)
@@ -48,7 +50,7 @@ fixedMacroType MIDIMacroConfig::GetFixedMacroType() const
 //-------------------------------------------------------
 {
 	// Compare with all possible preset patterns
-	for(size_t i = 0; i < zxx_max; i++)
+	for(uint32 i = 0; i < zxx_max; i++)
 	{
 		fixedMacroType zxx = static_cast<fixedMacroType>(i);
 		if(zxx != zxx_custom)
@@ -58,7 +60,7 @@ fixedMacroType MIDIMacroConfig::GetFixedMacroType() const
 			CreateFixedMacro(macros, zxx);
 
 			bool found = true;
-			for(size_t j = 0; j < 128; j++)
+			for(uint32 j = 0; j < 128; j++)
 			{
 				if(strncmp(macros[j], szMidiZXXExt[j], MACRO_LENGTH))
 				{
@@ -81,7 +83,7 @@ fixedMacroType MIDIMacroConfig::GetFixedMacroType() const
 #elif MPT_COMPILER_CLANG
 #pragma clang diagnostic push
 #if MPT_CLANG_AT_LEAST(3,3,0)
-#pragma clang diagnostic ignored "-Wswitch"     
+#pragma clang diagnostic ignored "-Wswitch"
 #else
 #pragma clang diagnostic ignored "-Wswitch-enum"
 #endif
@@ -111,13 +113,16 @@ void MIDIMacroConfig::CreateParameteredMacro(char (&parameteredMacro)[MACRO_LENG
 		sprintf(parameteredMacro, "Bc%02Xz", (subType & 0x7F));
 		break;
 	case sfx_plug:
-		sprintf(parameteredMacro, "F0F%03Xz", MIN(subType, 0x17F) + 0x80);
+		sprintf(parameteredMacro, "F0F%03Xz", std::min(subType, 0x17F) + 0x80);
 		break;
 	case sfx_channelAT:
 		strcpy(parameteredMacro, "Dcz");
 		break;
 	case sfx_polyAT:
 		strcpy(parameteredMacro, "Acnz");
+		break;
+	case sfx_pitch:
+		strcpy(parameteredMacro, "Ec00z");
 		break;
 	}
 }
@@ -139,7 +144,7 @@ void MIDIMacroConfig::CreateParameteredMacro(char (&parameteredMacro)[MACRO_LENG
 #elif MPT_COMPILER_CLANG
 #pragma clang diagnostic push
 #if MPT_CLANG_AT_LEAST(3,3,0)
-#pragma clang diagnostic ignored "-Wswitch"     
+#pragma clang diagnostic ignored "-Wswitch"
 #else
 #pragma clang diagnostic ignored "-Wswitch-enum"
 #endif
@@ -149,7 +154,7 @@ void MIDIMacroConfig::CreateParameteredMacro(char (&parameteredMacro)[MACRO_LENG
 void MIDIMacroConfig::CreateFixedMacro(char (&fixedMacros)[128][MACRO_LENGTH], fixedMacroType macroType) const
 //------------------------------------------------------------------------------------------------------------
 {
-	for(unsigned int i = 0; i < 128; i++)
+	for(uint32 i = 0; i < 128; i++)
 	{
 		switch(macroType)
 		{
@@ -194,6 +199,11 @@ void MIDIMacroConfig::CreateFixedMacro(char (&fixedMacros)[128][MACRO_LENGTH], f
 			// Type 7 - Z80 - ZFF controls Poly Aftertouch
 			sprintf(fixedMacros[i], "Acn%02X", i);
 			break;
+
+		case zxx_pitch:
+			// Type 7 - Z80 - ZFF controls Pitch Bend
+			sprintf(fixedMacros[i], "Ec00%02X", i);
+			break;
 		}
 	}
 }
@@ -210,8 +220,8 @@ void MIDIMacroConfig::CreateFixedMacro(char (&fixedMacros)[128][MACRO_LENGTH], f
 #ifdef MODPLUG_TRACKER
 
 // Returns macro description including plugin parameter / MIDI CC information
-CString MIDIMacroConfig::GetParameteredMacroName(size_t macroIndex, PLUGINDEX plugin, const CSoundFile &sndFile) const
-//--------------------------------------------------------------------------------------------------------------------
+CString MIDIMacroConfig::GetParameteredMacroName(uint32 macroIndex, IMixPlugin *plugin) const
+//-------------------------------------------------------------------------------------------
 {
 	const parameteredMacroType macroType = GetParameteredMacroType(macroIndex);
 
@@ -220,35 +230,30 @@ CString MIDIMacroConfig::GetParameteredMacroName(size_t macroIndex, PLUGINDEX pl
 	case sfx_plug:
 		{
 			const int param = MacroToPlugParam(macroIndex);
-			CString paramName;
-
-#ifndef NO_VST
-			if(plugin < MAX_MIXPLUGINS)
+			CString formattedName;
+			formattedName.Format(_T("Param %u"), param);
+#ifndef NO_PLUGINS
+			if(plugin != nullptr)
 			{
-				CVstPlugin *pPlug = dynamic_cast<CVstPlugin *>(sndFile.m_MixPlugins[plugin].pMixPlugin);
-				if(pPlug)
+				CString paramName = plugin->GetParamName(param);
+				if(!paramName.IsEmpty())
 				{
-					paramName = pPlug->GetParamName(param);
+					formattedName += _T(" (") + paramName + _T(")");
 				}
-				if (paramName.IsEmpty())
-				{
-					return TEXT("N/A");
-				}
-
-				CString formattedName;
-				formattedName.Format(TEXT("Param %d (%s)"), param, paramName);
-				return formattedName;
 			} else
-#endif // NO_VST
+#else
+			MPT_UNREFERENCED_PARAMETER(plugin);
+#endif // NO_PLUGINS
 			{
-				return TEXT("N/A - No Plugin");
+				formattedName += _T(" (N/A)");
 			}
+			return formattedName;
 		}
 
 	case sfx_cc:
 		{
 			CString formattedCC;
-			formattedCC.Format(TEXT("MIDI CC %d"), MacroToMidiCC(macroIndex));
+			formattedCC.Format(_T("MIDI CC %u"), MacroToMidiCC(macroIndex));
 			return formattedCC;
 		}
 
@@ -265,26 +270,28 @@ CString MIDIMacroConfig::GetParameteredMacroName(parameteredMacroType macroType)
 	switch(macroType)
 	{
 	case sfx_unused:
-		return TEXT("Unused");
+		return _T("Unused");
 	case sfx_cutoff:
-		return TEXT("Set Filter Cutoff");
+		return _T("Set Filter Cutoff");
 	case sfx_reso:
-		return TEXT("Set Filter Resonance");
+		return _T("Set Filter Resonance");
 	case sfx_mode:
-		return TEXT("Set Filter Mode");
+		return _T("Set Filter Mode");
 	case sfx_drywet:
-		return TEXT("Set Plugin Dry/Wet Ratio");
+		return _T("Set Plugin Dry/Wet Ratio");
 	case sfx_plug:
-		return TEXT("Control Plugin Parameter...");
+		return _T("Control Plugin Parameter...");
 	case sfx_cc:
-		return TEXT("MIDI CC...");
+		return _T("MIDI CC...");
 	case sfx_channelAT:
-		return TEXT("Channel Aftertouch");
+		return _T("Channel Aftertouch");
 	case sfx_polyAT:
-		return TEXT("Polyphonic Aftertouch");
+		return _T("Polyphonic Aftertouch");
+	case sfx_pitch:
+		return _T("Pitch Bend");
 	case sfx_custom:
 	default:
-		return TEXT("Custom");
+		return _T("Custom");
 	}
 }
 
@@ -296,29 +303,31 @@ CString MIDIMacroConfig::GetFixedMacroName(fixedMacroType macroType) const
 	switch(macroType)
 	{
 	case zxx_unused:
-		return TEXT("Unused");
+		return _T("Unused");
 	case zxx_reso4Bit:
-		return TEXT("Z80 - Z8F controls Resonant Filter Resonance");
+		return _T("Z80 - Z8F controls Resonant Filter Resonance");
 	case zxx_reso7Bit:
-		return TEXT("Z80 - ZFF controls Resonant Filter Resonance");
+		return _T("Z80 - ZFF controls Resonant Filter Resonance");
 	case zxx_cutoff:
-		return TEXT("Z80 - ZFF controls Resonant Filter Cutoff");
+		return _T("Z80 - ZFF controls Resonant Filter Cutoff");
 	case zxx_mode:
-		return TEXT("Z80 - ZFF controls Resonant Filter Mode");
+		return _T("Z80 - ZFF controls Resonant Filter Mode");
 	case zxx_resomode:
-		return TEXT("Z80 - Z9F controls Resonance + Filter Mode");
+		return _T("Z80 - Z9F controls Resonance + Filter Mode");
 	case zxx_channelAT:
-		return TEXT("Z80 - ZFF controls Channel Aftertouch");
+		return _T("Z80 - ZFF controls Channel Aftertouch");
 	case zxx_polyAT:
-		return TEXT("Z80 - ZFF controls Polyphonic Aftertouch");
+		return _T("Z80 - ZFF controls Polyphonic Aftertouch");
+	case zxx_pitch:
+		return _T("Z80 - ZFF controls Pitch Bend");
 	case zxx_custom:
 	default:
-		return TEXT("Custom");
+		return _T("Custom");
 	}
 }
 
 
-int MIDIMacroConfig::MacroToPlugParam(size_t macroIndex) const
+int MIDIMacroConfig::MacroToPlugParam(uint32 macroIndex) const
 //------------------------------------------------------------
 {
 	const std::string macro = GetSafeMacro(szMidiSFXExt[macroIndex]);
@@ -338,7 +347,7 @@ int MIDIMacroConfig::MacroToPlugParam(size_t macroIndex) const
 }
 
 
-int MIDIMacroConfig::MacroToMidiCC(size_t macroIndex) const
+int MIDIMacroConfig::MacroToMidiCC(uint32 macroIndex) const
 //---------------------------------------------------------
 {
 	const std::string macro = GetSafeMacro(szMidiSFXExt[macroIndex]);
@@ -382,7 +391,7 @@ bool MIDIMacroConfig::IsMacroDefaultSetupUsed() const
 	// TODO - Global macros (currently not checked because they are not editable)
 
 	// SF0: Z00-Z7F controls cutoff, all other parametered macros are unused
-	for(size_t i = 0; i < NUM_MACROS; i++)
+	for(uint32 i = 0; i < NUM_MACROS; i++)
 	{
 		if(GetParameteredMacroType(i) != defaultConfig.GetParameteredMacroType(i))
 		{
@@ -424,15 +433,15 @@ void MIDIMacroConfig::Reset()
 void MIDIMacroConfig::Sanitize()
 //------------------------------
 {
-	for(size_t i = 0; i < CountOf(szMidiGlb); i++)
+	for(uint32 i = 0; i < CountOf(szMidiGlb); i++)
 	{
 		mpt::String::FixNullString(szMidiGlb[i]);
 	}
-	for(size_t i = 0; i < CountOf(szMidiSFXExt); i++)
+	for(uint32 i = 0; i < CountOf(szMidiSFXExt); i++)
 	{
 		mpt::String::FixNullString(szMidiSFXExt[i]);
 	}
-	for(size_t i = 0; i < CountOf(szMidiZXXExt); i++)
+	for(uint32 i = 0; i < CountOf(szMidiZXXExt); i++)
 	{
 		mpt::String::FixNullString(szMidiZXXExt[i]);
 	}
@@ -443,7 +452,7 @@ void MIDIMacroConfig::Sanitize()
 void MIDIMacroConfig::UpgradeMacroString(char *macro) const
 //---------------------------------------------------------
 {
-	for(size_t i = 0; i < MACRO_LENGTH; i++)
+	for(uint32 i = 0; i < MACRO_LENGTH; i++)
 	{
 		if(macro[i] >= 'a' && macro[i] <= 'f')		// both A-F and a-f were treated as hex constants
 		{
@@ -463,22 +472,22 @@ void MIDIMacroConfig::UpgradeMacroString(char *macro) const
 void MIDIMacroConfig::UpgradeMacros()
 //-----------------------------------
 {
-	for(size_t i = 0; i < CountOf(szMidiSFXExt); i++)
+	for(uint32 i = 0; i < CountOf(szMidiSFXExt); i++)
 	{
 		UpgradeMacroString(szMidiSFXExt[i]);
 	}
-	for(size_t i = 0; i < CountOf(szMidiZXXExt); i++)
+	for(uint32 i = 0; i < CountOf(szMidiZXXExt); i++)
 	{
 		UpgradeMacroString(szMidiZXXExt[i]);
 	}
 }
 
 
-// Remove blanks and other unwanted characters from macro strings for internal usage.
+// Normalize by removing blanks and other unwanted characters from macro strings for internal usage.
 std::string MIDIMacroConfig::GetSafeMacro(const char *macro) const
 //----------------------------------------------------------------
 {
-	std::string sanitizedMacro = std::string(macro);
+	std::string sanitizedMacro = macro;
 
 	std::string::size_type pos;
 	while((pos = sanitizedMacro.find_first_not_of("0123456789ABCDEFabpcnuvxyz")) != std::string::npos)
@@ -488,3 +497,6 @@ std::string MIDIMacroConfig::GetSafeMacro(const char *macro) const
 
 	return sanitizedMacro;
 }
+
+
+OPENMPT_NAMESPACE_END

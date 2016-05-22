@@ -15,6 +15,9 @@
 #include <algorithm>
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 // Convert all multi-byte numeric values to current platform's endianness or vice versa.
 void XMFileHeader::ConvertEndianness()
 //------------------------------------
@@ -230,8 +233,8 @@ void XMInstrument::ConvertToMPT(ModInstrument &mptIns) const
 	{
 		mptIns.nMidiChannel = midiChannel + MidiFirstChannel;
 		Limit(mptIns.nMidiChannel, uint8(MidiFirstChannel), uint8(MidiLastChannel));
+		mptIns.nMidiProgram = static_cast<uint8>(std::min(midiProgram, uint16(127)) + 1);
 	}
-	//mptIns.nMidiProgram = midiProgram + 1;
 	mptIns.midiPWD = static_cast<int8>(pitchWheelRange);
 }
 
@@ -285,6 +288,7 @@ void XMInstrumentHeader::Finalise()
 		sampleHeaderSize = sizeof(XMSample);
 	} else
 	{
+		// TODO: FT2 completely ignores MIDI settings (and also the less important stuff) if not at least one (empty) sample is assigned to this instrument!
 		size -= sizeof(XMInstrument);
 		sampleHeaderSize = 0;
 	}
@@ -298,7 +302,7 @@ void XMInstrumentHeader::ConvertToXM(const ModInstrument &mptIns, bool compatibi
 	numSamples = instrument.ConvertToXM(mptIns, compatibilityExport);
 	mpt::String::Write<mpt::String::spacePadded>(name, mptIns.name);
 
-	type = mptIns.nMidiProgram;	// If FT2 writes crap here, we can do so, too! (we probably shouldn't, though.)
+	type = mptIns.nMidiProgram;	// If FT2 writes crap here, we can do so, too! (we probably shouldn't, though. This is just for backwards compatibility with old MPT versions.)
 }
 
 
@@ -322,7 +326,11 @@ void XMInstrumentHeader::ConvertToMPT(ModInstrument &mptIns) const
 
 	mpt::String::Read<mpt::String::spacePadded>(mptIns.name, name);
 
-	mptIns.nMidiProgram = type;
+	// Old MPT backwards compatibility
+	if(!instrument.midiEnabled)
+	{
+		mptIns.nMidiProgram = type;
+	}
 }
 
 
@@ -500,3 +508,6 @@ SampleIO XMSample::GetSampleFormat() const
 		SampleIO::littleEndian,
 		SampleIO::deltaPCM);
 }
+
+
+OPENMPT_NAMESPACE_END

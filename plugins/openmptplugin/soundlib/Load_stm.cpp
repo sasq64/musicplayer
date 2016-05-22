@@ -12,9 +12,7 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
-#if MPT_COMPILER_MSVC
-#pragma warning(disable:4244) //"conversion from 'type1' to 'type2', possible loss of data"
-#endif
+OPENMPT_NAMESPACE_BEGIN
 
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
@@ -27,14 +25,14 @@ struct PACKED STMSampleHeader
 	char   filename[12];	// Can't have long comments - just filename comments :)
 	uint8  zero;
 	uint8  disk;			// A blast from the past
-	uint8  offset[2];		// ISA in memory when in ST 2
+	uint16 offset;			// 20-bit offset in file (lower 4 bits are zero)
 	uint16 length;			// Sample length
 	uint16 loopStart;		// Loop start point
 	uint16 loopEnd;			// Loop end point
 	uint8  volume;			// Volume
 	uint8  reserved2;
 	uint16 sampleRate;
-	uint8  reserved3[6];	// Yet more of PSi's reserved crap
+	uint8  reserved3[6];
 
 	// Convert an STM sample header to OpenMPT's internal sample header.
 	void ConvertToMPT(ModSample &mptSmp) const
@@ -48,12 +46,7 @@ struct PACKED STMSampleHeader
 		mptSmp.nLoopStart = loopStart;
 		mptSmp.nLoopEnd = loopEnd;
 
-		if(mptSmp.nLength < 2 || volume == 0)
-		{
-			// As WTF as the above condition might sound, it seems to make sense.
-			// The zero-volume samples in acidlamb.stm shouldn't be loaded, but they have an actual sample length.
-			mptSmp.nLength = 0;
-		}
+		if(mptSmp.nLength < 2) mptSmp.nLength = 0;
 
 		if(mptSmp.nLoopStart < mptSmp.nLength
 			&& mptSmp.nLoopEnd > mptSmp.nLoopStart
@@ -67,6 +60,7 @@ struct PACKED STMSampleHeader
 	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
 	void ConvertEndianness()
 	{
+		SwapBytesLE(offset);
 		SwapBytesLE(length);
 		SwapBytesLE(loopStart);
 		SwapBytesLE(loopEnd);
@@ -84,14 +78,23 @@ struct PACKED STMFileHeader
 	char  trackername[8];			// !SCREAM! for ST 2.xx
 	uint8 dosEof;					// 0x1A
 	uint8 filetype;					// 1=song, 2=module (only 2 is supported, of course) :)
-	uint8 verMajor;					// Like 2
-	uint8 verMinor;					// "ditto"
-	uint8 initTempo;				// initspeed= stm inittempo>>4
+	uint8 verMajor;
+	uint8 verMinor;
+	uint8 initTempo;				// Ticks per row. Keep in mind that effects are only updated on every 16th tick.
 	uint8 numPatterns;				// number of patterns
-	uint8 globalVolume;				// <- WoW! a RiGHT TRiANGLE =8*)
-	uint8 reserved[13];				// More of PSi's internal crap
+	uint8 globalVolume;
+	uint8 reserved[13];
 	STMSampleHeader samples[31];	// Sample headers
 	uint8 order[128];				// Order list
+
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		for(std::size_t i = 0; i < 31; ++i)
+		{
+			samples[i].ConvertEndianness();
+		}
+	}
 };
 
 STATIC_ASSERT(sizeof(STMFileHeader) == 1168);
@@ -112,10 +115,6 @@ STATIC_ASSERT(sizeof(STMPatternEntry) == 4);
 struct PACKED STMPatternData
 {
 	STMPatternEntry entry[64 * 4];
-	void ConvertEndianness()
-	{
-		// nothing
-	}
 };
 
 STATIC_ASSERT(sizeof(STMPatternData) == 4*64*4);
@@ -132,11 +131,11 @@ bool CSoundFile::ReadSTM(FileReader &file, ModLoadingFlags loadFlags)
 	file.Rewind();
 
 	STMFileHeader fileHeader;
-	if(!file.Read(fileHeader)
+	if(!file.ReadConvertEndianness(fileHeader)
 		|| fileHeader.filetype != 2
 		|| fileHeader.dosEof != 0x1A
-		|| (mpt::strnicmp(fileHeader.trackername, "!SCREAM!", 8)
-			&& mpt::strnicmp(fileHeader.trackername, "BMOD2STM", 8)))
+		|| (mpt::CompareNoCaseAscii(fileHeader.trackername, "!SCREAM!", 8)
+			&& mpt::CompareNoCaseAscii(fileHeader.trackername, "BMOD2STM", 8)))
 	{
 		return false;
 	} else if(loadFlags == onlyVerifyHeader)
@@ -144,22 +143,21 @@ bool CSoundFile::ReadSTM(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
-	m_nType = MOD_TYPE_STM;
+	InitializeGlobals(MOD_TYPE_STM);
 
-	mpt::String::Read<mpt::String::maybeNullTerminated>(songName, fileHeader.songname);
+	mpt::String::Read<mpt::String::maybeNullTerminated>(m_songName, fileHeader.songname);
 
 	// Read STM header
-	madeWithTracker = mpt::String::Print("Scream Tracker %1.%2", fileHeader.verMajor, mpt::fmt::hex0<2>(fileHeader.verMinor));
+	m_madeWithTracker = mpt::String::Print("Scream Tracker %1.%2", fileHeader.verMajor, mpt::fmt::hex0<2>(fileHeader.verMinor));
 	m_nSamples = 31;
 	m_nChannels = 4;
 	m_nMinPeriod = 64;
 	m_nMaxPeriod = 0x7FFF;
 #ifdef MODPLUG_TRACKER
-	m_nDefaultTempo = 125;
+	m_nDefaultTempo.Set(125);
 	m_nDefaultSpeed = fileHeader.initTempo >> 4;
 #else
-	m_nDefaultTempo = 125 * 16;
+	m_nDefaultTempo.Set(125 * 16);
 	m_nDefaultSpeed = fileHeader.initTempo;
 #endif // MODPLUG_TRACKER
 	if(m_nDefaultSpeed < 1) m_nDefaultSpeed = 1;
@@ -175,13 +173,12 @@ bool CSoundFile::ReadSTM(FileReader &file, ModLoadingFlags loadFlags)
 	// Read samples
 	for(SAMPLEINDEX smp = 0; smp < 31; smp++)
 	{
-		fileHeader.samples[smp].ConvertEndianness();
 		fileHeader.samples[smp].ConvertToMPT(Samples[smp + 1]);
 		mpt::String::Read<mpt::String::nullTerminated>(m_szNames[smp + 1], fileHeader.samples[smp].filename);
 	}
 
 	// Read order list
-	Order.ReadFromArray(fileHeader.order);
+	Order.ReadFromArray(fileHeader.order, CountOf(fileHeader.order), 0xFF, 0xFE);
 	for(ORDERINDEX ord = 0; ord < 128; ord++)
 	{
 		if(Order[ord] >= 99)
@@ -194,7 +191,7 @@ bool CSoundFile::ReadSTM(FileReader &file, ModLoadingFlags loadFlags)
 	{
 		STMPatternData patternData;
 
-		if(!(loadFlags & loadPatternData) || Patterns.Insert(pat, 64) || !file.ReadConvertEndianness(patternData))
+		if(!(loadFlags & loadPatternData) || !Patterns.Insert(pat, 64) || !file.ReadStruct(patternData))
 		{
 			file.Skip(sizeof(patternData));
 			continue;
@@ -243,6 +240,12 @@ bool CSoundFile::ReadSTM(FileReader &file, ModLoadingFlags loadFlags)
 
 			switch(m->command)
 			{
+			case CMD_VOLUMESLIDE:
+				// Lower nibble always has precedence, and there are no fine slides.
+				if(m->param & 0x0F) m->param &= 0x0F;
+				else m->param &= 0xF0;
+				break;
+
 			case CMD_PATTERNBREAK:
 				m->param = (m->param & 0xF0) * 10 + (m->param & 0x0F);
 				if(breakRow > m->param)
@@ -294,7 +297,7 @@ bool CSoundFile::ReadSTM(FileReader &file, ModLoadingFlags loadFlags)
 
 		if(breakPos != ORDERINDEX_INVALID)
 		{
-			Patterns[pat].WriteEffect(EffectWriter(CMD_POSITIONJUMP, breakPos).Row(breakRow).Retry(EffectWriter::rmTryPreviousRow));
+			Patterns[pat].WriteEffect(EffectWriter(CMD_POSITIONJUMP, static_cast<ModCommand::PARAM>(breakPos)).Row(breakRow).Retry(EffectWriter::rmTryPreviousRow));
 		}
 	}
 
@@ -312,13 +315,10 @@ bool CSoundFile::ReadSTM(FileReader &file, ModLoadingFlags loadFlags)
 			ModSample &sample = Samples[smp];
 			if(sample.nLength)
 			{
-				//size_t sampleOffset = fileHeader.samples[smp - 1].offset << 4;
-				//if(sampleOffset > sizeof(STMPatternEntry) && sampleOffset < file.GetLength())
-				//{
-				//	file.Seek(sampleOffset);
-				//} else
+				FileReader::off_t sampleOffset = fileHeader.samples[smp - 1].offset << 4;
+				if(sampleOffset > sizeof(STMPatternEntry) && sampleOffset < file.GetLength())
 				{
-					file.Seek((file.GetPosition() + 15) & (~15));
+					file.Seek(sampleOffset);
 				}
 				sampleIO.ReadSample(sample, file);
 			}
@@ -327,3 +327,6 @@ bool CSoundFile::ReadSTM(FileReader &file, ModLoadingFlags loadFlags)
 
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

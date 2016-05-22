@@ -13,19 +13,20 @@
 #include "libopenmpt_config.h"
 
 #include <exception>
+#include <iosfwd>
 #include <iostream>
-#include <istream>
 #include <map>
-#include <ostream>
 #include <string>
 #include <vector>
 
+#ifndef LIBOPENMPT_ANCIENT_COMPILER_STDINT
 #include <cstdint>
+#endif
 
 /*!
  * \page libopenmpt_cpp_overview C++ API
  *
- * \section error Error Handling
+ * \section libopenmpt_cpp_error Error Handling
  *
  * libopenmpt C++ uses C++ exception handling for errror reporting.
  *
@@ -36,13 +37,41 @@
  * by the C++ language and C++ standard library. These are all derived from
  * std::exception.
  *
- * \section strings Strings
+ * \section libopenmpt_cpp_strings Strings
  *
  * - All strings returned from libopenmpt are encoded in UTF-8.
  * - All strings passed to libopenmpt should also be encoded in UTF-8.
  * Behaviour in case of invalid UTF-8 is unspecified.
  * - libopenmpt does not enforce or expect any particular unicode
  * normalization form.
+ *
+ * \section libopenmpt_cpp_fileio File I/O
+ *
+ * libopenmpt can use 3 different strategies for file I/O.
+ *
+ * - openmpt::module::module() with any kind of memory buffer as parameter will
+ * load the module from the provided memory buffer, which will require loading
+ * all data upfront by the library
+ * caller.
+ * - openmpt::module::module() with a seekable std::istream as parameter will
+ * load the module via the stream interface. libopenmpt will not implement an
+ * additional buffering layer in this case whih means the callbacks are assumed
+ * to be performant even with small i/o sizes.
+ * - openmpt::module::module() with an unseekable std::istream as parameter
+ * will load the module via the stream interface. libopempt will make an
+ * internal copy as it goes along, and sometimes have to pre-cache the whole
+ * file in case it needs to know the complete file size. This strategy is
+ * intended to be used if the file is located on a high latency network.
+ *
+ * | constructor       | speed  | memory consumption |
+ * | ----------------: | :----: | :----------------: |
+ * | memory buffer     | <p style="background-color:green" >fast  </p> | <p style="background-color:yellow">medium</p> | 
+ * | seekable stream   | <p style="background-color:red"   >slow  </p> | <p style="background-color:green" >low   </p> |
+ * | unseekable stream | <p style="background-color:yellow">medium</p> | <p style="background-color:red"   >high  </p> |
+ *
+ * In all cases, the data or stream passed to the constructor is no longer
+ * needed after the openmpt::module has been constructed and can be destroyed
+ * by the caller.
  *
  * \section libopenmpt-cpp-detailed Detailed documentation
  *
@@ -87,31 +116,40 @@ LIBOPENMPT_CXX_API std::uint32_t get_core_version();
 
 namespace string {
 
-//! Return a verbose library version string from openmpt::string::get().
-static const char library_version [] = "library_version";
-//! Return a verbose library features string from openmpt::string::get().
-static const char library_features[] = "library_features";
-//! Return a verbose OpenMPT core version string from openmpt::string::get().
-static const char core_version    [] = "core_version";
-//! Return information about the current build (e.g. the build date or compiler used) from openmpt::string::get().
-static const char build           [] = "build";
-//! Return all contributors from openmpt::string::get().
-static const char credits         [] = "credits";
-//! Return contact infromation about libopenmpt from openmpt::string::get().
-static const char contact         [] = "contact";
-//! Return the libopenmpt license from openmpt::string::get().
-static const char license         [] = "license";
+//! Return a verbose library version string from openmpt::string::get(). \deprecated Please use \code "library_version" \endcode directly.
+LIBOPENMPT_DEPRECATED static const char library_version [] = "library_version";
+//! Return a verbose library features string from openmpt::string::get(). \deprecated Please use \code "library_features" \endcode directly.
+LIBOPENMPT_DEPRECATED static const char library_features[] = "library_features";
+//! Return a verbose OpenMPT core version string from openmpt::string::get(). \deprecated Please use \code "core_version" \endcode directly.
+LIBOPENMPT_DEPRECATED static const char core_version    [] = "core_version";
+//! Return information about the current build (e.g. the build date or compiler used) from openmpt::string::get(). \deprecated Please use \code "build" \endcode directly.
+LIBOPENMPT_DEPRECATED static const char build           [] = "build";
+//! Return all contributors from openmpt::string::get(). \deprecated Please use \code "credits" \endcode directly.
+LIBOPENMPT_DEPRECATED static const char credits         [] = "credits";
+//! Return contact infromation about libopenmpt from openmpt::string::get(). \deprecated Please use \code "contact" \endcode directly.
+LIBOPENMPT_DEPRECATED static const char contact         [] = "contact";
+//! Return the libopenmpt license from openmpt::string::get(). \deprecated Please use \code "license" \endcode directly.
+LIBOPENMPT_DEPRECATED static const char license         [] = "license";
 
 //! Get library related metadata.
 /*!
   \param key Key to query.
+         Possible keys are:
+          -  "library_version": verbose library version string
+          -  "library_features": verbose library features string
+          -  "core_version": verboseOpenMPT core version string
+          -  "source_url": original source code URL
+          -  "source_date": original source code date
+          -  "build": information about the current build (e.g. the build date or compiler used)
+          -  "build_compiler": information about the compiler used to build libopenmpt
+          -  "credits": all contributors
+          -  "contact": contact infromation about libopenmpt
+          -  "license": the libopenmpt license
+          -  "url": libopenmpt website URL
+          -  "support_forum_url": libopenmpt support and discussions forum URL
+          -  "bugtracker_url": libopenmpt bug and issue tracker URL
+
   \return A (possibly multi-line) string containing the queried information. If no information is available, the string is empty.
-  \sa openmpt::string::library_version
-  \sa openmpt::string::core_version
-  \sa openmpt::string::build
-  \sa openmpt::string::credits
-  \sa openmpt::string::contact
-  \sa openmpt::string::license
 */
 LIBOPENMPT_CXX_API std::string get( const std::string & key );
 
@@ -168,7 +206,7 @@ public:
 		/*!
 		  The related value represents the stereo separation generated by the libopenmpt mixer in percent.\n
 		  The default value is 100.\n
-		  The supported value range is [0,400].\n
+		  The supported value range is [0,200].\n
 		*/
 		RENDER_STEREOSEPARATION_PERCENT   = 2,
 		//! Interpolation Filter
@@ -195,6 +233,7 @@ public:
 		RENDER_VOLUMERAMPING_STRENGTH     = 4
 	};
 
+	//! Parameter index to use with openmpt::module::get_pattern_row_channel_command, openmpt::module::format_pattern_row_channel_command and openmpt::module::highlight_pattern_row_channel_command
 	enum command_index {
 		command_note        = 0,
 		command_instrument  = 1,
@@ -215,20 +254,20 @@ private:
 	module();
 	void set_impl( module_impl * i );
 public:
-	//! Construct a openmpt::module
+	//! Construct an openmpt::module
 	/*!
 	  \param stream Input stream from which the module is loaded. After the constructor has finished successfully, the input position of stream is set to the byte after the last byte that has been read. If the constructor fails, the state of the input position of stream is undefined.
 	  \param log Log where any warnings or errors are printed to. The lifetime of the reference has to be as long as the lifetime of the module instance.
-	  \param ctls A map of initial ctl values, see openmpt::modules::get_ctls.
-	  \return Throw an exception derived from openmpt::exception in case the provided file cannot be opened.
+	  \param ctls A map of initial ctl values, see openmpt::module::get_ctls.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception in case the provided file cannot be opened.
 	  \remarks The input data can be discarded after an openmpt::module has been constructed succesfully.
 	*/
 	module( std::istream & stream, std::ostream & log = std::clog, const std::map< std::string, std::string > & ctls = detail::initial_ctls_map() );
 	/*!
 	  \param data Data to load the module from.
 	  \param log Log where any warnings or errors are printed to. The lifetime of the reference has to be as long as the lifetime of the module instance.
-	  \param ctls A map of initial ctl values, see openmpt::modules::get_ctls.
-	  \return Throw an exception derived from openmpt::exception in case the provided file cannot be opened.
+	  \param ctls A map of initial ctl values, see openmpt::module::get_ctls.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception in case the provided file cannot be opened.
 	  \remarks The input data can be discarded after an openmpt::module has been constructed succesfully.
 	*/
 	module( const std::vector<std::uint8_t> & data, std::ostream & log = std::clog, const std::map< std::string, std::string > & ctls = detail::initial_ctls_map() );
@@ -236,8 +275,8 @@ public:
 	  \param beg Begin of data to load the module from.
 	  \param end End of data to load the module from.
 	  \param log Log where any warnings or errors are printed to. The lifetime of the reference has to be as long as the lifetime of the module instance.
-	  \param ctls A map of initial ctl values, see openmpt::modules::get_ctls.
-	  \return Throw an exception derived from openmpt::exception in case the provided file cannot be opened.
+	  \param ctls A map of initial ctl values, see openmpt::module::get_ctls.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception in case the provided file cannot be opened.
 	  \remarks The input data can be discarded after an openmpt::module has been constructed succesfully.
 	*/
 	module( const std::uint8_t * beg, const std::uint8_t * end, std::ostream & log = std::clog, const std::map< std::string, std::string > & ctls = detail::initial_ctls_map() );
@@ -245,16 +284,16 @@ public:
 	  \param data Data to load the module from.
 	  \param size Amount of data available.
 	  \param log Log where any warnings or errors are printed to. The lifetime of the reference has to be as long as the lifetime of the module instance.
-	  \param ctls A map of initial ctl values, see openmpt::modules::get_ctls.
-	  \return Throw an exception derived from openmpt::exception in case the provided file cannot be opened.
+	  \param ctls A map of initial ctl values, see openmpt::module::get_ctls.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception in case the provided file cannot be opened.
 	  \remarks The input data can be discarded after an openmpt::module has been constructed succesfully.
 	*/
 	module( const std::uint8_t * data, std::size_t size, std::ostream & log = std::clog, const std::map< std::string, std::string > & ctls = detail::initial_ctls_map() );
 	/*!
 	  \param data Data to load the module from.
 	  \param log Log where any warnings or errors are printed to. The lifetime of the reference has to be as long as the lifetime of the module instance.
-	  \param ctls A map of initial ctl values, see openmpt::modules::get_ctls.
-	  \return Throw an exception derived from openmpt::exception in case the provided file cannot be opened.
+	  \param ctls A map of initial ctl values, see openmpt::module::get_ctls.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception in case the provided file cannot be opened.
 	  \remarks The input data can be discarded after an openmpt::module has been constructed succesfully.
 	*/
 	module( const std::vector<char> & data, std::ostream & log = std::clog, const std::map< std::string, std::string > & ctls = detail::initial_ctls_map() );
@@ -262,8 +301,8 @@ public:
 	  \param beg Begin of data to load the module from.
 	  \param end End of data to load the module from.
 	  \param log Log where any warnings or errors are printed to. The lifetime of the reference has to be as long as the lifetime of the module instance.
-	  \param ctls A map of initial ctl values, see openmpt::modules::get_ctls.
-	  \return Throw an exception derived from openmpt::exception in case the provided file cannot be opened.
+	  \param ctls A map of initial ctl values, see openmpt::module::get_ctls.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception in case the provided file cannot be opened.
 	  \remarks The input data can be discarded after an openmpt::module has been constructed succesfully.
 	*/
 	module( const char * beg, const char * end, std::ostream & log = std::clog, const std::map< std::string, std::string > & ctls = detail::initial_ctls_map() );
@@ -271,8 +310,8 @@ public:
 	  \param data Data to load the module from.
 	  \param size Amount of data available.
 	  \param log Log where any warnings or errors are printed to. The lifetime of the reference has to be as long as the lifetime of the module instance.
-	  \param ctls A map of initial ctl values, see openmpt::modules::get_ctls.
-	  \return Throw an exception derived from openmpt::exception in case the provided file cannot be opened.
+	  \param ctls A map of initial ctl values, see openmpt::module::get_ctls.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception in case the provided file cannot be opened.
 	  \remarks The input data can be discarded after an openmpt::module has been constructed succesfully.
 	*/
 	module( const char * data, std::size_t size, std::ostream & log = std::clog, const std::map< std::string, std::string > & ctls = detail::initial_ctls_map() );
@@ -280,8 +319,8 @@ public:
 	  \param data Data to load the module from.
 	  \param size Amount of data available.
 	  \param log Log where any warnings or errors are printed to. The lifetime of the reference has to be as long as the lifetime of the module instance.
-	  \param ctls A map of initial ctl values, see openmpt::modules::get_ctls.
-	  \return Throw an exception derived from openmpt::exception in case the provided file cannot be opened.
+	  \param ctls A map of initial ctl values, see openmpt::module::get_ctls.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception in case the provided file cannot be opened.
 	  \remarks The input data can be discarded after an openmpt::module has been constructed succesfully.
 	*/
 	module( const void * data, std::size_t size, std::ostream & log = std::clog, const std::map< std::string, std::string > & ctls = detail::initial_ctls_map() );
@@ -290,8 +329,9 @@ public:
 
 	//! Select a subsong from a multi-song module
 	/*!
-	  \param subsong Index of the subsong.
-	  \return Throws an exception derived from openmpt::exception if subsong is not in range [0,openmpt::module::get_num_subsongs()]
+	  \param subsong Index of the subsong. -1 plays all subsongs consecutively.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception if subsong is not in range [-1,openmpt::module::get_num_subsongs()[
+	  \sa openmpt::module::get_num_subsongs, openmpt::module::get_subsong_names
 	*/
 	void select_subsong( std::int32_t subsong );
 	//! Set Repeat Count
@@ -315,7 +355,7 @@ public:
 
 	//! Get approximate song duration
 	/*!
-	  \return Approximate song duration in seconds.
+	  \return Approximate duration of current subsong in seconds.
 	*/
 	double get_duration_seconds() const;
 
@@ -326,9 +366,9 @@ public:
 	  \sa openmpt::module::get_position_seconds
 	*/
 	double set_position_seconds( double seconds );
-	//! Get approximate current song position
+	//! Get current song position
 	/*!
-	  \return Approximate current song position in seconds.
+	  \return Current song position in seconds.
 	  \sa openmpt::module::set_position_seconds
 	*/
 	double get_position_seconds() const;
@@ -347,7 +387,8 @@ public:
 	//! Get render parameter
 	/*!
 	  \param param Parameter to query. See openmpt::module::render_param.
-	  \return The current value of the parameter. Throws an exception derived from openmpt::exception if param is invalid.
+	  \return The current value of the parameter.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception if param is invalid.
 	  \sa openmpt::module::render_param
 	  \sa openmpt::module::set_render_param
 	*/
@@ -356,7 +397,7 @@ public:
 	/*!
 	  \param param Parameter to set. See openmpt::module::render_param.
 	  \param value The value to set param to.
-	  \return Throws an exception derived from openmpt::exception if param is invalid or value is out of range.
+	  \throws openmpt::exception Throws an exception derived from openmpt::exception if param is invalid or value is out of range.
 	  \sa openmpt::module::render_param
 	  \sa openmpt::module::get_render_param
 	*/
@@ -502,53 +543,273 @@ public:
 	//! Get a metadata item value
 	/*!
 	  \param key Metadata item key to query. Use openmpt::module::get_metadata_keys to check for available keys.
+	           Possible keys are:
+	           - type: Module format extension (e.g. it)
+	           - type_long: Tracker name associated with the module format (e.g. Impulse Tracker)
+	           - container: Container format the module file is embedded in, if any (e.g. umx)
+	           - container_long: Full container name if the module is embedded in a container (e.g. Unreal Music)
+	           - tracker: Tracker that was (most likely) used to save the module file, if known
+	           - artist: Author of the module
+	           - title: Module title
+	           - date: Date the module was last saved, in ISO-8601 format.
+	           - message: Song message. If the song message is empty or the module format does not support song messages, a list of instrument and sample names is returned instead.
+	           - message_raw: Song message. If the song message is empty or the module format does not support song messages, an empty string is returned.
+	           - warnings: A list of warnings that were generated while loading the module.
 	  \return The associated value for key.
 	  \sa openmpt::module::get_metadata_keys
 	*/
 	std::string get_metadata( const std::string & key ) const;
 
+	//! Get the current speed
+	/*!
+	  \return The current speed in ticks per row.
+	*/
 	std::int32_t get_current_speed() const;
+	//! Get the current tempo
+	/*!
+	  \return The current tempo in tracker units. The exact meaning of this value depends on the tempo mode being used.
+	*/
 	std::int32_t get_current_tempo() const;
+	//! Get the current order
+	/*!
+	  \return The current order at which the module is being played back.
+	*/
 	std::int32_t get_current_order() const;
+	//! Get the current pattern
+	/*!
+	  \return The current pattern that is being played.
+	*/
 	std::int32_t get_current_pattern() const;
+	//! Get the current row
+	/*!
+	  \return The current row at which the current pattern is being played.
+	*/
 	std::int32_t get_current_row() const;
+	//! Get the current amount of playing channels.
+	/*!
+	  \return The amount of sample channels that are currently being rendered.
+	*/
 	std::int32_t get_current_playing_channels() const;
 
+	//! Get an approximate indication of the channel volume.
+	/*!
+	  \param channel The channel whose volume should be retrieved.
+	  \return The approximate channel volume.
+	  \remarks The returned value is solely based on the note velocity and does not take the actual waveform of the playing sample into account.
+	*/
 	float get_current_channel_vu_mono( std::int32_t channel ) const;
+	//! Get an approximate indication of the channel volume on the front-left speaker.
+	/*!
+	  \param channel The channel whose volume should be retrieved.
+	  \return The approximate channel volume.
+	  \remarks The returned value is solely based on the note velocity and does not take the actual waveform of the playing sample into account.
+	*/
 	float get_current_channel_vu_left( std::int32_t channel ) const;
+	//! Get an approximate indication of the channel volume on the front-right speaker.
+	/*!
+	  \param channel The channel whose volume should be retrieved.
+	  \return The approximate channel volume.
+	  \remarks The returned value is solely based on the note velocity and does not take the actual waveform of the playing sample into account.
+	*/
 	float get_current_channel_vu_right( std::int32_t channel ) const;
+	//! Get an approximate indication of the channel volume on the rear-left speaker.
+	/*!
+	  \param channel The channel whose volume should be retrieved.
+	  \return The approximate channel volume.
+	  \remarks The returned value is solely based on the note velocity and does not take the actual waveform of the playing sample into account.
+	*/
 	float get_current_channel_vu_rear_left( std::int32_t channel ) const;
+	//! Get an approximate indication of the channel volume on the rear-right speaker.
+	/*!
+	  \param channel The channel whose volume should be retrieved.
+	  \return The approximate channel volume.
+	  \remarks The returned value is solely based on the note velocity and does not take the actual waveform of the playing sample into account.
+	*/
 	float get_current_channel_vu_rear_right( std::int32_t channel ) const;
 
+	//! Get the number of subsongs
+	/*!
+	  \return The number of subsongs in the module. This includes any "hidden" songs (songs that share the same sequence, but start at different order indices) and "normal" subsongs or "sequences" (if the format supports them).
+	  \sa openmpt::module::get_subsong_names, openmpt::module::select_subsong
+	*/
 	std::int32_t get_num_subsongs() const;
+	//! Get the number of pattern channels
+	/*!
+	  \return The number of pattern channels in the module. Not all channels do necessarily contain data.
+	*/
 	std::int32_t get_num_channels() const;
+	//! Get the number of orders
+	/*!
+	  \return The number of orders in the current sequence of the module.
+	*/
 	std::int32_t get_num_orders() const;
+	//! Get the number of patterns
+	/*!
+	  \return The number of distinct patterns in the module.
+	*/
 	std::int32_t get_num_patterns() const;
+	//! Get the number of instruments
+	/*!
+	  \return The number of instrument slots in the module. Instruments are a layer on top of samples, and are not supported by all module formats.
+	*/
 	std::int32_t get_num_instruments() const;
+	//! Get the number of samples
+	/*!
+	  \return The number of sample slots in the module.
+	*/
 	std::int32_t get_num_samples() const;
 
+	//! Get a list of subsong names
+	/*!
+	  \return All subsong names.
+	  \sa openmpt::module::get_num_subsongs, openmpt::module::select_subsong
+	*/
 	std::vector<std::string> get_subsong_names() const;
+	//! Get a list of channel names
+	/*!
+	  \return All channel names.
+	  \sa openmpt::module::get_num_channels
+	*/
 	std::vector<std::string> get_channel_names() const;
+	//! Get a list of order names
+	/*!
+	  \return All order names.
+	  \sa openmpt::module::get_num_orders
+	*/
 	std::vector<std::string> get_order_names() const;
+	//! Get a list of pattern names
+	/*!
+	  \return All pattern names.
+	  \sa openmpt::module::get_num_patterns
+	*/
 	std::vector<std::string> get_pattern_names() const;
+	//! Get a list of instrument names
+	/*!
+	  \return All instrument names.
+	  \sa openmpt::module::get_num_instruments
+	*/
 	std::vector<std::string> get_instrument_names() const;
+	//! Get a list of sample names
+	/*!
+	  \return All sample names.
+	  \sa openmpt::module::get_num_samples
+	*/
 	std::vector<std::string> get_sample_names() const;
 
+	//! Get pattern at order position
+	/*!
+	  \param order The order item whose pattern index should be retrieved.
+	  \return The pattern index found at the given order position of the current sequence.
+	*/
 	std::int32_t get_order_pattern( std::int32_t order ) const;
 
+	//! Get the number of rows in a pattern
+	/*!
+	  \param pattern The pattern whose row count should be retrieved.
+	  \return The number of rows in the given pattern. If the pattern does not exist, 0 is returned.
+	*/
 	std::int32_t get_pattern_num_rows( std::int32_t pattern ) const;
 
+	//! Get raw pattern content
+	/*!
+	  \param pattern The pattern whose data should be retrieved.
+	  \param row The row from which the data should be retrieved.
+	  \param channel The channel from which the data should be retrieved.
+	  \param command The cell index at which the data should be retrieved. See openmpt::module::command_index
+	  \return The internal, raw pattern data at the given pattern position.
+	*/
 	std::uint8_t get_pattern_row_channel_command( std::int32_t pattern, std::int32_t row, std::int32_t channel, int command ) const;
 
+	//! Get formatted (human-readable) pattern content
+	/*!
+	  \param pattern The pattern whose data should be retrieved.
+	  \param row The row from which the data should be retrieved.
+	  \param channel The channel from which the data should be retrieved.
+	  \param command The cell index at which the data should be retrieved.
+	  \return The formatted pattern data at the given pattern position. See openmpt::module::command_index
+	  \sa openmpt::module::highlight_pattern_row_channel_command
+	*/
 	std::string format_pattern_row_channel_command( std::int32_t pattern, std::int32_t row, std::int32_t channel, int command ) const;
+
+	//! Get highlighting information for formatted pattern content
+	/*!
+	  \param pattern The pattern whose data should be retrieved.
+	  \param row The row from which the data should be retrieved.
+	  \param channel The channel from which the data should be retrieved.
+	  \param command The cell index at which the data should be retrieved. See openmpt::module::command_index
+	  \return The highlighting string for the formatted pattern data as retrived by openmpt::module::get_pattern_row_channel_command at the given pattern position.
+	  \remarks The returned string will map each character position of the string returned by openmpt::module::get_pattern_row_channel_command to a highlighting instruction.
+	           Possible highlighting characters are:
+	           - " " : empty/space
+	           - "." : empty/dot
+	           - "n" : generic note
+	           - "m" : special note
+	           - "i" : generic instrument
+	           - "u" : generic volume column effect
+	           - "v" : generic volume column parameter
+	           - "e" : generic effect column effect
+	           - "f" : generic effect column parameter
+	  \sa openmpt::module::get_pattern_row_channel_command
+	*/
 	std::string highlight_pattern_row_channel_command( std::int32_t pattern, std::int32_t row, std::int32_t channel, int command ) const;
 
+	//! Get formatted (human-readable) pattern content
+	/*!
+	  \param pattern The pattern whose data should be retrieved.
+	  \param row The row from which the data should be retrieved.
+	  \param channel The channel from which the data should be retrieved.
+	  \param width The maximum number of characters the string should contain. 0 means no limit.
+	  \param pad If true, the string will be resized to the exact length provided in the width parameter.
+	  \return The formatted pattern data at the given pattern position.
+	  \sa openmpt::module::highlight_pattern_row_channel
+	*/
 	std::string format_pattern_row_channel( std::int32_t pattern, std::int32_t row, std::int32_t channel, std::size_t width = 0, bool pad = true ) const;
+	//! Get highlighting information for formatted pattern content
+	/*!
+	  \param pattern The pattern whose data should be retrieved.
+	  \param row The row from which the data should be retrieved.
+	  \param channel The channel from which the data should be retrieved.
+	  \param width The maximum number of characters the string should contain. 0 means no limit.
+	  \param pad If true, the string will be resized to the exact length provided in the width parameter.
+	  \return The highlighting string for the formatted pattern data as retrived by openmpt::module::format_pattern_row_channel at the given pattern position.
+	  \sa openmpt::module::format_pattern_row_channel
+	*/
 	std::string highlight_pattern_row_channel( std::int32_t pattern, std::int32_t row, std::int32_t channel, std::size_t width = 0, bool pad = true ) const;
 
+	//! Retrieve supported ctl keys
+	/*!
+	  \return A vector containing all supported ctl keys.
+	  \remarks Currently supported ctl values are:
+	           - load.skip_samples: Set to "1" to avoid loading samples into memory
+	           - load.skip_patterns: Set to "1" to avoid loading patterns into memory
+	           - load.skip_plugins: Set to "1" to avoid loading plugins
+	           - load.skip_subsongs_init: Set to "1" to avoid pre-initializing subsongs. Skipping results in faster module loading but slower seeking.
+	           - seek.sync_samples: Set to "1" to sync sample playback when using openmpt::module::set_position_seconds or openmpt::module::set_position_order_row.
+	           - play.tempo_factor: Set a floating point tempo factor. "1.0" is the default tempo.
+	           - play.pitch_factor: Set a floating point pitch factor. "1.0" is the default pitch.
+	           - dither: Set the dither algorithm that is used for the 16 bit versions of openmpt::module::read. Supported values are:
+	                     - 0: No dithering.
+	                     - 1: Default mode. Chosen by OpenMPT code, might change.
+	                     - 2: Rectangular, 0.5 bit depth, no noise shaping (original ModPlug Tracker).
+	                     - 3: Rectangular, 1 bit depth, simple 1st order noise shaping
+
+	           An exclamation mark ("!") or a question mark ("?") can be appended to any ctl key in order to influence the behaviour in case of an unknown ctl key. "!" causes an exception to be thrown; "?" causes the ctl to be silently ignored. In case neither is appended to the key name, unknown init_ctls are ignored by default and other ctls throw an exception by default.
+	*/
 	std::vector<std::string> get_ctls() const;
 
+	//! Get current ctl value
+	/*!
+	  \param ctl The ctl key whose value should be retrieved.
+	  \return The associated ctl value.
+	  \sa openmpt::module::get_ctls
+	*/
 	std::string ctl_get( const std::string & ctl ) const;
+	//! Set ctl value
+	/*!
+	  \param ctl The ctl key whose value should be set.
+	  \param value The value that should be set.
+	  \sa openmpt::module::get_ctls
+	*/
 	void ctl_set( const std::string & ctl, const std::string & value );
 
 	// remember to add new functions to both C and C++ interfaces and to increase OPENMPT_API_VERSION_MINOR

@@ -14,11 +14,14 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <istream>
-#include <ostream>
+#include <iosfwd>
 #include <map>
 #include <limits>
 #include "../common/typedefs.h"
+
+
+OPENMPT_NAMESPACE_BEGIN
+
 
 namespace srlztn {class Ssb;}
 
@@ -32,7 +35,7 @@ class CTuningBase
 	//RATIOTYPE: Some 'real figure' type able to present ratios.
 	//STEPINDEXTYPE: Counter of steps between notes. If there is no 'finetune'(finestepcount == 0),
 			//then 'step difference' between notes is the
-			//same as differences in NOTEINDEXTYPE. In a way similar to ticks and rows in pattern - 
+			//same as differences in NOTEINDEXTYPE. In a way similar to ticks and rows in pattern -
 			//ticks <-> STEPINDEX, rows <-> NOTEINDEX
 
 public:
@@ -122,7 +125,7 @@ public:
 	//Create GroupGeometric tuning of *this using virtual ProCreateGroupGeometric.
 	bool CreateGroupGeometric(const std::vector<RATIOTYPE>&, const RATIOTYPE&, const VRPAIR vr, const NOTEINDEXTYPE ratiostartpos);
 
-	//Create GroupGeometric of *this using ratios from 'itself' and ratios starting from 
+	//Create GroupGeometric of *this using ratios from 'itself' and ratios starting from
 	//position given as third argument.
 	bool CreateGroupGeometric(const NOTEINDEXTYPE&, const RATIOTYPE&, const NOTEINDEXTYPE&);
 
@@ -132,10 +135,10 @@ public:
 
 	virtual SERIALIZATION_RETURN_TYPE Serialize(std::ostream& /*out*/) const {return false;}
 
-	NOTESTR GetNoteName(const NOTEINDEXTYPE& x) const;
+	NOTESTR GetNoteName(const NOTEINDEXTYPE& x, bool addOctave = true) const;
 
 	void SetName(const std::string& s);
-	
+
 	std::string GetName() const {return m_TuningName;}
 
 	bool SetNoteName(const NOTEINDEXTYPE&, const std::string&);
@@ -176,7 +179,7 @@ public:
 	//Checking that step distances can be presented with
 	//value range of STEPINDEXTYPE with given finestepcount and validityrange.
 	bool IsStepCountRangeSufficient(USTEPINDEXTYPE fs, VRPAIR vrp);
-	
+
 	virtual const char* GetTuningTypeDescription() const;
 
 	static const char* GetTuningTypeDescription(const TUNINGTYPE&);
@@ -199,12 +202,12 @@ protected:
 	//tuningtype is automatically changed to general.
 	virtual bool ProSetRatio(const NOTEINDEXTYPE&, const RATIOTYPE&) {return true;}
 
-	virtual NOTESTR ProGetNoteName(const NOTEINDEXTYPE&) const;
+	virtual NOTESTR ProGetNoteName(const NOTEINDEXTYPE&, bool) const;
 
 	//The two methods below return false if action was done, true otherwise.
 	virtual bool ProCreateGroupGeometric(const std::vector<RATIOTYPE>&, const RATIOTYPE&, const VRPAIR&, const NOTEINDEXTYPE /*ratiostartpos*/) {return true;}
 	virtual bool ProCreateGeometric(const UNOTEINDEXTYPE&, const RATIOTYPE&, const VRPAIR&) {return true;}
-	
+
 	virtual VRPAIR ProSetValidityRange(const VRPAIR&) {return GetValidityRange();}
 
 	virtual void ProSetFineStepCount(const USTEPINDEXTYPE&) {}
@@ -224,11 +227,8 @@ protected:
 
 	TUNINGTYPE GetType() const {return m_TuningType;}
 
-	//This is appended to baseclassID in serialization with which objects are identified when loading.
-	virtual std::string GetDerivedClassID() const = 0;
-
 	//Return true if data loading failed, false otherwise.
-	virtual bool ProProcessUnserializationdata() = 0;
+	virtual bool ProProcessUnserializationdata(UNOTEINDEXTYPE ratiotableSize) = 0;
 
 
 //END PROTECTED INTERFACE
@@ -304,7 +304,7 @@ inline bool CTuningBase::IsStepCountRangeSufficient(USTEPINDEXTYPE fs, VRPAIR vr
 {
 	{ // avoid integer overload
 		//if(vrp.first == STEPINDEXTYPE_MIN && vrp.second == STEPINDEXTYPE_MAX) return true;
-		ASSERT(NOTEINDEXTYPE_MIN / 2 < vrp.first && vrp.second < NOTEINDEXTYPE_MAX / 2);
+		MPT_ASSERT(NOTEINDEXTYPE_MIN / 2 < vrp.first && vrp.second < NOTEINDEXTYPE_MAX / 2);
 		if(NOTEINDEXTYPE_MIN / 2 >= vrp.first || vrp.second >= NOTEINDEXTYPE_MAX / 2) return true;
 	}
 	if(fs > static_cast<USTEPINDEXTYPE>(STEPINDEXTYPE_MAX) / (vrp.second - vrp.first + 1)) return false;
@@ -321,3 +321,5 @@ inline bool CTuningBase::SetEditMask(const EDITMASK& em)
 		return true;
 }
 
+
+OPENMPT_NAMESPACE_END

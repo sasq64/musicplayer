@@ -24,6 +24,8 @@
 #include "Loaders.h"
 #include "ChunkReader.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -244,11 +246,12 @@ struct PSMSubSong // For internal use (pattern conversion)
 static uint8 ConvertPSMPorta(uint8 param, bool newFormat)
 //-------------------------------------------------------
 {
-	return (newFormat
-		? param
-		: ((param < 4)
-			? (param | 0xF0)
-			: (param >> 2)));
+	if(newFormat)
+		return param;
+	if(param < 4)
+		return (param | 0xF0);
+	else
+		return (param >> 2);
 }
 
 
@@ -276,10 +279,8 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 	}
 
 	// Yep, this seems to be a valid file.
-	InitializeGlobals();
-	m_nType = MOD_TYPE_PSM;
+	InitializeGlobals(MOD_TYPE_PSM);
 	m_SongFlags = SONG_ITOLDEFFECTS | SONG_ITCOMPATGXX;
-	SetModFlag(MSF_COMPATIBLE_PLAY, true);
 
 	// pattern offset and identifier
 	PATTERNINDEX numPatterns = 0;		// used for setting up the orderlist - final pattern count
@@ -296,7 +297,7 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 
 	// "TITL" - Song Title
 	FileReader titleChunk = chunks.GetChunk(PSMChunk::idTITL);
-	titleChunk.ReadString<mpt::String::spacePadded>(songName, titleChunk.GetLength());
+	titleChunk.ReadString<mpt::String::spacePadded>(m_songName, titleChunk.GetLength());
 
 	// "SDFT" - Format info (song data starts here)
 	if(!chunks.GetChunk(PSMChunk::idSDFT).ReadMagic("MAINSONG"))
@@ -336,16 +337,12 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 
 	// "SONG" - Subsong information (channel count etc)
 	std::vector<FileReader> songChunks = chunks.GetAllChunks(PSMChunk::idSONG);
-	if(songChunks.empty())
-	{
-		return false;
-	}
 
 	for(std::vector<FileReader>::iterator subsongIter = songChunks.begin(); subsongIter != songChunks.end(); subsongIter++)
 	{
 		ChunkReader chunk(*subsongIter);
 		PSMSongHeader songHeader;
-		if(!chunk.Read(songHeader))
+		if(!chunk.ReadStruct(songHeader))
 		{
 			return false;
 		}
@@ -395,7 +392,7 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 					uint16 chunkCount = 0, firstOrderChunk = uint16_max;
 
 					// "Sub sub sub chunks" (grrrr, silly format)
-					while(subChunk.AreBytesLeft())
+					while(subChunk.CanRead(1))
 					{
 						uint8 subChunkID = subChunk.ReadUint8();
 						if(!subChunkID)
@@ -524,12 +521,12 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 						chunkCount++;
 					}
 					// separate subsongs by "---" patterns
-					orderOffsets.push_back(nullptr);
+					orderOffsets.push_back(static_cast<FileReader*>(nullptr)); // GCC 4.3 does not like .push_back(nullptr) here
 					Order.Append();
 				}
 			case PSMChunk::idPPAN: // PPAN - Channel panning table (used in Sinaria)
 				// In some Sinaria tunes, this is actually longer than 2 * channels...
-				ASSERT(subChunkHead.length >= m_nChannels * 2u);
+				MPT_ASSERT(subChunkHead.length >= m_nChannels * 2u);
 				for(CHANNELINDEX chn = 0; chn < m_nChannels; chn++)
 				{
 					if(!subChunk.CanRead(2))
@@ -575,8 +572,11 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 		}
 
 		// attach this subsong to the subsong list - finally, all "sub sub sub ..." chunks are parsed.
-		subsongs.push_back(subsong);
+		if(subsong.startOrder != ORDERINDEX_INVALID && subsong.endOrder != ORDERINDEX_INVALID)
+			subsongs.push_back(subsong);
 	}
+	if(subsongs.empty())
+		return false;
 
 	// DSMP - Samples
 	if(loadFlags & loadSampleData)
@@ -627,8 +627,8 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 
 	// Make the default variables of the first subsong global
 	m_nDefaultSpeed = subsongs[0].defaultSpeed;
-	m_nDefaultTempo = subsongs[0].defaultTempo;
-	m_nRestartPos = subsongs[0].restartPos;
+	m_nDefaultTempo.Set(subsongs[0].defaultTempo);
+	Order.SetRestartPos(subsongs[0].restartPos);
 	for(CHANNELINDEX chn = 0; chn < m_nChannels; chn++)
 	{
 		ChnSettings[chn].Reset();
@@ -637,13 +637,9 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 		ChnSettings[chn].dwFlags.set(CHN_SURROUND, subsongs[0].channelSurround[chn]);
 	}
 
-	madeWithTracker = "Epic MegaGames MASI (";
-	if(newFormat)
-		madeWithTracker += "New Version / Sinaria)";
-	else
-		madeWithTracker += "New Version)";
+	m_madeWithTracker = newFormat ? "Epic MegaGames MASI (New Version / Sinaria)" : "Epic MegaGames MASI (New Version)";
 
-	if(!(loadFlags & loadPatternData))
+	if(!(loadFlags & loadPatternData) || m_nChannels == 0)
 	{
 		return true;
 	}
@@ -663,7 +659,7 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 
 		uint16 numRows = patternChunk.ReadUint16LE();
 
-		if(Patterns.Insert(pat, numRows))
+		if(!Patterns.Insert(pat, numRows))
 		{
 			break;
 		}
@@ -681,19 +677,19 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 		{
 			PatternRow rowBase = Patterns[pat].GetRow(row);
 			uint16 rowSize = patternChunk.ReadUint16LE();
-			if(rowSize < 2)
+			if(rowSize <= 2)
 			{
 				continue;
 			}
 
 			FileReader rowChunk = patternChunk.ReadChunk(rowSize - 2);
 
-			while(rowChunk.AreBytesLeft())
+			while(rowChunk.CanRead(2))
 			{
 				uint8 flags = rowChunk.ReadUint8();
 				uint8 channel = rowChunk.ReadUint8();
 				// Point to the correct channel
-				ModCommand &m = rowBase[MIN(m_nChannels - 1, channel)];
+				ModCommand &m = rowBase[std::min<CHANNELINDEX>(m_nChannels - 1, channel)];
 
 				if(flags & noteFlag)
 				{
@@ -895,13 +891,14 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 		// write subsong "configuration" to patterns (only if there are multiple subsongs)
 		for(size_t i = 0; i < subsongs.size(); i++)
 		{
-			PATTERNINDEX startPattern = Order[subsongs[i].startOrder], endPattern = Order[subsongs[i].endOrder];
+			const PSMSubSong &subsong = subsongs[i];
+			PATTERNINDEX startPattern = Order[subsong.startOrder], endPattern = Order[subsong.endOrder];
 			if(startPattern == PATTERNINDEX_INVALID || endPattern == PATTERNINDEX_INVALID) continue; // what, invalid subtune?
 
 			// set the subsong name to all pattern names
 			for(PATTERNINDEX pat = startPattern; pat <= endPattern; pat++)
 			{
-				Patterns[pat].SetName(subsongs[i].songName);
+				Patterns[pat].SetName(subsong.songName);
 			}
 
 			// subsongs with different panning setup -> write to pattern (MUSIC_C.PSM)
@@ -909,23 +906,23 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 			{
 				for(CHANNELINDEX chn = 0; chn < m_nChannels; chn++)
 				{
-					if(subsongs[i].channelSurround[chn])
+					if(subsong.channelSurround[chn])
 					{
 						Patterns[startPattern].WriteEffect(EffectWriter(CMD_S3MCMDEX, 0x91).Row(0).Channel(chn).Retry(EffectWriter::rmTryNextRow));
 					} else
 					{
-						Patterns[startPattern].WriteEffect(EffectWriter(CMD_PANNING8, subsongs[i].channelPanning[chn]).Row(0).Channel(chn).Retry(EffectWriter::rmTryNextRow));
+						Patterns[startPattern].WriteEffect(EffectWriter(CMD_PANNING8, subsong.channelPanning[chn]).Row(0).Channel(chn).Retry(EffectWriter::rmTryNextRow));
 					}
 				}
 			}
 			// write default tempo/speed to pattern
-			Patterns[startPattern].WriteEffect(EffectWriter(CMD_SPEED, subsongs[i].defaultSpeed).Row(0).Retry(EffectWriter::rmTryNextRow));
-			Patterns[startPattern].WriteEffect(EffectWriter(CMD_TEMPO, subsongs[i].defaultTempo).Row(0).Retry(EffectWriter::rmTryNextRow));
+			Patterns[startPattern].WriteEffect(EffectWriter(CMD_SPEED, subsong.defaultSpeed).Row(0).Retry(EffectWriter::rmTryNextRow));
+			Patterns[startPattern].WriteEffect(EffectWriter(CMD_TEMPO, subsong.defaultTempo).Row(0).Retry(EffectWriter::rmTryNextRow));
 
 			// don't write channel volume for now, as it's always set to 100% anyway
 
 			// there's a restart pos, so let's try to insert a Bxx command in the last pattern
-			if(subsongs[i].restartPos != ORDERINDEX_INVALID)
+			if(subsong.restartPos != ORDERINDEX_INVALID && Patterns.IsValidPat(endPattern))
 			{
 				ROWINDEX lastRow = Patterns[endPattern].GetNumRows() - 1;
 				ModCommand *m;
@@ -938,7 +935,7 @@ bool CSoundFile::ReadPSM(FileReader &file, ModLoadingFlags loadFlags)
 						break;
 					}
 				}
-				Patterns[endPattern].WriteEffect(EffectWriter(CMD_POSITIONJUMP, static_cast<ModCommand::PARAM>(subsongs[i].restartPos)).Row(lastRow).Retry(EffectWriter::rmTryPreviousRow));
+				Patterns[endPattern].WriteEffect(EffectWriter(CMD_POSITIONJUMP, static_cast<ModCommand::PARAM>(subsong.restartPos)).Row(lastRow).Retry(EffectWriter::rmTryPreviousRow));
 			}
 		}
 	}
@@ -1022,7 +1019,7 @@ struct PACKED PSM16SampleHeader
 	};
 
 	char   filename[13];	// null-terminated
-	char   name[24];		// dito
+	char   name[24];		// ditto
 	uint32 offset;			// in file
 	uint32 memoffset;		// not used
 	uint16 sampleNumber;	// 1 ... 255
@@ -1030,7 +1027,7 @@ struct PACKED PSM16SampleHeader
 	uint32 length;			// in bytes
 	uint32 loopStart;		// in samples?
 	uint32 loopEnd;			// in samples?
-	int8   finetune;		// Low nibble = MOD finetune, high nibble = transpose (7 = center)
+	uint8  finetune;		// Low nibble = MOD finetune, high nibble = transpose (7 = center)
 	uint8  volume;			// default volume
 	uint16 c2freq;			// Middle-C frequency, which has to be combined with the finetune and transpose.
 
@@ -1067,16 +1064,16 @@ struct PACKED PSM16SampleHeader
 		mptSmp.uFlags.reset();
 		if(flags & PSM16SampleHeader::smp16Bit)
 		{
-			mptSmp.uFlags |= CHN_16BIT;
+			mptSmp.uFlags.set(CHN_16BIT);
 			mptSmp.nLength /= 2;
 		}
 		if(flags & PSM16SampleHeader::smpPingPong)
 		{
-			mptSmp.uFlags |= CHN_PINGPONGLOOP;
+			mptSmp.uFlags.set(CHN_PINGPONGLOOP);
 		}
 		if(flags & PSM16SampleHeader::smpLoop)
 		{
-			mptSmp.uFlags |= CHN_LOOP;
+			mptSmp.uFlags.set(CHN_LOOP);
 		}
 	}
 
@@ -1135,6 +1132,8 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 		|| (fileHeader.formatVersion != 0x10 && fileHeader.formatVersion != 0x01) // why is this sometimes 0x01?
 		|| fileHeader.patternVersion != 0 // 255ch pattern version not supported (did anyone use this?)
 		|| (fileHeader.songType & 3) != 0
+		|| fileHeader.numChannelsPlay > MAX_BASECHANNELS
+		|| fileHeader.numChannelsReal > MAX_BASECHANNELS
 		|| std::max(fileHeader.numChannelsPlay, fileHeader.numChannelsReal) == 0)
 	{
 		return false;
@@ -1144,9 +1143,8 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 	}
 
 	// Seems to be valid!
-	InitializeGlobals();
-	madeWithTracker = "Epic MegaGames MASI (Old Version)";
-	m_nType = MOD_TYPE_S3M;
+	InitializeGlobals(MOD_TYPE_PSM);
+	m_madeWithTracker = "Epic MegaGames MASI (Old Version)";
 	m_nChannels = Clamp(CHANNELINDEX(fileHeader.numChannelsPlay), CHANNELINDEX(fileHeader.numChannelsReal), MAX_BASECHANNELS);
 	m_nSamplePreAmp = fileHeader.masterVolume;
 	if(m_nSamplePreAmp == 255)
@@ -1155,9 +1153,9 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 		m_nSamplePreAmp = 48;
 	}
 	m_nDefaultSpeed = fileHeader.songSpeed;
-	m_nDefaultTempo = fileHeader.songTempo;
+	m_nDefaultTempo.Set(fileHeader.songTempo);
 
-	mpt::String::Read<mpt::String::spacePadded>(songName, fileHeader.songName);
+	mpt::String::Read<mpt::String::spacePadded>(m_songName, fileHeader.songName);
 
 	// Read orders
 	if(fileHeader.orderOffset > 4 && file.Seek(fileHeader.orderOffset - 4) && file.ReadUint32LE() == PSM16FileHeader::idPORD)
@@ -1190,13 +1188,16 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 			}
 
 			SAMPLEINDEX smp = sampleHeader.sampleNumber;
-			m_nSamples = std::max(m_nSamples, smp);
+			if(smp < MAX_SAMPLES)
+			{
+				m_nSamples = std::max(m_nSamples, smp);
 
-			mpt::String::Read<mpt::String::nullTerminated>(m_szNames[smp], sampleHeader.name);
-			sampleHeader.ConvertToMPT(Samples[smp]);
+				mpt::String::Read<mpt::String::nullTerminated>(m_szNames[smp], sampleHeader.name);
+				sampleHeader.ConvertToMPT(Samples[smp]);
 
-			file.Seek(sampleHeader.offset);
-			sampleHeader.GetSampleFormat().ReadSample(Samples[smp], file);
+				file.Seek(sampleHeader.offset);
+				sampleHeader.GetSampleFormat().ReadSample(Samples[smp], file);
+			}
 		}
 	}
 
@@ -1223,7 +1224,7 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 			// Patterns are padded to 16 Bytes
 			FileReader patternChunk = file.ReadChunk(((patternHeader.size + 15) & ~15) - sizeof(PSM16PatternHeader));
 
-			if(Patterns.Insert(pat, patternHeader.numRows))
+			if(!Patterns.Insert(pat, patternHeader.numRows))
 			{
 				continue;
 			}
@@ -1238,7 +1239,7 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 
 			ROWINDEX curRow = 0;
 
-			while(patternChunk.AreBytesLeft() && curRow < patternHeader.numRows)
+			while(patternChunk.CanRead(1) && curRow < patternHeader.numRows)
 			{
 				uint8 chnFlag = patternChunk.ReadUint8();
 				if(chnFlag == 0)
@@ -1247,7 +1248,7 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 					continue;
 				}
 
-				ModCommand &m = *Patterns[pat].GetpModCommand(curRow, MIN(chnFlag & channelMask, m_nChannels - 1));
+				ModCommand &m = *Patterns[pat].GetpModCommand(curRow, std::min<CHANNELINDEX>(chnFlag & channelMask, m_nChannels - 1));
 
 				if(chnFlag & noteFlag)
 				{
@@ -1356,6 +1357,7 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 						break;
 					case 0x2A: // note cut
 						m.command = CMD_S3MCMDEX;
+#ifdef MODPLUG_TRACKER
 						if(m.param == 0)	// in S3M mode, SC0 is ignored, so we convert it to a note cut.
 						{
 							if(m.note == NOTE_NONE)
@@ -1367,6 +1369,7 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 								m.param = 1;
 							}
 						}
+#endif // MODPLUG_TRACKER
 						m.param |= 0xC0;
 						break;
 					case 0x2B: // note delay
@@ -1404,11 +1407,11 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 						break;
 					case 0x47: // set finetune
 						m.command = CMD_S3MCMDEX;
-						m.param |= 0x20;
+						m.param = 0x20 | (m.param & 0x0F);
 						break;
 					case 0x48: // set balance (panning?)
-						m.command = CMD_PANNING8;
-						m.param = (m.param << 4) + 8;
+						m.command = CMD_S3MCMDEX;
+						m.param = 0x80 | (m.param & 0x0F);
 						break;
 
 					default:
@@ -1428,8 +1431,11 @@ bool CSoundFile::ReadPSM16(FileReader &file, ModLoadingFlags loadFlags)
 	if(fileHeader.commentsOffset != 0)
 	{
 		file.Seek(fileHeader.commentsOffset);
-		songMessage.Read(file, file.ReadUint16LE(), SongMessage::leAutodetect);
+		m_songMessage.Read(file, file.ReadUint16LE(), SongMessage::leAutodetect);
 	}
 
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

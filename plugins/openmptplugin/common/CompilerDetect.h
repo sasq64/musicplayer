@@ -40,14 +40,20 @@
 #define MPT_GCC_AT_LEAST(major,minor,patch)          (MPT_COMPILER_GCC_VERSION >= MPT_COMPILER_MAKE_VERSION3((major),(minor),(patch)))
 #define MPT_GCC_BEFORE(major,minor,patch)            (MPT_COMPILER_GCC_VERSION <  MPT_COMPILER_MAKE_VERSION3((major),(minor),(patch)))
 
-#if MPT_GCC_BEFORE(4,4,0)
-#error "GCC version 4.4 required"
+#if MPT_GCC_BEFORE(4,1,0)
+#error "GCC version 4.1 required"
 #endif
 
 #elif defined(_MSC_VER)
 
 #define MPT_COMPILER_MSVC                            1
-#if (_MSC_VER >= 1600)
+#if (_MSC_VER >= 1900)
+#define MPT_COMPILER_MSVC_VERSION                    MPT_COMPILER_MAKE_VERSION2(2015,0)
+#elif (_MSC_VER >= 1800)
+#define MPT_COMPILER_MSVC_VERSION                    MPT_COMPILER_MAKE_VERSION2(2013,0)
+#elif (_MSC_VER >= 1700)
+#define MPT_COMPILER_MSVC_VERSION                    MPT_COMPILER_MAKE_VERSION2(2012,0)
+#elif (_MSC_VER >= 1600)
 #define MPT_COMPILER_MSVC_VERSION                    MPT_COMPILER_MAKE_VERSION2(2010,0)
 #elif (_MSC_VER >= 1500)
 #define MPT_COMPILER_MSVC_VERSION                    MPT_COMPILER_MAKE_VERSION2(2008,0)
@@ -59,6 +65,12 @@
 
 #if MPT_MSVC_BEFORE(2008,0)
 #error "MSVC version 2008 required"
+#endif
+
+#if defined(_PREFAST_)
+#ifndef MPT_BUILD_ANALYZED
+#define MPT_BUILD_ANALYZED
+#endif
 #endif
 
 #else
@@ -138,6 +150,143 @@
 	#else
 		#error "unknown endianness"
 	#endif
+#endif
+
+
+
+#if MPT_COMPILER_MSVC
+
+	#if defined(_M_X64)
+		#define MPT_ARCH_BITS 64
+		#define MPT_ARCH_BITS_32 0
+		#define MPT_ARCH_BITS_64 1
+	#elif defined(_M_IX86)
+		#define MPT_ARCH_BITS 32
+		#define MPT_ARCH_BITS_32 1
+		#define MPT_ARCH_BITS_64 0
+	#endif
+
+#elif MPT_COMPILER_GCC || MPT_COMPILER_CLANG
+
+	#if (__SIZEOF_POINTER__ == 8)
+		#define MPT_ARCH_BITS 64
+		#define MPT_ARCH_BITS_32 0
+		#define MPT_ARCH_BITS_64 1
+	#elif (__SIZEOF_POINTER__ == 4)
+		#define MPT_ARCH_BITS 32
+		#define MPT_ARCH_BITS_32 1
+		#define MPT_ARCH_BITS_64 0
+	#endif
+
+#endif // MPT_COMPILER
+
+
+
+// Guess the supported C++ standard version
+
+// This is only a rough estimate to facilitate conditional compilation
+
+#define MPT_CXX_98          19971L // STD
+#define MPT_CXX_03_TR1     200301L // custom
+#define MPT_CXX_11_PARTIAL 201100L // custom
+#define MPT_CXX_11_FULL    201103L // STD
+#define MPT_CXX_14_PARTIAL 201400L // custom
+#define MPT_CXX_14_FULL    201402L // STD
+
+#if MPT_COMPILER_GENERIC
+	#define MPT_CXX_VERSION __cplusplus
+#elif MPT_COMPILER_CLANG
+	#if MPT_CLANG_AT_LEAST(3,5,0)
+		#define MPT_CXX_VERSION MPT_CXX_11_FULL
+	#else
+		#define MPT_CXX_VERSION MPT_CXX_11_PARTIAL
+	#endif
+#elif MPT_COMPILER_GCC
+	#if MPT_GCC_AT_LEAST(4,9,0)
+		#define MPT_CXX_VERSION MPT_CXX_11_FULL
+	#elif MPT_GCC_AT_LEAST(4,3,0)
+		#define MPT_CXX_VERSION MPT_CXX_11_PARTIAL
+	#elif MPT_GCC_AT_LEAST(4,1,0)
+		#define MPT_CXX_VERSION MPT_CXX_03_TR1
+	#else
+		#define MPT_CXX_VERSION MPT_CXX_98
+	#endif
+#elif MPT_COMPILER_MSVC
+	#if MPT_MSVC_AT_LEAST(2010,0)
+		#define MPT_CXX_VERSION MPT_CXX_11_PARTIAL
+	#else
+		#define MPT_CXX_VERSION MPT_CXX_03_TR1
+	#endif
+#endif // MPT_COMPILER
+
+
+
+// specific C++ features
+
+#if MPT_COMPILER_MSVC
+#if MPT_MSVC_AT_LEAST(2010,0)
+#define MPT_COMPILER_HAS_RVALUE_REF 1
+#endif
+#elif MPT_COMPILER_GCC
+#if MPT_GCC_AT_LEAST(4,5,0)
+#define MPT_COMPILER_HAS_RVALUE_REF 1
+#endif
+#elif MPT_COMPILER_CLANG
+#if MPT_CLANG_AT_LEAST(3,0,0)
+#define MPT_COMPILER_HAS_RVALUE_REF 1
+#endif
+#endif
+
+#ifndef MPT_COMPILER_HAS_RVALUE_REF
+#define MPT_COMPILER_HAS_RVALUE_REF 0
+#endif
+
+
+// C++11 includes variadic macros.
+// C99 includes variadic macros.
+
+#if MPT_COMPILER_CLANG
+#if MPT_CLANG_AT_LEAST(3,0,0)
+#define MPT_COMPILER_HAS_VARIADIC_MACROS 1
+#endif
+#elif MPT_COMPILER_MSVC
+#if MPT_MSVC_AT_LEAST(2005,0)
+#define MPT_COMPILER_HAS_VARIADIC_MACROS 1
+#endif
+#elif MPT_COMPILER_GCC
+#if MPT_GCC_AT_LEAST(3,0,0)
+#define MPT_COMPILER_HAS_VARIADIC_MACROS 1
+#endif
+#endif
+
+#ifndef MPT_COMPILER_HAS_VARIADIC_MACROS
+#define MPT_COMPILER_HAS_VARIADIC_MACROS 0
+#endif
+
+
+#if MPT_MSVC_AT_LEAST(2010,0) || MPT_CLANG_AT_LEAST(3,0,0) || MPT_GCC_AT_LEAST(4,5,0)
+#define MPT_COMPILER_HAS_TYPE_TRAITS 1
+#endif
+
+#ifndef MPT_COMPILER_HAS_TYPE_TRAITS
+#define MPT_COMPILER_HAS_TYPE_TRAITS 0
+#endif
+
+
+#if MPT_COMPILER_GCC || MPT_COMPILER_MSVC
+// Compiler supports type-punning through unions. This is not stricly standard-conforming.
+// For GCC, this is documented, for MSVC this is apparently not documented, but we assume it.
+#define MPT_COMPILER_UNION_TYPE_ALIASES 1
+#endif
+
+#ifndef MPT_COMPILER_UNION_TYPE_ALIASES
+// Compiler does not support type-punning through unions. std::memcpy is used instead.
+// This is the safe fallback and strictly standard-conforming.
+// Another standard-compliant alternative would be casting pointers to a character type pointer.
+// This results in rather unreadable code and,
+// in most cases, compilers generate better code by just inlining the memcpy anyway.
+// (see <http://blog.regehr.org/archives/959>).
+#define MPT_COMPILER_UNION_TYPE_ALIASES 0
 #endif
 
 

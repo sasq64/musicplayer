@@ -18,16 +18,22 @@
 //   with more than two taps since they're not symmetric. We might need separate LUTs
 //   because otherwise we will add tons of branches.
 // - Loop wraparound works pretty well in general, but not at the start of bidi samples.
-// - THe loop lookahead stuff might still fail for samples with backward loops.
+// - The loop lookahead stuff might still fail for samples with backward loops.
 
 #include "stdafx.h"
 #include "Sndfile.h"
 #include "MixerLoops.h"
+#include <cfloat>	// For FLT_EPSILON
 #ifdef MPT_INTMIXER
 #include "IntMixer.h"
 #else
 #include "FloatMixer.h"
 #endif // MPT_INTMIXER
+#include "plugins/PlugInterface.h"
+#include <algorithm>
+
+
+OPENMPT_NAMESPACE_BEGIN
 
 
 namespace MixFuncTable
@@ -95,6 +101,7 @@ const MixFuncInterface Functions[5 * 16] =
 	BuildMixFuncTable(FIRFilterInterpolation),	// FIR SRC
 };
 
+
 #undef BuildMixFuncTableRamp
 #undef BuildMixFuncTableFilter
 #undef BuildMixFuncTable
@@ -132,7 +139,7 @@ static forceinline int32 BufferLengthToSamples(int32 mixBufferCount, const ModCh
 static forceinline int32 SamplesToBufferLength(int32 numSamples, const ModChannel &chn)
 //-------------------------------------------------------------------------------------
 {
-	return std::max(1, ((numSamples << 16)/* + static_cast<int32>(chn.nPosLo) + 0xFFFF*/) / abs(chn.nInc));
+	return std::max(1, ((numSamples << 16)/* + static_cast<int32>(chn.nPosLo) + 0xFFFF*/) / mpt::abs(chn.nInc));
 }
 
 
@@ -265,6 +272,34 @@ static forceinline int32 GetSampleCount(ModChannel &chn, int32 nSamples, bool IT
 	return nSmpCount;
 }
 
+
+// Calculate offset of loop wrap-around buffer for this sample.
+static inline void UpdateLookaheadPointers(const int8* &samplePointer, const int8* &lookaheadPointer, SmpLength &lookaheadStart, const ModChannel &chn, const MixFuncTable::ResamplingIndex resamplingMode)
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{
+	samplePointer = static_cast<const int8 *>(chn.pCurrentSample);
+	lookaheadStart = chn.nLoopEnd - InterpolationMaxLookahead;
+	// We only need to apply the loop wrap-around logic if the sample is actually looping and if interpolation is applied.
+	// If there is no interpolation happening, there is no lookahead happening the sample read-out is exact.
+	if(chn.dwFlags[CHN_LOOP] && resamplingMode != MixFuncTable::ndxNoInterpolation)
+	{
+		const bool loopEndsAtSampleEnd = chn.pModSample->uFlags[CHN_LOOP] && chn.pModSample->nLoopEnd == chn.pModSample->nLength && chn.pModSample->nLength >= InterpolationMaxLookahead;
+		const bool inSustainLoop = chn.InSustainLoop();
+
+		// Do not enable wraparound magic if we're previewing a custom loop!
+		if(inSustainLoop || chn.nLoopEnd == chn.pModSample->nLoopEnd)
+		{
+			SmpLength lookaheadOffset = (loopEndsAtSampleEnd ? 0 : (3 * InterpolationMaxLookahead)) + chn.pModSample->nLength - chn.nLoopEnd;
+			if(inSustainLoop)
+			{
+				lookaheadOffset += 4 * InterpolationMaxLookahead;
+			}
+			lookaheadPointer = samplePointer + lookaheadOffset * chn.pModSample->GetBytesPerSample();
+		}
+	}
+}
+
+
 // Render count * number of channels samples
 void CSoundFile::CreateStereoMix(int count)
 //-----------------------------------------
@@ -279,7 +314,7 @@ void CSoundFile::CreateStereoMix(int count)
 
 	CHANNELINDEX nchmixed = 0;
 
-	const bool ITPingPongMode = IsITPingPongMode();
+	const bool ITPingPongMode = m_playBehaviour[kITPingPongMode];
 	const bool realtimeMix = !IsRenderingToDisc();
 
 	for(uint32 nChn = 0; nChn < m_nMixChannels; nChn++)
@@ -317,46 +352,32 @@ void CSoundFile::CreateStereoMix(int count)
 			pbuffer = MixRearBuffer;
 
 		//Look for plugins associated with this implicit tracker channel.
+#ifndef NO_PLUGINS
 		PLUGINDEX nMixPlugin = GetBestPlugin(m_PlayState.ChnMix[nChn], PrioritiseInstrument, RespectMutes);
 
-		if ((nMixPlugin > 0) && (nMixPlugin <= MAX_MIXPLUGINS))
+		if ((nMixPlugin > 0) && (nMixPlugin <= MAX_MIXPLUGINS) && m_MixPlugins[nMixPlugin - 1].pMixPlugin != nullptr)
 		{
-			SNDMIXPLUGINSTATE *pPlugin = m_MixPlugins[nMixPlugin - 1].pMixState;
-			if ((pPlugin) && (pPlugin->pMixBuffer))
+			// Render into plugin buffer instead of global buffer
+			SNDMIXPLUGINSTATE &mixState = m_MixPlugins[nMixPlugin - 1].pMixPlugin->m_MixState;
+			if (mixState.pMixBuffer)
 			{
-				pbuffer = pPlugin->pMixBuffer;
-				pOfsR = &pPlugin->nVolDecayR;
-				pOfsL = &pPlugin->nVolDecayL;
-				if (!(pPlugin->dwFlags & SNDMIXPLUGINSTATE::psfMixReady))
+				pbuffer = mixState.pMixBuffer;
+				pOfsR = &mixState.nVolDecayR;
+				pOfsL = &mixState.nVolDecayL;
+				if (!(mixState.dwFlags & SNDMIXPLUGINSTATE::psfMixReady))
 				{
 					StereoFill(pbuffer, count, *pOfsR, *pOfsL);
-					pPlugin->dwFlags |= SNDMIXPLUGINSTATE::psfMixReady;
+					mixState.dwFlags |= SNDMIXPLUGINSTATE::psfMixReady;
 				}
 			}
 		}
+#endif // NO_PLUGINS
 
-		// Calculate offset of loop wrap-around buffer for this sample.
-		const int8 * const samplePointer = static_cast<const int8 *>(chn.pCurrentSample);
+		const int8 * samplePointer = nullptr;
 		const int8 * lookaheadPointer = nullptr;
-		const SmpLength lookaheadStart = chn.nLoopEnd - InterpolationMaxLookahead;
-		// We only need to apply the loop wrap-around logic if the sample is actually looping and if interpolation is applied.
-		// If there is no interpolation happening, there is no lookahead happening the sample read-out is exact.
-		if(chn.dwFlags[CHN_LOOP] && resamplingMode != MixFuncTable::ndxNoInterpolation)
-		{
-			const bool loopEndsAtSampleEnd = chn.pModSample->uFlags[CHN_LOOP] && chn.pModSample->nLoopEnd == chn.pModSample->nLength;
-			const bool inSustainLoop = chn.InSustainLoop();
+		SmpLength lookaheadStart = 0;
 
-			// Do not enable wraparound magic if we're previewing a custom loop!
-			if(inSustainLoop || chn.nLoopEnd == chn.pModSample->nLoopEnd)
-			{
-				SmpLength lookaheadOffset = (loopEndsAtSampleEnd ? 0 : (3 * InterpolationMaxLookahead)) + chn.pModSample->nLength - chn.nLoopEnd;
-				if(inSustainLoop)
-				{
-					lookaheadOffset += 4 * InterpolationMaxLookahead;
-				}
-				lookaheadPointer = samplePointer + lookaheadOffset * chn.pModSample->GetBytesPerSample();
-			}
-		}
+		UpdateLookaheadPointers(samplePointer, lookaheadPointer, lookaheadStart, chn, resamplingMode);
 
 		////////////////////////////////////////////////////
 		CHANNELINDEX naddmix = 0;
@@ -370,6 +391,7 @@ void CSoundFile::CreateStereoMix(int count)
 			{
 				if (nrampsamples > chn.nRampLength) nrampsamples = chn.nRampLength;
 			}
+
 			if((nSmpCount = GetSampleCount(chn, nrampsamples, ITPingPongMode)) <= 0)
 			{
 				// Stopping the channel
@@ -385,6 +407,7 @@ void CSoundFile::CreateStereoMix(int count)
 				chn.dwFlags.reset(CHN_PINGPONGFLAG);
 				break;
 			}
+
 			// Should we mix this channel ?
 			if((nchmixed >= m_MixerSettings.m_nMaxMixChannels && realtimeMix)	// Too many channels
 				|| (!chn.nRampLength && !(chn.leftVol | chn.rightVol)))			// Channel is completely silent
@@ -433,7 +456,7 @@ void CSoundFile::CreateStereoMix(int count)
 
 				uint32 targetpos = chn.nPos + (BufferLengthToSamples(nSmpCount, chn) >> 16);
 				MixFuncTable::Functions[functionNdx | (chn.nRampLength ? MixFuncTable::ndxRamp : 0)](chn, m_Resampler, pbuffer, nSmpCount);
-				ASSERT(chn.nPos == targetpos);
+				MPT_ASSERT(chn.nPos == targetpos); MPT_UNUSED_VARIABLE(targetpos);
 
 				chn.nROfs += *(pbufmax-2);
 				chn.nLOfs += *(pbufmax-1);
@@ -460,67 +483,112 @@ void CSoundFile::CreateStereoMix(int count)
 					chn.nRampLength -= nSmpCount;
 				}
 			}
+
+			if(chn.nPos >= chn.nLoopEnd && chn.dwFlags[CHN_LOOP])
+			{
+				if(m_playBehaviour[kMODSampleSwap] && chn.nNewIns && chn.nNewIns <= GetNumSamples() && chn.pModSample != &Samples[chn.nNewIns])
+				{
+					// ProTracker compatibility: Instrument changes without a note do not happen instantly, but rather when the sample loop has finished playing.
+					// Test case: PTInstrSwap.mod
+					const ModSample &smp = Samples[chn.nNewIns];
+					chn.pModSample = &smp;
+					chn.pCurrentSample = smp.pSample;
+					chn.dwFlags = (chn.dwFlags & CHN_CHANNELFLAGS) | smp.uFlags;
+					chn.nLength = smp.uFlags[CHN_LOOP] ? smp.nLoopEnd : smp.nLength;
+					chn.nLoopStart = smp.nLoopStart;
+					chn.nLoopEnd = smp.nLoopEnd;
+					chn.nPos = chn.nLoopStart;
+					UpdateLookaheadPointers(samplePointer, lookaheadPointer, lookaheadStart, chn, resamplingMode);
+					if(!chn.pCurrentSample)
+					{
+						break;
+					}
+				} else if(m_playBehaviour[kMODOneShotLoops] && chn.nLoopStart == 0)
+				{
+					// ProTracker "oneshot" loops (if loop start is 0, play the whole sample once and then repeat until loop end)
+					chn.nPos = 0;
+					chn.nLoopEnd = chn.nLength = chn.pModSample->nLoopEnd;
+				}
+			}
 		} while(nsamples > 0);
 
 		// Restore sample pointer in case it got changed through loop wrap-around
 		chn.pCurrentSample = samplePointer;
 		nchmixed += naddmix;
+	
+#ifndef NO_PLUGINS
+		if(naddmix && nMixPlugin > 0 && nMixPlugin <= MAX_MIXPLUGINS && m_MixPlugins[nMixPlugin - 1].pMixPlugin)
+		{
+			m_MixPlugins[nMixPlugin - 1].pMixPlugin->ResetSilence();
+		}
+#endif // NO_PLUGINS
 	}
 	m_nMixStat = std::max<CHANNELINDEX>(m_nMixStat, nchmixed);
 }
 
 
-void CSoundFile::ProcessPlugins(UINT nCount)
-//------------------------------------------
+void CSoundFile::ProcessPlugins(uint32 nCount)
+//--------------------------------------------
 {
+#ifndef NO_PLUGINS
+	// If any sample channels are active or any plugin has some input, possibly suspended master plugins need to be woken up.
+	bool masterHasInput = (m_nMixStat > 0);
+
 #ifdef MPT_INTMIXER
 	const float IntToFloat = m_PlayConfig.getIntToFloat();
 	const float FloatToInt = m_PlayConfig.getFloatToInt();
 #endif // MPT_INTMIXER
+
 	// Setup float inputs
 	for(PLUGINDEX plug = 0; plug < MAX_MIXPLUGINS; plug++)
 	{
 		SNDMIXPLUGIN &plugin = m_MixPlugins[plug];
-		if(plugin.pMixPlugin != nullptr && plugin.pMixState != nullptr
-			&& plugin.pMixState->pMixBuffer != nullptr
-			&& plugin.pMixState->pOutBufferL != nullptr
-			&& plugin.pMixState->pOutBufferR != nullptr)
+		if(plugin.pMixPlugin != nullptr
+			&& plugin.pMixPlugin->m_MixState.pMixBuffer != nullptr
+			&& plugin.pMixPlugin->m_mixBuffer.Ok())
 		{
-			SNDMIXPLUGINSTATE *pState = plugin.pMixState;
+			IMixPlugin *mixPlug = plugin.pMixPlugin;
+			SNDMIXPLUGINSTATE &state = mixPlug->m_MixState;
 
 			//We should only ever reach this point if the song is playing.
-			if (!plugin.pMixPlugin->IsSongPlaying())
+			if (!mixPlug->IsSongPlaying())
 			{
 				//Plugin doesn't know it is in a song that is playing;
 				//we must have added it during playback. Initialise it!
-				plugin.pMixPlugin->NotifySongPlaying(true);
-				plugin.pMixPlugin->Resume();
+				mixPlug->NotifySongPlaying(true);
+				mixPlug->Resume();
 			}
 
 
 			// Setup float input
-			if (pState->dwFlags & SNDMIXPLUGINSTATE::psfMixReady)
+			float *plugInputL = mixPlug->m_mixBuffer.GetInputBuffer(0);
+			float *plugInputR = mixPlug->m_mixBuffer.GetInputBuffer(1);
+			if (state.dwFlags & SNDMIXPLUGINSTATE::psfMixReady)
 			{
 #ifdef MPT_INTMIXER
-				StereoMixToFloat(pState->pMixBuffer, pState->pOutBufferL, pState->pOutBufferR, nCount, IntToFloat);
+				StereoMixToFloat(state.pMixBuffer, plugInputL, plugInputR, nCount, IntToFloat);
 #else
-				DeinterleaveStereo(pState->pMixBuffer, pState->pOutBufferL, pState->pOutBufferR, nCount);
+				DeinterleaveStereo(pState->pMixBuffer, plugInputL, plugInputR, nCount);
 #endif // MPT_INTMIXER
-			} else
-			if (pState->nVolDecayR || pState->nVolDecayL)
+			} else if (state.nVolDecayR || state.nVolDecayL)
 			{
-				StereoFill(pState->pMixBuffer, nCount, pState->nVolDecayR, pState->nVolDecayL);
+				StereoFill(state.pMixBuffer, nCount, state.nVolDecayR, state.nVolDecayL);
 #ifdef MPT_INTMIXER
-				StereoMixToFloat(pState->pMixBuffer, pState->pOutBufferL, pState->pOutBufferR, nCount, IntToFloat);
+				StereoMixToFloat(state.pMixBuffer, plugInputL, plugInputR, nCount, IntToFloat);
 #else
-				DeinterleaveStereo(pState->pMixBuffer, pState->pOutBufferL, pState->pOutBufferR, nCount);
+				DeinterleaveStereo(pState->pMixBuffer, plugInputL, plugInputR, nCount);
 #endif // MPT_INTMIXER
 			} else
 			{
-				memset(pState->pOutBufferL, 0, nCount * sizeof(float));
-				memset(pState->pOutBufferR, 0, nCount * sizeof(float));
+				memset(plugInputL, 0, nCount * sizeof(plugInputL[0]));
+				memset(plugInputR, 0, nCount * sizeof(plugInputR[0]));
 			}
-			pState->dwFlags &= ~SNDMIXPLUGINSTATE::psfMixReady;
+			state.dwFlags &= ~SNDMIXPLUGINSTATE::psfMixReady;
+			
+			if(!plugin.IsMasterEffect() && !(state.dwFlags & SNDMIXPLUGINSTATE::psfSilenceBypass))
+			{
+				masterHasInput = true;
+			}
 		}
 	}
 	// Convert mix buffer
@@ -532,24 +600,47 @@ void CSoundFile::ProcessPlugins(UINT nCount)
 	float *pMixL = MixFloatBuffer[0];
 	float *pMixR = MixFloatBuffer[1];
 
+	const bool positionChanged = HasPositionChanged();
+
 	// Process Plugins
 	for(PLUGINDEX plug = 0; plug < MAX_MIXPLUGINS; plug++)
 	{
 		SNDMIXPLUGIN &plugin = m_MixPlugins[plug];
-		if (plugin.pMixPlugin != nullptr && plugin.pMixState != nullptr
-			&& plugin.pMixState->pMixBuffer != nullptr
-			&& plugin.pMixState->pOutBufferL != nullptr
-			&& plugin.pMixState->pOutBufferR != nullptr)
+		if (plugin.pMixPlugin != nullptr
+			&& plugin.pMixPlugin->m_MixState.pMixBuffer != nullptr
+			&& plugin.pMixPlugin->m_mixBuffer.Ok())
 		{
+			IMixPlugin *pObject = plugin.pMixPlugin;
+			if(!plugin.IsMasterEffect() && !plugin.pMixPlugin->ShouldProcessSilence() && !(plugin.pMixPlugin->m_MixState.dwFlags & SNDMIXPLUGINSTATE::psfHasInput))
+			{
+				// If plugin has no inputs and isn't a master plugin, we shouldn't let it process silence if possible.
+				// I have yet to encounter a plugin which actually sets this flag.
+				bool hasInput = false;
+				for(PLUGINDEX inPlug = 0; inPlug < plug; inPlug++)
+				{
+					if(m_MixPlugins[inPlug].GetOutputPlugin() == plug)
+					{
+						hasInput = true;
+						break;
+					}
+				}
+				if(!hasInput)
+				{
+					continue;
+				}
+			}
+
 			bool isMasterMix = false;
-			if (pMixL == plugin.pMixState->pOutBufferL)
+			float *plugInputL = pObject->m_mixBuffer.GetInputBuffer(0);
+			float *plugInputR = pObject->m_mixBuffer.GetInputBuffer(1);
+
+			if (pMixL == plugInputL)
 			{
 				isMasterMix = true;
 				pMixL = MixFloatBuffer[0];
 				pMixR = MixFloatBuffer[1];
 			}
-			IMixPlugin *pObject = plugin.pMixPlugin;
-			SNDMIXPLUGINSTATE *pState = plugin.pMixState;
+			SNDMIXPLUGINSTATE &state = plugin.pMixPlugin->m_MixState;
 			float *pOutL = pMixL;
 			float *pOutR = pMixR;
 
@@ -557,14 +648,15 @@ void CSoundFile::ProcessPlugins(UINT nCount)
 			{
 				PLUGINDEX nOutput = plugin.GetOutputPlugin();
 				if(nOutput > plug && nOutput != PLUGINDEX_INVALID
-					&& m_MixPlugins[nOutput].pMixState != nullptr)
+					&& m_MixPlugins[nOutput].pMixPlugin != nullptr)
 				{
-					SNDMIXPLUGINSTATE *pOutState = m_MixPlugins[nOutput].pMixState;
+					IMixPlugin *outPlugin = m_MixPlugins[nOutput].pMixPlugin;
+					if(!(state.dwFlags & SNDMIXPLUGINSTATE::psfSilenceBypass)) outPlugin->ResetSilence();
 
-					if(pOutState->pOutBufferL != nullptr && pOutState->pOutBufferR != nullptr)
+					if(outPlugin->m_mixBuffer.Ok())
 					{
-						pOutL = pOutState->pOutBufferL;
-						pOutR = pOutState->pOutBufferR;
+						pOutL = outPlugin->m_mixBuffer.GetInputBuffer(0);
+						pOutR = outPlugin->m_mixBuffer.GetInputBuffer(1);
 					}
 				}
 			}
@@ -575,8 +667,8 @@ void CSoundFile::ProcessPlugins(UINT nCount)
 				for (int nOutput=0; nOutput < plugin.nOutputs / 2; nOutput++) {
 					destinationPlug = plugin.multiRoutingDestinations[nOutput];
 					pOutState = m_MixPlugins[destinationPlug].pMixState;
-					pOutputs[2 * nOutput] = pOutState->pOutBufferL;
-					pOutputs[2 * (nOutput + 1)] = pOutState->pOutBufferR;
+					pOutputs[2 * nOutput] = plugInputL;
+					pOutputs[2 * (nOutput + 1)] = plugInputR;
 				}
 
 			}*/
@@ -585,9 +677,9 @@ void CSoundFile::ProcessPlugins(UINT nCount)
 			{
 				if (!isMasterMix)
 				{
-					float *pInL = pState->pOutBufferL;
-					float *pInR = pState->pOutBufferR;
-					for (UINT i=0; i<nCount; i++)
+					float *pInL = plugInputL;
+					float *pInR = plugInputR;
+					for (uint32 i=0; i<nCount; i++)
 					{
 						pInL[i] += pMixL[i];
 						pInR[i] += pMixR[i];
@@ -597,21 +689,63 @@ void CSoundFile::ProcessPlugins(UINT nCount)
 				}
 				pMixL = pOutL;
 				pMixR = pOutR;
+
+				if(masterHasInput)
+				{
+					// Samples or plugins are being rendered, so turn off auto-bypass for this master effect.
+					if(plugin.pMixPlugin != nullptr) plugin.pMixPlugin->ResetSilence();
+					SNDMIXPLUGIN *chain = &plugin;
+					PLUGINDEX out = chain->GetOutputPlugin();
+					while(out > plug && out < MAX_MIXPLUGINS)
+					{
+						chain = &m_MixPlugins[out];
+						out = chain->GetOutputPlugin();
+						if(chain->pMixPlugin)
+						{
+							chain->pMixPlugin->ResetSilence();
+						}
+					}
+				}
 			}
 
-			if (plugin.IsBypassed())
+			if(plugin.IsBypassed() || (plugin.IsAutoSuspendable() && (state.dwFlags & SNDMIXPLUGINSTATE::psfSilenceBypass)))
 			{
-				const float * const pInL = pState->pOutBufferL;
-				const float * const pInR = pState->pOutBufferR;
-				for (UINT i=0; i<nCount; i++)
+				const float * const pInL = plugInputL;
+				const float * const pInR = plugInputR;
+				for (uint32 i=0; i<nCount; i++)
 				{
 					pOutL[i] += pInL[i];
 					pOutR[i] += pInR[i];
 				}
 			} else
 			{
+				if(positionChanged)
+					pObject->PositionChanged();
 				pObject->Process(pOutL, pOutR, nCount);
+
+				state.inputSilenceCount += nCount;
+				if(plugin.IsAutoSuspendable() && pObject->GetNumOutputChannels() > 0 && state.inputSilenceCount >= m_MixerSettings.gdwMixingFreq * 4)
+				{
+					bool isSilent = true;
+					for(uint32 i = 0; i < nCount; i++)
+					{
+						if(pOutL[i] >= FLT_EPSILON || pOutL[i] <= -FLT_EPSILON
+							|| pOutR[i] >= FLT_EPSILON || pOutR[i] <= -FLT_EPSILON)
+						{
+							isSilent = false;
+							break;
+						}
+					}
+					if(isSilent)
+					{
+						state.dwFlags |= SNDMIXPLUGINSTATE::psfSilenceBypass;
+					} else
+					{
+						state.inputSilenceCount = 0;
+					}
+				}
 			}
+			state.dwFlags &= ~SNDMIXPLUGINSTATE::psfHasInput;
 		}
 	}
 #ifdef MPT_INTMIXER
@@ -619,5 +753,11 @@ void CSoundFile::ProcessPlugins(UINT nCount)
 #else
 	InterleaveStereo(pMixL, pMixR, MixSoundBuffer, nCount);
 #endif // MPT_INTMIXER
+
+#else
+	MPT_UNREFERENCED_PARAMETER(nCount);
+#endif // NO_PLUGINS
 }
 
+
+OPENMPT_NAMESPACE_END

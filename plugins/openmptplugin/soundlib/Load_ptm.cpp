@@ -12,6 +12,8 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -158,17 +160,15 @@ bool CSoundFile::ReadPTM(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
-	m_nType = MOD_TYPE_PTM;
+	InitializeGlobals(MOD_TYPE_PTM);
 
-	mpt::String::Read<mpt::String::maybeNullTerminated>(songName, fileHeader.songname);
+	mpt::String::Read<mpt::String::maybeNullTerminated>(m_songName, fileHeader.songname);
 
-	madeWithTracker = mpt::String::Print("PolyTracker %1.%2", fileHeader.versionHi, mpt::fmt::hex0<2>(fileHeader.versionLo));
-	SetModFlag(MSF_COMPATIBLE_PLAY, true);
+	m_madeWithTracker = mpt::String::Print("PolyTracker %1.%2", fileHeader.versionHi, mpt::fmt::hex0<2>(fileHeader.versionLo));
 	m_SongFlags = SONG_ITCOMPATGXX | SONG_ITOLDEFFECTS;
 	m_nChannels = fileHeader.numChannels;
 	m_nSamples = std::min<SAMPLEINDEX>(fileHeader.numSamples, MAX_SAMPLES - 1);
-	Order.ReadFromArray(fileHeader.orders, fileHeader.numOrders);
+	Order.ReadFromArray(fileHeader.orders, fileHeader.numOrders, 0xFF, 0xFE);
 
 	// Reading channel panning
 	for(CHANNELINDEX chn = 0; chn < m_nChannels; chn++)
@@ -202,7 +202,7 @@ bool CSoundFile::ReadPTM(FileReader &file, ModLoadingFlags loadFlags)
 
 	for(PATTERNINDEX pat = 0; pat < fileHeader.numPatterns; pat++)
 	{
-		if(Patterns.Insert(pat, 64)
+		if(!Patterns.Insert(pat, 64)
 			|| fileHeader.patOffsets[pat] == 0
 			|| !file.Seek(fileHeader.patOffsets[pat] << 4))
 		{
@@ -211,7 +211,7 @@ bool CSoundFile::ReadPTM(FileReader &file, ModLoadingFlags loadFlags)
 
 		ModCommand *rowBase = Patterns[pat];
 		ROWINDEX row = 0;
-		while(row < 64 && file.AreBytesLeft())
+		while(row < 64 && file.CanRead(1))
 		{
 			uint8 b = file.ReadUint8();
 
@@ -255,17 +255,12 @@ bool CSoundFile::ReadPTM(FileReader &file, ModLoadingFlags loadFlags)
 				{
 				case CMD_PANNING8:
 					// My observations of this weird command...
-					// 800...80F and 880...88F are panned dead centre.
-					// 810...87F and 890...8FF pan from hard left to hard right.
-					// A default center panning or using 800 is a bit louder than using 848, for whatever reason.
+					// 800...887 pan from hard left to hard right (whereas the low nibble seems to be ignored)
+					// 888...8FF do the same (so 888...88F is hard left, and 890 is identical to 810)
+					if(m.param >= 0x88) m.param &= 0x7F;
+					else if(m.param > 0x80) m.param = 0x80;
 					m.param &= 0x7F;
-					if(m.param < 0x10)
-					{
-						m.param = 0x80;
-					} else
-					{
-						m.param = (m.param - 0x10) * 0xFF / 0x6F;
-					}
+					m.param = (m.param * 0xFF) / 0x7F;
 					break;
 				case CMD_GLOBALVOLUME:
 					m.param = std::min(m.param, uint8(0x40)) * 2u;
@@ -281,3 +276,6 @@ bool CSoundFile::ReadPTM(FileReader &file, ModLoadingFlags loadFlags)
 	}
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

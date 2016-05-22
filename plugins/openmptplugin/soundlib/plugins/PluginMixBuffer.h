@@ -10,149 +10,119 @@
 
 #pragma once
 
+OPENMPT_NAMESPACE_BEGIN
+
 // At least this part of the code is ready for double-precision rendering... :>
 // buffer_t: Sample buffer type (float, double, ...)
 // bufferSize: Buffer size in samples
-template<typename buffer_t, size_t bufferSize>
+template<typename buffer_t, uint32 bufferSize>
 //===================
 class PluginMixBuffer
 //===================
 {
 protected:
 
-	buffer_t *mixBuffer;		// Actual buffer, contains all input and output buffers
-	buffer_t *alignedBuffer;	// Aligned pointer to the buffer
-	buffer_t **inputsArray;		// Pointers to input buffers
-	buffer_t **outputsArray;	// Pointers to output buffers
+	std::vector<buffer_t>   mixBuffer;	// Actual buffer, contains all input and output buffers
+	std::vector<buffer_t *> inputs;		// Pointers to input buffers
+	std::vector<buffer_t *> outputs;	// Pointers to output buffers
+	buffer_t *alignedBuffer;			// Aligned pointer to the buffer
 
-	size_t inputs, outputs;		// Number of input and output buffers
-
-	// Buffers on 32-Bit platforms: Aligned to 32 bytes
-	// Buffers on 64-Bit platforms: Aligned to 64 bytes
-	static_assert(sizeof(intptr_t) * 8 >= sizeof(buffer_t), "Check buffer alignment code");
-	static const size_t bufferAlignmentInBytes = (sizeof(intptr_t) * 8) - 1;
-	static const size_t additionalBuffer = ((sizeof(intptr_t) * 8) / sizeof(buffer_t));
+	// Align buffer to 16 bytes
+	static_assert(sizeof(buffer_t) < 16, "Check buffer alignment code");
+	static const size_t bufferAlignmentInBytes = (16 - 1);
+	static const size_t additionalBuffer = bufferAlignmentInBytes / sizeof(buffer_t);
 
 	// Return pointer to an aligned buffer
-	buffer_t *GetBuffer(size_t index) const
+	buffer_t *GetBuffer(uint32 index) const
 	//-------------------------------------
 	{
-		ASSERT(index < inputs + outputs);
+		MPT_ASSERT(index < inputs.size() + outputs.size());
 		return &alignedBuffer[bufferSize * index];
 	}
 
 public:
 
 	// Allocate input and output buffers
-	bool Initialize(size_t inputs, size_t outputs)
-	//--------------------------------------------
+	bool Initialize(uint32 numInputs, uint32 numOutputs)
+	//--------------------------------------------------
 	{
 		// Short cut - we do not need to recreate the buffers.
-		if(this->inputs == inputs && this->outputs == outputs)
+		if(inputs.size() == numInputs && outputs.size() == numOutputs)
 		{
 			return true;
 		}
 
-		Free();
-
-		this->inputs = inputs;
-		this->outputs = outputs;
-
 		try
 		{
+			inputs.resize(numInputs);
+			outputs.resize(numOutputs);
+
 			// Create inputs + outputs buffers with additional alignment.
-			const size_t totalBufferSize = bufferSize * (inputs + outputs) + additionalBuffer;
-			mixBuffer = new buffer_t[totalBufferSize];
-			memset(mixBuffer, 0, totalBufferSize * sizeof(buffer_t));
+			const size_t totalBufferSize = bufferSize * (numInputs + numOutputs) + additionalBuffer;
+			mixBuffer.assign(totalBufferSize, 0);
 
 			// Align buffer start.
-			alignedBuffer = reinterpret_cast<buffer_t *>((reinterpret_cast<intptr_t>(mixBuffer) + bufferAlignmentInBytes) & ~bufferAlignmentInBytes);
-
-			inputsArray = new (buffer_t *[inputs]);
-			outputsArray = new (buffer_t *[outputs]);
+			alignedBuffer = reinterpret_cast<buffer_t *>((reinterpret_cast<intptr_t>(&mixBuffer[0]) + bufferAlignmentInBytes) & ~bufferAlignmentInBytes);
 		} catch(MPTMemoryException)
 		{
+			inputs.clear();
+			outputs.clear();
+			mixBuffer.clear();
+			alignedBuffer = nullptr;
 			return false;
 		}
 
-		for(size_t i = 0; i < inputs; i++)
+		for(uint32 i = 0; i < numInputs; i++)
 		{
-			inputsArray[i] = GetInputBuffer(i);
+			inputs[i] = GetInputBuffer(i);
 		}
 
-		for(size_t i = 0; i < outputs; i++)
+		for(uint32 i = 0; i < numOutputs; i++)
 		{
-			outputsArray[i] = GetOutputBuffer(i);
+			outputs[i] = GetOutputBuffer(i);
 		}
-
-		return true;
-	}
-
-	// Free previously allocated buffers.
-	bool Free()
-	//---------
-	{
-		delete[] mixBuffer;
-		mixBuffer = alignedBuffer = nullptr;
-
-		delete[] inputsArray;
-		inputsArray = nullptr;
-
-		delete[] outputsArray;
-		outputsArray = nullptr;
-
-		inputs = outputs = 0;
 
 		return true;
 	}
 
 	// Silence all input buffers.
-	void ClearInputBuffers(size_t numSamples)
+	void ClearInputBuffers(uint32 numSamples)
 	//---------------------------------------
 	{
-		ASSERT(numSamples <= bufferSize);
-		for(size_t i = 0; i < inputs; i++)
+		MPT_ASSERT(numSamples <= bufferSize);
+		for(size_t i = 0; i < inputs.size(); i++)
 		{
-			memset(inputsArray[i], 0, numSamples * sizeof(buffer_t));
+			memset(inputs[i], 0, numSamples * sizeof(buffer_t));
 		}
 	}
 
 	// Silence all output buffers.
-	void ClearOutputBuffers(size_t numSamples)
+	void ClearOutputBuffers(uint32 numSamples)
 	//----------------------------------------
 	{
-		ASSERT(numSamples <= bufferSize);
-		for(size_t i = 0; i < outputs; i++)
+		MPT_ASSERT(numSamples <= bufferSize);
+		for(size_t i = 0; i < outputs.size(); i++)
 		{
-			memset(outputsArray[i], 0, numSamples * sizeof(buffer_t));
+			memset(outputs[i], 0, numSamples * sizeof(buffer_t));
 		}
 	}
 
 	PluginMixBuffer()
 	//---------------
 	{
-		mixBuffer = nullptr;
-		alignedBuffer = nullptr;
-		inputsArray = nullptr;
-		outputsArray = nullptr;
-
-		inputs = outputs = 0;
-
 		Initialize(2, 0);
 	}
 
-	~PluginMixBuffer()
-	//----------------
-	{
-		Free();
-	}
-
 	// Return pointer to a given input or output buffer
-	buffer_t *GetInputBuffer(size_t index) const { return GetBuffer(index); }
-	buffer_t *GetOutputBuffer(size_t index) const { return GetBuffer(inputs + index); }
+	buffer_t *GetInputBuffer(uint32 index) const { return GetBuffer(index); }
+	buffer_t *GetOutputBuffer(uint32 index) const { return GetBuffer(inputs.size() + index); }
 
 	// Return pointer array to all input or output buffers
-	buffer_t **GetInputBufferArray() const { return inputsArray; }
-	buffer_t **GetOutputBufferArray() const { return outputsArray; }
+	buffer_t **GetInputBufferArray() { return inputs.empty() ? nullptr : &inputs[0]; }
+	buffer_t **GetOutputBufferArray() { return outputs.empty() ? nullptr : &outputs[0]; }
 
+	bool Ok() const { return alignedBuffer != nullptr; }
 };
+
+
+OPENMPT_NAMESPACE_END

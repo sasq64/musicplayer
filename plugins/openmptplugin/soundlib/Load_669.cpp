@@ -13,6 +13,8 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -64,6 +66,7 @@ struct PACKED _669Sample
 	{
 		mptSmp.Initialize();
 
+		mptSmp.nC5Speed = 8363;
 		mptSmp.nLength = length;
 		mptSmp.nLoopStart = loopStart;
 		mptSmp.nLoopEnd = loopEnd;
@@ -97,51 +100,60 @@ bool CSoundFile::Read669(FileReader &file, ModLoadingFlags loadFlags)
 		|| (fileHeader.sig != _669FileHeader::magic669 && fileHeader.sig != _669FileHeader::magic669Ext)
 		|| fileHeader.samples > 64
 		|| fileHeader.restartPos >= 128
-		|| fileHeader.patterns > 128)
+		|| fileHeader.patterns > 128
+		|| !file.CanRead(fileHeader.samples * sizeof(_669Sample)))
 	{
 		return false;
-	} else if(loadFlags == onlyVerifyHeader)
+	}
+	
+	for(size_t i = 0; i < CountOf(fileHeader.breaks); i++)
+	{
+		if(fileHeader.breaks[i] > 64)
+			return false;
+	}
+
+	if(loadFlags == onlyVerifyHeader)
 	{
 		return true;
 	}
 
 	//bool has669Ext = fileHeader.sig == _669FileHeader::magic669Ext;
 
-	InitializeGlobals();
-	m_nType = MOD_TYPE_669;
+	InitializeGlobals(MOD_TYPE_669);
 	m_SongFlags = SONG_LINEARSLIDES;
 	m_nMinPeriod = 28 << 2;
 	m_nMaxPeriod = 1712 << 3;
-	m_nDefaultTempo = 78;
+	m_nDefaultTempo.Set(78);
 	m_nDefaultSpeed = 4;
 	m_nChannels = 8;
 
 	if(fileHeader.sig == _669FileHeader::magic669)
-		madeWithTracker = "Composer 669";
+		m_madeWithTracker = "Composer 669";
 	else
-		madeWithTracker = "UNIS 669";
+		m_madeWithTracker = "UNIS 669";
 
 	m_nSamples = fileHeader.samples;
 	for(SAMPLEINDEX smp = 1; smp <= m_nSamples; smp++)
 	{
 		_669Sample sampleHeader;
-		if(!file.ReadConvertEndianness(sampleHeader))
-		{
+		file.ReadConvertEndianness(sampleHeader);
+		// Since 669 files have very unfortunate magic bytes ("if") and can
+		// hardly be validated, reject any file with far too big samples.
+		if(sampleHeader.length >= 0x4000000)
 			return false;
-		}
 		sampleHeader.ConvertToMPT(Samples[smp]);
 		mpt::String::Read<mpt::String::maybeNullTerminated>(m_szNames[smp], sampleHeader.filename);
 	}
 
 	// Copy first song message line into song title
-	mpt::String::Read<mpt::String::spacePadded>(songName, fileHeader.songMessage, 36);
+	mpt::String::Read<mpt::String::spacePadded>(m_songName, fileHeader.songMessage, 36);
 	// Song Message
-	songMessage.ReadFixedLineLength(fileHeader.songMessage, 108, 36, 0);
+	m_songMessage.ReadFixedLineLength(mpt::byte_cast<const mpt::byte*>(fileHeader.songMessage), 108, 36, 0);
 
 	// Reading Orders
-	Order.ReadFromArray(fileHeader.orders);
-	m_nRestartPos = fileHeader.restartPos;
-	if(Order[m_nRestartPos] >= fileHeader.patterns) m_nRestartPos = 0;
+	Order.ReadFromArray(fileHeader.orders, CountOf(fileHeader.orders), 0xFF, 0xFE);
+	if(Order[fileHeader.restartPos] < fileHeader.patterns)
+		Order.SetRestartPos(fileHeader.restartPos);
 
 	// Set up panning
 	for(CHANNELINDEX chn = 0; chn < 8; chn++)
@@ -153,13 +165,19 @@ bool CSoundFile::Read669(FileReader &file, ModLoadingFlags loadFlags)
 	// Reading Patterns
 	for(PATTERNINDEX pat = 0; pat < fileHeader.patterns; pat++)
 	{
-		if(!(loadFlags & loadPatternData) || Patterns.Insert(pat, 64))
+		if(!(loadFlags & loadPatternData) || !Patterns.Insert(pat, 64))
 		{
 			file.Skip(64 * 8 * 3);
 			continue;
 		}
 
-		std::vector<uint8> effect(8, 0xFF);
+		const ModCommand::COMMAND effTrans[] =
+		{
+			CMD_PORTAMENTOUP,	CMD_PORTAMENTODOWN,	CMD_TONEPORTAMENTO,	CMD_PORTAMENTOUP,
+			CMD_ARPEGGIO,		CMD_SPEED,			CMD_PANNINGSLIDE,	CMD_RETRIG,
+		};
+
+		uint8 effect[8] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 		for(ROWINDEX row = 0; row < 64; row++)
 		{
 			PatternRow m = Patterns[pat].GetRow(row);
@@ -200,13 +218,7 @@ bool CSoundFile::Read669(FileReader &file, ModLoadingFlags loadFlags)
 
 				m->param = effect[chn] & 0x0F;
 
-				static const ModCommand::COMMAND effTrans[] =
-				{
-					CMD_PORTAMENTOUP,	CMD_PORTAMENTODOWN,	CMD_TONEPORTAMENTO,	CMD_PORTAMENTOUP,
-					CMD_ARPEGGIO,		CMD_SPEED,			CMD_PANNINGSLIDE,	CMD_RETRIG,
-				};
-
-				if(static_cast<uint8>(effect[chn] >> 4) < CountOf(effTrans))
+				if((effect[chn] >> 4) < static_cast<uint8>(CountOf(effTrans)))
 				{
 					m->command = effTrans[effect[chn] >> 4];
 				} else
@@ -240,7 +252,7 @@ bool CSoundFile::Read669(FileReader &file, ModLoadingFlags loadFlags)
 
 				case 5:
 					// F - set tempo
-					// TODO: param 0 is a "super fast tempo" in extended mode (?) 
+					// TODO: param 0 is a "super fast tempo" in extended mode (?)
 					effect[chn] = 0xFF;
 					break;
 
@@ -290,3 +302,6 @@ bool CSoundFile::Read669(FileReader &file, ModLoadingFlags loadFlags)
 
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

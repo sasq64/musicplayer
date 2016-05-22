@@ -14,6 +14,8 @@
 #include "../soundlib/ModSample.h"
 #include "../soundlib/SampleIO.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -63,7 +65,7 @@ struct PACKED ITFileHeader
 	uint8  pwd;				// Pitch Wheel Depth
 	uint16 msglength;		// Length of Song Message
 	uint32 msgoffset;		// Offset of Song Message in File (IT crops message after first null)
-	char   reserved[4];		// ChibiTracker writes "CHBI" here. OpenMPT writes "OMPT" here in some cases, see Load_it.cpp
+	char   reserved[4];		// Some IT versions save an edit timer here. ChibiTracker writes "CHBI" here. OpenMPT writes "OMPT" here in some cases, see Load_it.cpp
 	uint8  chnpan[64];		// Initial Channel Panning
 	uint8  chnvol[64];		// Initial Channel Volume
 
@@ -86,7 +88,7 @@ struct PACKED ITEnvelope
 		envFilter	= 0x80,
 	};
 
-	uint8 flags;			// Envelope Flags
+	uint8 flags;		// Envelope Flags
 	uint8 num;			// Number of Envelope Nodes
 	uint8 lpb;			// Loop Start
 	uint8 lpe;			// Loop End
@@ -98,7 +100,7 @@ struct PACKED ITEnvelope
 	// Convert OpenMPT's internal envelope format to an IT/MPTM envelope.
 	void ConvertToIT(const InstrumentEnvelope &mptEnv, uint8 envOffset, uint8 envDefault);
 	// Convert IT/MPTM envelope data into OpenMPT's internal envelope format - To be used by ITInstrToMPT()
-	void ConvertToMPT(InstrumentEnvelope &mptEnv, uint8 envOffset, int maxNodes) const;
+	void ConvertToMPT(InstrumentEnvelope &mptEnv, uint8 envOffset, uint8 maxNodes) const;
 };
 
 STATIC_ASSERT(sizeof(ITEnvelope) == 82);
@@ -234,6 +236,7 @@ struct PACKED ITSample
 		enablePanning		= 0x80,
 
 		cvtSignedSample		= 0x01,
+		cvtExternalSample	= 0x80,		// Keep MPTM sample on disk
 		cvtADPCMSample		= 0xFF,		// MODPlugin :(
 
 		// ITTECH.TXT says these convert flags are "safe to ignore". IT doesn't ignore them, though, so why should we? :)
@@ -266,7 +269,7 @@ struct PACKED ITSample
 	void ConvertEndianness();
 
 	// Convert OpenMPT's internal sample representation to an ITSample.
-	void ConvertToIT(const ModSample &mptSmp, MODTYPE fromType, bool compress, bool compressIT215);
+	void ConvertToIT(const ModSample &mptSmp, MODTYPE fromType, bool compress, bool compressIT215, bool allowExternal);
 	// Convert an ITSample to OpenMPT's internal sample representation.
 	uint32 ConvertToMPT(ModSample &mptSmp) const;
 	// Retrieve the internal sample format flags for this instrument.
@@ -312,3 +315,5 @@ enum IT_ReaderBitMasks
 	IT_bitmask_patternChanEnabled_c = 0x80,
 	IT_bitmask_patternChanUsed_c    = 0x0f
 };
+
+OPENMPT_NAMESPACE_END

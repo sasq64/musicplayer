@@ -14,6 +14,10 @@
 #include "../common/typedefs.h"
 #include "../common/FlagSet.h"
 
+
+OPENMPT_NAMESPACE_BEGIN
+
+
 typedef uint32 ROWINDEX;
 	const ROWINDEX ROWINDEX_INVALID = uint32_max;
 typedef uint16 CHANNELINDEX;
@@ -25,7 +29,6 @@ typedef uint16 PATTERNINDEX;
 	const PATTERNINDEX PATTERNINDEX_INVALID = uint16_max;
 typedef uint8  PLUGINDEX;
 	const PLUGINDEX PLUGINDEX_INVALID = uint8_max;
-typedef uint16 TEMPO;
 typedef uint16 SAMPLEINDEX;
 	const SAMPLEINDEX SAMPLEINDEX_INVALID = uint16_max;
 typedef uint16 INSTRUMENTINDEX;
@@ -36,7 +39,6 @@ typedef uint8 SEQUENCEINDEX;
 typedef uintptr_t SmpLength;
 
 
-#define MOD_AMIGAC2			0x1AB					// Period of Amiga middle-c
 const SmpLength MAX_SAMPLE_LENGTH	= 0x10000000;	// Sample length in *samples*
 													// Note: Sample size in bytes can be more than this (= 256 MB).
 
@@ -49,11 +51,8 @@ const PLUGINDEX MAX_MIXPLUGINS			= 250;
 
 const SEQUENCEINDEX MAX_SEQUENCES		= 50;
 
-const CHANNELINDEX MAX_BASECHANNELS		= 127;	// Max pattern channels.
-const CHANNELINDEX MAX_CHANNELS			= 256;	//200 // Maximum number of mixing channels.
-
-#define MIN_PERIOD			0x0020	// Note: Period is an Amiga metric that is inverse to frequency.
-#define MAX_PERIOD			0xFFFF	// Periods in MPT are 4 times as fine as Amiga periods because of extra fine frequency slides.
+const CHANNELINDEX MAX_BASECHANNELS		= 127;	// Maximum pattern channels.
+const CHANNELINDEX MAX_CHANNELS			= 256;	// Maximum number of mixing channels.
 
 #define FREQ_FRACBITS		4		// Number of fractional bits in return value of CSoundFile::GetFreqFromPeriod()
 
@@ -97,6 +96,8 @@ enum MODTYPE
 	MOD_TYPE_AMS2	= 0x4000000,
 	MOD_TYPE_DIGI	= 0x8000000,
 	MOD_TYPE_UAX	= 0x10000000, // sampleset as module
+	MOD_TYPE_PLM	= 0x20000000,
+	MOD_TYPE_SFX	= 0x40000000,
 };
 DECLARE_FLAGSET(MODTYPE)
 
@@ -111,14 +112,6 @@ enum MODCONTAINERTYPE
 	MOD_CONTAINERTYPE_PP20 = 0x5,
 	MOD_CONTAINERTYPE_MMCMP= 0x6,
 };
-
-
-// For compatibility mode
-#define TRK_IMPULSETRACKER	(MOD_TYPE_IT | MOD_TYPE_MPT)
-#define TRK_FASTTRACKER2	(MOD_TYPE_XM)
-#define TRK_SCREAMTRACKER	(MOD_TYPE_S3M)
-#define TRK_PROTRACKER		(MOD_TYPE_MOD)
-#define TRK_ALLTRACKERS		(MODTYPE(~0))
 
 
 // Channel flags:
@@ -145,7 +138,7 @@ enum ChannelFlags
 	CHN_VOLUMERAMP		= 0x8000,		// Apply volume ramping
 	CHN_VIBRATO			= 0x10000,		// Apply vibrato
 	CHN_TREMOLO			= 0x20000,		// Apply tremolo
-	CHN_PANBRELLO		= 0x40000,		// Apply panbrello
+	//CHN_PANBRELLO		= 0x40000,		// Apply panbrello
 	CHN_PORTAMENTO		= 0x80000,		// Apply portamento
 	CHN_GLISSANDO		= 0x100000,		// Glissando mode
 	CHN_FASTVOLRAMP		= 0x200000,		// Force usage of global ramping settings instead of ramping over the complete render buffer length
@@ -155,12 +148,18 @@ enum ChannelFlags
 	CHN_SOLO			= 0x2000000,	// solo channel -> CODE#0012 -> DESC="midi keyboard split" -! NEW_FEATURE#0012
 	CHN_NOFX			= 0x4000000,	// dry channel -> CODE#0015 -> DESC="channels management dlg" -! NEW_FEATURE#0015
 	CHN_SYNCMUTE		= 0x8000000,	// keep sample sync on mute
+
+	// Sample storage flags (also saved in ModSample::uFlags, but are not relevant to mixing)
+	SMP_MODIFIED		= 0x1000,	// Sample data has been edited in the tracker
+	SMP_KEEPONDISK		= 0x2000,	// Sample is not saved to file, data is restored from original sample file
 };
 DECLARE_FLAGSET(ChannelFlags)
 
-
 #define CHN_SAMPLEFLAGS (CHN_16BIT | CHN_LOOP | CHN_PINGPONGLOOP | CHN_SUSTAINLOOP | CHN_PINGPONGSUSTAIN | CHN_PANNING | CHN_STEREO | CHN_PINGPONGFLAG | CHN_REVERSE)
 #define CHN_CHANNELFLAGS (~CHN_SAMPLEFLAGS)
+
+// Sample flags fit into the first 16 bits, and with the current memory layout, storing them as a 16-bit integer packs struct ModSample nicely.
+typedef FlagSet<ChannelFlags, uint16> SampleFlags;
 
 
 // Instrument envelope-specific flags
@@ -182,24 +181,6 @@ DECLARE_FLAGSET(EnvelopeFlags)
 #define MAX_ENVPOINTS		240		// Maximum length of each instrument envelope
 
 
-// Flags of 'dF..' datafield in extended instrument properties.
-#define dFdd_VOLUME 		0x0001
-#define dFdd_VOLSUSTAIN 	0x0002
-#define dFdd_VOLLOOP 		0x0004
-#define dFdd_PANNING 		0x0008
-#define dFdd_PANSUSTAIN 	0x0010
-#define dFdd_PANLOOP 		0x0020
-#define dFdd_PITCH 			0x0040
-#define dFdd_PITCHSUSTAIN 	0x0080
-#define dFdd_PITCHLOOP 		0x0100
-#define dFdd_SETPANNING 	0x0200
-#define dFdd_FILTER 		0x0400
-#define dFdd_VOLCARRY 		0x0800
-#define dFdd_PANCARRY 		0x1000
-#define dFdd_PITCHCARRY 	0x2000
-#define dFdd_MUTE 			0x4000
-
-
 // Instrument-specific flags
 enum InstrumentFlags
 {
@@ -210,7 +191,7 @@ DECLARE_FLAGSET(InstrumentFlags)
 
 
 // envelope types in instrument editor
-enum enmEnvelopeTypes
+enum EnvelopeType
 {
 	ENV_VOLUME = 0,
 	ENV_PANNING,
@@ -242,7 +223,7 @@ enum enmEnvelopeTypes
 #define DNA_NOTEFADE	2
 
 
-// Module flags - note: these are written out as-is in ITP files!
+// Module flags - contains both song configuration and playback state... Use SONG_FILE_FLAGS and SONG_PLAY_FLAGS distinguish between the two.
 enum SongFlags
 {
 	SONG_EMBEDMIDICFG	= 0x0001,		// Embed macros in file
@@ -252,28 +233,26 @@ enum SongFlags
 	SONG_LINEARSLIDES	= 0x0010,		// Linear slides vs. Amiga slides
 	SONG_PATTERNLOOP	= 0x0020,		// Loop current pattern (pattern editor)
 	SONG_STEP			= 0x0040,		// Song is in "step" mode (pattern editor)
-	SONG_PAUSED			= 0x0080,		// Song is paused
+	SONG_PAUSED			= 0x0080,		// Song is paused (no tick processing, just rendering audio)
 	SONG_FADINGSONG		= 0x0100,		// Song is fading out
 	SONG_ENDREACHED		= 0x0200,		// Song is finished
-	//SONG_GLOBALFADE		= 0x0400,		// Song is fading out
+	//SONG_GLOBALFADE	= 0x0400,		// Song is fading out
 	//SONG_CPUVERYHIGH	= 0x0800,		// High CPU usage
 	SONG_FIRSTTICK		= 0x1000,		// Is set when the current tick is the first tick of the row
 	SONG_MPTFILTERMODE	= 0x2000,		// Local filter mode (reset filter on each note)
 	SONG_SURROUNDPAN	= 0x4000,		// Pan in the rear channels
 	SONG_EXFILTERRANGE	= 0x8000,		// Cutoff Filter has double frequency range (up to ~10Khz)
 	SONG_AMIGALIMITS	= 0x10000,		// Enforce amiga frequency limits
-	// -> CODE#0023
-	// -> DESC="IT project files (.itp)"
-	SONG_ITPROJECT		= 0x20000,		// Is a project file
-	SONG_ITPEMBEDIH		= 0x40000,		// Embed instrument headers in project file
-	// -! NEW_FEATURE#0023
+	SONG_S3MOLDVIBRATO	= 0x20000,		// ScreamTracker 2 vibrato in S3M files
+	//SONG_ITPEMBEDIH	= 0x40000,		// Embed instrument headers in project file
 	SONG_BREAKTOROW		= 0x80000,		// Break to row command encountered (internal flag, do not touch)
 	SONG_POSJUMP		= 0x100000,		// Position jump encountered (internal flag, do not touch)
-	SONG_PT1XMODE		= 0x200000,		// ProTracker 1.x playback mode
+	SONG_PT_MODE		= 0x200000,		// ProTracker 1/2 playback mode
+	SONG_PLAYALLSONGS	= 0x400000,		// Play all subsongs consecutively (libopenmpt)
 };
 DECLARE_FLAGSET(SongFlags)
 
-#define SONG_FILE_FLAGS	(SONG_EMBEDMIDICFG|SONG_FASTVOLSLIDES|SONG_ITOLDEFFECTS|SONG_ITCOMPATGXX|SONG_LINEARSLIDES|SONG_EXFILTERRANGE|SONG_AMIGALIMITS|SONG_ITPROJECT|SONG_ITPEMBEDIH|SONG_PT1XMODE)
+#define SONG_FILE_FLAGS	(SONG_EMBEDMIDICFG|SONG_FASTVOLSLIDES|SONG_ITOLDEFFECTS|SONG_ITCOMPATGXX|SONG_LINEARSLIDES|SONG_EXFILTERRANGE|SONG_AMIGALIMITS|SONG_PT_MODE)
 #define SONG_PLAY_FLAGS (~SONG_FILE_FLAGS)
 
 // Global Options (Renderer)
@@ -356,14 +335,6 @@ enum PLUGVOLUMEHANDLING
 	PLUGIN_VOLUMEHANDLING_MAX,
 };
 
-// filtermodes
-/*enum {
-	INST_FILTERMODE_DEFAULT=0,
-	INST_FILTERMODE_HIGHPASS,
-	INST_FILTERMODE_LOWPASS,
-	INST_NUMFILTERMODES
-};*/
-
 enum MidiChannel
 {
 	MidiNoChannel		= 0,
@@ -382,3 +353,166 @@ enum VibratoType
 	VIB_RAMP_DOWN,
 	VIB_RANDOM
 };
+
+
+// Tracker-specific playback behaviour
+// Note: The index of every flag has to be fixed, so do not remove flags and add new flags at the end!
+enum PlayBehaviour
+{
+	MSF_COMPATIBLE_PLAY,			// No-op - only used during loading (Old general compatibility flag for IT/MPT/XM)
+	kMPTOldSwingBehaviour,			// MPT 1.16 swing behaviour (IT/MPT, deprecated)
+	kMIDICCBugEmulation,			// Emulate broken volume MIDI CC behaviour (IT/MPT/XM, deprecated)
+	kOldMIDIPitchBends,				// Old VST MIDI pitch bend behaviour (IT/MPT/XM, deprecated)
+	kFT2VolumeRamping,				// Smooth volume ramping like in FT2 (XM)
+	kMODVBlankTiming,				// F21 and above set speed instead of tempo
+	kSlidesAtSpeed1,				// Execute normal slides at speed 1 as if they were fine slides
+	kHertzInLinearMode,				// Compute note frequency in hertz rather than periods
+	kTempoClamp,					// Clamp tempo to 32-255 range.
+	kPerChannelGlobalVolSlide,		// Global volume slide memory is per-channel
+	kPanOverride,					// Panning commands override surround and random pan variation
+
+	kITInstrWithoutNote,			// Avoid instrument handling if there is no note
+	kITVolColFinePortamento,		// Volume column portamento never does fine portamento
+	kITArpeggio,					// IT arpeggio algorithm
+	kITOutOfRangeDelay,				// Out-of-range delay command behaviour in IT
+	kITPortaMemoryShare,			// Gxx shares memory with Exx and Fxx
+	kITPatternLoopTargetReset,		// After finishing a pattern loop, set the pattern loop target to the next row
+	kITFT2PatternLoop,				// Nested pattern loop behaviour
+	kITPingPongNoReset,				// Don't reset ping pong direction with instrument numbers
+	kITEnvelopeReset,				// IT envelope reset behaviour
+	kITClearOldNoteAfterCut,		// Forget the previous note after cutting it
+	kITVibratoTremoloPanbrello,		// More IT-like Hxx / hx, Rxx, Yxx and autovibrato handling, including more precise LUTs
+	kITTremor,						// Ixx behaves like in IT
+	kITRetrigger,					// Qxx behaves like in IT
+	kITMultiSampleBehaviour,		// Properly update C-5 frequency when changing in multisampled instrument
+	kITPortaTargetReached,			// Clear portamento target after it has been reached
+	kITPatternLoopBreak,			// Don't reset loop count on pattern break.
+	kITOffset,						// IT-style Oxx edge case handling
+	kITSwingBehaviour,				// IT's swing behaviour
+	kITNNAReset,					// NNA is reset on every note change, not every instrument change
+	kITSCxStopsSample,				// SCx really stops the sample and does not just mute it
+	kITEnvelopePositionHandling,	// IT-style envelope position advance + enable/disable behaviour
+	kITPortamentoInstrument,		// No sample changes during portamento with Compatible Gxx enabled, instrument envelope reset with portamento
+	kITPingPongMode,				// Don't repeat last sample point in ping pong loop, like IT's software mixer
+	kITRealNoteMapping,				// Use triggered note rather than translated note for PPS and other effects
+	kITHighOffsetNoRetrig,			// SAx should not apply an offset effect to a note next to it
+	kITFilterBehaviour,				// User IT's filter coefficients (unless extended filter range is used)
+	kITNoSurroundPan,				// Panning and surround are mutually exclusive
+	kITShortSampleRetrig,			// Don't retrigger already stopped channels
+	kITPortaNoNote,					// Don't apply any portamento if no previous note is playing
+	kITDontResetNoteOffOnPorta,		// Only reset note-off status on portamento in IT Compatible Gxx mode
+	kITVolColMemory,				// IT volume column effects share their memory with the effect column
+	kITPortamentoSwapResetsPos,		// Portamento with sample swap plays the new sample from the beginning
+	kITEmptyNoteMapSlot,			// IT ignores instrument note map entries with no note completely
+	kITFirstTickHandling,			// IT-style first tick handling
+	kITSampleAndHoldPanbrello,		// IT-style sample&hold panbrello waveform
+	kITClearPortaTarget,			// New notes reset portamento target in IT
+	kITPanbrelloHold,				// Don't reset panbrello effect until next note or panning effect
+	kITPanningReset,				// Sample and instrument panning is only applied on note change, not instrument change
+	kITPatternLoopWithJumps,		// Bxx on the same row as SBx terminates the loop in IT
+	kITInstrWithNoteOff,			// Instrument number with note-off recalls default volume
+
+	kFT2Arpeggio,					// FT2 arpeggio algorithm
+	kFT2Retrigger,					// Rxx behaves like in FT2
+	kFT2VolColVibrato,				// Vibrato depth in volume column does not actually execute the vibrato effect
+	kFT2PortaNoNote,				// Don't play portamento-ed note if no previous note is playing
+	kFT2KeyOff,						// FT2-style Kxx handling
+	kFT2PanSlide,					// Volume-column pan slides should be handled like fine slides
+	kFT2OffsetOutOfRange,			// FT2-style 9xx edge case handling
+	kFT2RestrictXCommand,			// Don't allow MPT extensions to Xxx command in XM
+	kFT2RetrigWithNoteDelay,		// Retrigger envelopes if there is a note delay with no note
+	kFT2SetPanEnvPos,				// Lxx only sets the pan env position if the volume envelope's sustain flag is set
+	kFT2PortaIgnoreInstr,			// Portamento plus instrument number applies the volume settings of the new sample, but not the new sample itself.
+	kFT2VolColMemory,				// No volume column memory in FT2
+	kFT2LoopE60Restart,				// Next pattern starts on the same row as the last E60 command
+	kFT2ProcessSilentChannels,		// Keep processing silent channels for later 3xx pickup
+	kFT2ReloadSampleSettings,		// Reload sample settings even if a note-off is placed next to an instrument number
+	kFT2PortaDelay,					// Portamento with note delay next to it is ignored in FT2
+	kFT2Transpose,					// Out-of-range transposed notes in FT2
+	kFT2PatternLoopWithJumps,		// Bxx or Dxx on the same row as E6x terminates the loop in FT2
+	kFT2PortaTargetNoReset,			// Portamento target is not reset with new notes in FT2
+	kFT2EnvelopeEscape,				// FT2 sustain point at end of envelope
+	kFT2Tremor,						// Txx behaves like in FT2
+	kFT2OutOfRangeDelay,			// Out-of-range delay command behaviour in FT2
+	kFT2Periods,					// Use FT2's broken period handling
+	kFT2PanWithDelayedNoteOff,		// Pan command with delayed note-off
+	kFT2VolColDelay,				// FT2-style volume column handling if there is a note delay
+	kFT2FinetunePrecision,			// Only take the upper 4 bits of sample finetune.
+
+	kST3NoMutedChannels,			// Don't process any effects on muted S3M channels
+	kST3EffectMemory,				// Most effects share the same memory in ST3
+	kST3PortaSampleChange,			// Portamento plus instrument number applies the volume settings of the new sample, but not the new sample itself.
+	kST3VibratoMemory,				// Do not remember vibrato type in effect memory
+
+	kMODOneShotLoops,				// Allow ProTracker-like oneshot loops
+	kMODIgnorePanning,				// Do not process any panning commands
+	kMODSampleSwap,					// On-the-fly sample swapping
+
+	// Add new play behaviours here.
+
+	kMaxPlayBehaviours,
+};
+
+
+// Tempo swing determines how much every row in modern tempo mode contributes to a beat.
+class TempoSwing : public std::vector<uint32>
+{
+public:
+	enum { Unity = 1u << 24 };
+	// Normalize the tempo swing coefficients so that they add up to exactly the specified tempo again
+	void Normalize();
+	void resize(size_type _Newsize, value_type val = Unity) { std::vector<uint32>::resize(_Newsize, val); Normalize(); }
+
+	static void Serialize(std::ostream &oStrm, const TempoSwing &swing);
+	static void Deserialize(std::istream& iStrm, TempoSwing &swing, const size_t);
+};
+
+
+// Fixed-point type, e.g. used for fractional tempos
+// Note that this doesn't use classical bit shifting for the fixed point part.
+// This is mostly for the clarity of stored values and to be able to represent any value .0000 to .9999 properly.
+template<size_t FFact, typename T>
+struct FPInt
+{
+protected:
+	T v;
+	FPInt(T rawValue) : v(rawValue) { }
+
+public:
+	static const size_t fractFact = FFact;
+
+	FPInt() : v(0) { }
+	FPInt(const FPInt<fractFact, T> &other) : v(other.v) { }
+	FPInt(T intPart, T fractPart) : v((intPart * fractFact) + (fractPart % fractFact)) { }
+	explicit FPInt(float f) : v(static_cast<T>(f * float(fractFact))) { }
+	explicit FPInt(double f) : v(static_cast<T>(f * double(fractFact))) { }
+
+	// Set integer and fractional part
+	FPInt<fractFact, T> &Set(T intPart, T fractPart = 0) { v = (intPart * fractFact) + (fractPart % fractFact); return *this; }
+	// Set raw internal representation directly
+	FPInt<fractFact, T> &SetRaw(T value) { v = value; return *this; }
+	// Retrieve the integer part of the stored value
+	T GetInt() const { return v / fractFact; }
+	// Retrieve the fractional part of the stored value
+	T GetFract() const { return v % fractFact; }
+	// Retrieve the raw internal representation of the stored value
+	T GetRaw() const { return v; }
+	// Formats the stored value as a floating-point value
+	double ToDouble() const { return v / double(fractFact); }
+
+	FPInt<fractFact, T> operator+ (const FPInt<fractFact, T> &other) const { return FPInt<fractFact, T>(v + other.v); }
+	FPInt<fractFact, T> operator- (const FPInt<fractFact, T> &other) const { return FPInt<fractFact, T>(v - other.v); }
+	void operator+= (const FPInt<fractFact, T> &other) { v += other.v; }
+	void operator-= (const FPInt<fractFact, T> &other) { v -= other.v; }
+
+	bool operator== (const FPInt<fractFact, T> &other) const { return v == other.v; }
+	bool operator!= (const FPInt<fractFact, T> &other) const { return v != other.v; }
+	bool operator<= (const FPInt<fractFact, T> &other) const { return v <= other.v; }
+	bool operator>= (const FPInt<fractFact, T> &other) const { return v >= other.v; }
+	bool operator< (const FPInt<fractFact, T> &other) const { return v < other.v; }
+	bool operator> (const FPInt<fractFact, T> &other) const { return v > other.v; }
+};
+
+typedef FPInt<10000, uint32_t> TEMPO;
+
+OPENMPT_NAMESPACE_END

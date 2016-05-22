@@ -16,6 +16,8 @@
 #include "../common/misc_util.h"
 #include <set>
 
+OPENMPT_NAMESPACE_BEGIN
+
 // Instrument Envelopes
 struct InstrumentEnvelope
 {
@@ -42,9 +44,12 @@ struct InstrumentEnvelope
 	// Convert envelope data between various formats.
 	void Convert(MODTYPE fromType, MODTYPE toType);
 
-	// Get envelope value at a given tick. Returns value in range [0.0, 1.0].
-	float GetValueFromPosition(int position, int range = ENVELOPE_MAX) const;
+	// Get envelope value at a given tick. Assumes that the envelope data is in rage [0, rangeIn],
+	// returns value in range [0, rangeOut].
+	int32 GetValueFromPosition(int position, int32 rangeOut, int32 rangeIn = ENVELOPE_MAX) const;
 
+	// Ensure that ticks are ordered in increasing order and values are within the allowed range.
+	void Sanitize(uint8 maxValue = ENVELOPE_MAX);
 };
 
 // Instrument Struct
@@ -55,7 +60,7 @@ struct ModInstrument
 	uint32 nGlobalVol;					// Global volume (0...64, all sample volumes are multiplied with this - TODO: This is 0...128 in Impulse Tracker)
 	uint32 nPan;						// Default pan (0...256), if the appropriate flag is set. Sample panning overrides instrument panning.
 
-	uint16 nVolRampUp;					// Default sample ramping up
+	uint16 nVolRampUp;					// Default sample ramping up, 0 = use global default
 
 	uint16 wMidiBank;					// MIDI Bank (1...16384). 0 = Don't send.
 	uint8 nMidiProgram;					// MIDI Program (1...128). 0 = Don't send.
@@ -63,25 +68,25 @@ struct ModInstrument
 	uint8 nMidiDrumKey;					// Drum set note mapping (currently only used by the .MID loader)
 	int8 midiPWD;						// MIDI Pitch Wheel Depth in semitones
 
-	uint8 nNNA;							// New note action
-	uint8 nDCT;							// Duplicate check type	(i.e. which condition will trigger the duplicate note action)
-	uint8 nDNA;							// Duplicate note action
+	uint8 nNNA;							// New note action (NNA_* constants)
+	uint8 nDCT;							// Duplicate check type	(i.e. which condition will trigger the duplicate note action, DCT_* constants)
+	uint8 nDNA;							// Duplicate note action (DNA_* constants)
 	uint8 nPanSwing;					// Random panning factor (0...64)
 	uint8 nVolSwing;					// Random volume factor (0...100)
 	uint8 nIFC;							// Default filter cutoff (0...127). Used if the high bit is set
 	uint8 nIFR;							// Default filter resonance (0...127). Used if the high bit is set
 
 	int8 nPPS;							// Pitch/Pan separation (i.e. how wide the panning spreads, -32...32)
-	uint8 nPPC;							// Pitch/Pan centre
+	uint8 nPPC;							// Pitch/Pan centre (zero-based, default is NOTE_MIDDLE_C - 1)
 
-	PLUGINDEX nMixPlug;					// Plugin assigned to this instrument
+	PLUGINDEX nMixPlug;					// Plugin assigned to this instrument (0 = no plugin, 1 = first plugin)
 	uint8 nCutSwing;					// Random cutoff factor (0...64)
 	uint8 nResSwing;					// Random resonance factor (0...64)
-	uint8 nFilterMode;					// Default filter mode
-	uint8 nPluginVelocityHandling;		// How to deal with plugin velocity
-	uint8 nPluginVolumeHandling;		// How to deal with plugin volume
-	uint16 wPitchToTempoLock;			// BPM at which the samples assigned to this instrument loop correctly
-	uint32 nResampling;					// Resampling mode
+	uint8 nFilterMode;					// Default filter mode (FLTMODE_* constants)
+	uint8 nPluginVelocityHandling;		// How to deal with plugin velocity (PLUGIN_VELOCITYHANDLING_* constants)
+	uint8 nPluginVolumeHandling;		// How to deal with plugin volume (PLUGIN_VOLUMEHANDLING_* constants)
+	TEMPO pitchToTempoLock;				// BPM at which the samples assigned to this instrument loop correctly (0 = unset)
+	uint32 nResampling;					// Resampling mode (SRCMODE_* constants)
 	CTuning *pTuning;					// sample tuning assigned to this instrument
 
 	InstrumentEnvelope VolEnv;			// Volume envelope data
@@ -94,9 +99,9 @@ struct ModInstrument
 	char name[MAX_INSTRUMENTNAME];
 	char filename[MAX_INSTRUMENTFILENAME];
 
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	// WHEN adding new members here, ALSO update Sndfile.cpp (instructions near the top of this file)!
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	// WHEN adding new members here, ALSO update InstrumentExtensions.cpp
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 	void SetTuning(CTuning* pT)
 	{
@@ -127,13 +132,13 @@ struct ModInstrument
 	bool IsResonanceEnabled() const { return (nIFR & 0x80) != 0; }
 	uint8 GetCutoff() const { return (nIFC & 0x7F); }
 	uint8 GetResonance() const { return (nIFR & 0x7F); }
-	void SetCutoff(uint8 cutoff, bool enable) { nIFC = MIN(cutoff, 0x7F) | (enable ? 0x80 : 0x00); }
-	void SetResonance(uint8 resonance, bool enable) { nIFR = MIN(resonance, 0x7F) | (enable ? 0x80 : 0x00); }
+	void SetCutoff(uint8 cutoff, bool enable) { nIFC = std::min<uint8>(cutoff, 0x7F) | (enable ? 0x80 : 0x00); }
+	void SetResonance(uint8 resonance, bool enable) { nIFR = std::min<uint8>(resonance, 0x7F) | (enable ? 0x80 : 0x00); }
 
 	bool HasValidMIDIChannel() const { return (nMidiChannel >= 1 && nMidiChannel <= 17); }
 
 	// Get a reference to a specific envelope of this instrument
-	const InstrumentEnvelope &GetEnvelope(enmEnvelopeTypes envType) const
+	const InstrumentEnvelope &GetEnvelope(EnvelopeType envType) const
 	{
 		switch(envType)
 		{
@@ -147,7 +152,7 @@ struct ModInstrument
 		}
 	}
 
-	InstrumentEnvelope &GetEnvelope(enmEnvelopeTypes envType)
+	InstrumentEnvelope &GetEnvelope(EnvelopeType envType)
 	{
 		return const_cast<InstrumentEnvelope &>(static_cast<const ModInstrument &>(*this).GetEnvelope(envType));
 	}
@@ -162,4 +167,9 @@ struct ModInstrument
 	// Translate instrument properties between two given formats.
 	void Convert(MODTYPE fromType, MODTYPE toType);
 
+	// Sanitize all instrument data.
+	void Sanitize(MODTYPE modType);
+
 };
+
+OPENMPT_NAMESPACE_END

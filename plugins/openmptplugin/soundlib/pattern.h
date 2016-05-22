@@ -14,6 +14,10 @@
 #include "modcommand.h"
 #include "Snd_defs.h"
 
+
+OPENMPT_NAMESPACE_BEGIN
+
+
 class CPatternContainer;
 class CSoundFile;
 class EffectWriter;
@@ -65,7 +69,7 @@ public:
 	CHANNELINDEX GetNumChannels() const;
 
 	// Add or remove rows from the pattern.
-	bool Resize(const ROWINDEX newRowCount);
+	bool Resize(const ROWINDEX newRowCount, bool enforceFormatLimits = true);
 
 	// Check if there is any note data on a given row.
 	bool IsEmptyRow(ROWINDEX row) const;
@@ -88,6 +92,11 @@ public:
 	bool SetSignature(const ROWINDEX rowsPerBeat, const ROWINDEX rowsPerMeasure);
 	void RemoveSignature() { m_RowsPerBeat = m_RowsPerMeasure = 0; }
 
+	bool HasTempoSwing() const { return !m_tempoSwing.empty(); }
+	const TempoSwing& GetTempoSwing() const { return m_tempoSwing; }
+	void SetTempoSwing(const TempoSwing &swing) { m_tempoSwing = swing; m_tempoSwing.Normalize(); }
+	void RemoveTempoSwing() { m_tempoSwing.clear(); }
+
 	// Pattern name functions - bool functions return true on success.
 	bool SetName(const std::string &newName);
 	bool SetName(const char *newName, size_t maxChars = MAX_PATTERNNAME);
@@ -105,11 +114,13 @@ public:
 	bool GetName(char *buffer, size_t maxChars) const;
 	std::string GetName() const { return m_PatternName; };
 
+#ifdef MODPLUG_TRACKER
 	// Double number of rows
 	bool Expand();
 
 	// Halve number of rows
 	bool Shrink();
+#endif // MODPLUG_TRACKER
 
 	// Write some kind of effect data to the pattern
 	bool WriteEffect(EffectWriter &settings);
@@ -146,7 +157,8 @@ protected:
 	ModCommand* m_ModCommands;
 	ROWINDEX m_Rows;
 	ROWINDEX m_RowsPerBeat;		// patterns-specific time signature. if != 0, this is implicitely set.
-	ROWINDEX m_RowsPerMeasure;	// dito
+	ROWINDEX m_RowsPerMeasure;	// ditto
+	TempoSwing m_tempoSwing;
 	std::string m_PatternName;
 	CPatternContainer& m_rPatternContainer;
 //END: DATA
@@ -177,36 +189,39 @@ public:
 	};
 
 	// Constructors with effect commands
-	EffectWriter(EffectCommands cmd, ModCommand::PARAM value) : command(static_cast<uint8>(cmd)), param(value), isVolEffect(false) { Init(); }
-	EffectWriter(VolumeCommands cmd, ModCommand::VOL value) : command(static_cast<uint8>(cmd)), param(value), isVolEffect(true) { Init(); }
+	EffectWriter(EffectCommands cmd, ModCommand::PARAM param) : m_command(static_cast<uint8>(cmd)), m_param(param), m_isVolEffect(false) { Init(); }
+	EffectWriter(VolumeCommands cmd, ModCommand::VOL param) : m_command(static_cast<uint8>(cmd)), m_param(param), m_isVolEffect(true) { Init(); }
 
 	// Additional constructors:
 	// Set row in which writing should start
-	EffectWriter &Row(ROWINDEX row) { this->row = row; return *this; }
+	EffectWriter &Row(ROWINDEX row) { m_row = row; return *this; }
 	// Set channel to which writing should be restricted to
-	EffectWriter &Channel(CHANNELINDEX chn) { channel = chn; return *this; }
+	EffectWriter &Channel(CHANNELINDEX chn) { m_channel = chn; return *this; }
 	// Allow multiple effects of the same kind to be written in the same row.
-	EffectWriter &AllowMultiple() { allowMultiple = true; return *this; }
+	EffectWriter &AllowMultiple() { m_allowMultiple = true; return *this; }
 	// Set retry mode.
-	EffectWriter &Retry(RetryMode retryMode) { this->retryMode = retryMode; return *this; }
+	EffectWriter &Retry(RetryMode retryMode) { m_retryMode = retryMode; return *this; }
 
 protected:
-	uint8 command, param;
-	bool isVolEffect;
+	uint8 m_command, m_param;
 	
-	ROWINDEX row;
-	CHANNELINDEX channel;
-	bool allowMultiple;
-	RetryMode retryMode;
-	bool retry;
+	ROWINDEX m_row;
+	CHANNELINDEX m_channel;
+	RetryMode m_retryMode;
+	bool m_retry : 1;
+	bool m_allowMultiple : 1;
+	bool m_isVolEffect : 1;
 
 	// Common data initialisation
 	void Init()
 	{
-		row = 0;
-		channel = CHANNELINDEX_INVALID;	// Any channel
-		allowMultiple = false;			// Stop if same type of effect is encountered
-		retryMode = rmIgnore;			// If effect couldn't be written, abort.
-		retry = true;
+		m_row = 0;
+		m_channel = CHANNELINDEX_INVALID;	// Any channel
+		m_retryMode = rmIgnore;			// If effect couldn't be written, abort.
+		m_retry = true;
+		m_allowMultiple = false;		// Stop if same type of effect is encountered
 	}
 };
+
+
+OPENMPT_NAMESPACE_END

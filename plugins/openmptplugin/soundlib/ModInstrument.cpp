@@ -13,6 +13,9 @@
 #include "ModInstrument.h"
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 // Convert envelope data between various formats.
 void InstrumentEnvelope::Convert(MODTYPE fromType, MODTYPE toType)
 //----------------------------------------------------------------
@@ -46,7 +49,7 @@ void InstrumentEnvelope::Convert(MODTYPE fromType, MODTYPE toType)
 			if(Ticks[nLoopEnd] - 1 > Ticks[nLoopEnd - 1])
 			{
 				// Insert an interpolated point just before the loop point.
-				uint8 interpolatedValue = Util::Round<uint8>(GetValueFromPosition(Ticks[nLoopEnd] - 1) * 64.0f);
+				uint8 interpolatedValue = static_cast<uint8>(GetValueFromPosition(Ticks[nLoopEnd] - 1, 64));
 				
 
 				if(nNodes +  1 < MAX_ENVPOINTS)
@@ -73,11 +76,13 @@ void InstrumentEnvelope::Convert(MODTYPE fromType, MODTYPE toType)
 }
 
 
-// Get envelope value at a given tick. Returns value in range [0.0, 1.0].
-float InstrumentEnvelope::GetValueFromPosition(int position, int range) const
-//---------------------------------------------------------------------------
+// Get envelope value at a given tick. Assumes that the envelope data is in rage [0, rangeIn],
+// returns value in range [0, rangeOut].
+int32 InstrumentEnvelope::GetValueFromPosition(int position, int32 rangeOut, int32 rangeIn) const
+//-----------------------------------------------------------------------------------------------
 {
 	uint32 pt = nNodes - 1u;
+	const int32 ENV_PRECISION = 1 << 16;
 
 	// Checking where current 'tick' is relative to the envelope points.
 	for(uint32 i = 0; i < nNodes - 1u; i++)
@@ -90,12 +95,12 @@ float InstrumentEnvelope::GetValueFromPosition(int position, int range) const
 	}
 
 	int x2 = Ticks[pt];
-	float value = 0.0f;
+	int32 value = 0;
 
 	if(position >= x2)
 	{
 		// Case: current 'tick' is on a envelope point.
-		value = static_cast<float>(Values[pt]) / float(range);
+		value = Values[pt] * ENV_PRECISION / rangeIn;
 	} else
 	{
 		// Case: current 'tick' is between two envelope points.
@@ -104,7 +109,7 @@ float InstrumentEnvelope::GetValueFromPosition(int position, int range) const
 		if(pt)
 		{
 			// Get previous node's value and tick.
-			value = static_cast<float>(Values[pt - 1]) / float(range);
+			value = Values[pt - 1] * ENV_PRECISION / rangeIn;
 			x1 = Ticks[pt - 1];
 		}
 
@@ -112,11 +117,33 @@ float InstrumentEnvelope::GetValueFromPosition(int position, int range) const
 		{
 			// Linear approximation between the points;
 			// f(x + d) ~ f(x) + f'(x) * d, where f'(x) = (y2 - y1) / (x2 - x1)
-			value += ((position - x1) * (static_cast<float>(Values[pt]) / float(range) - value)) / (x2 - x1);
+			value += ((position - x1) * (Values[pt] * ENV_PRECISION / rangeIn - value)) / (x2 - x1);
 		}
 	}
 
-	return Clamp(value, 0.0f, 1.0f);
+	Limit(value, 0, ENV_PRECISION);
+	return (value * rangeOut + ENV_PRECISION / 2) / ENV_PRECISION;
+}
+
+
+void InstrumentEnvelope::Sanitize(uint8 maxValue)
+//-----------------------------------------------
+{
+	LimitMax(nNodes, uint32(MAX_ENVPOINTS));
+	Ticks[0] = 0;
+	for(uint32 i = 1; i < nNodes; i++)
+	{
+		if(Ticks[i] < Ticks[i - 1])
+			Ticks[i] = Ticks[i - 1];
+		LimitMax(Values[i], maxValue);
+	}
+	STATIC_ASSERT(MAX_ENVPOINTS <= 255);
+	LimitMax(nLoopEnd, static_cast<uint8>(nNodes));
+	LimitMax(nLoopStart, nLoopEnd);
+	LimitMax(nSustainEnd, static_cast<uint8>(nNodes));
+	LimitMax(nSustainStart, nSustainEnd);
+	if(nReleaseNode != ENV_RELEASE_NODE_UNSET)
+		LimitMax(nReleaseNode, static_cast<uint8>(nNodes));
 }
 
 
@@ -152,7 +179,7 @@ ModInstrument::ModInstrument(SAMPLEINDEX sample)
 	nCutSwing = 0;
 	nResSwing = 0;
 	nFilterMode = FLTMODE_UNCHANGED;
-	wPitchToTempoLock = 0;
+	pitchToTempoLock.Set(0);
 	nPluginVelocityHandling = PLUGIN_VELOCITYHANDLING_CHANNEL;
 	nPluginVolumeHandling = PLUGIN_VOLUMEHANDLING_IGNORE;
 
@@ -197,8 +224,8 @@ void ModInstrument::Convert(MODTYPE fromType, MODTYPE toType)
 			nMidiChannel = 1;
 		}
 
-		// FT2 only has signed Pitch Wheel Depth, and it's limited to 0...36 (in the GUI, at least. As you would expect it from FT2, this value is actually not sanitized on load).
-		midiPWD = static_cast<int8>(abs(midiPWD));
+		// FT2 only has unsigned Pitch Wheel Depth, and it's limited to 0...36 (in the GUI, at least. As you would expect it from FT2, this value is actually not sanitized on load).
+		midiPWD = static_cast<int8>(mpt::abs(midiPWD));
 		Limit(midiPWD, int8(0), int8(36));
 
 		nGlobalVol = 64;
@@ -221,9 +248,10 @@ void ModInstrument::Convert(MODTYPE fromType, MODTYPE toType)
 	if(!(toType & MOD_TYPE_MPT))
 	{
 		SetTuning(nullptr);
-		wPitchToTempoLock = 0;
+		pitchToTempoLock.Set(0);
 		nCutSwing = nResSwing = 0;
 		nFilterMode = FLTMODE_UNCHANGED;
+		nVolRampUp = 0;
 	}
 }
 
@@ -261,3 +289,41 @@ void ModInstrument::GetSamples(std::vector<bool> &referencedSamples) const
 		}
 	}
 }
+
+
+void ModInstrument::Sanitize(MODTYPE modType)
+//-------------------------------------------
+{
+	LimitMax(nFadeOut, 65536u);
+	LimitMax(nGlobalVol, 64u);
+	LimitMax(nPan, 256u);
+
+	LimitMax(wMidiBank, uint16(16384));
+	LimitMax(nMidiProgram, uint8(128));
+	LimitMax(nMidiChannel, uint8(17));
+
+	if(nNNA > NNA_NOTEFADE) nNNA = NNA_NOTECUT;
+	if(nDCT > DCT_PLUGIN) nDCT = DCT_NONE;
+	if(nDNA > DNA_NOTEFADE) nDNA = DNA_NOTECUT;
+
+	LimitMax(nPanSwing, uint8(64));
+	LimitMax(nVolSwing, uint8(100));
+
+	Limit(nPPS, int8(-32), int8(32));
+
+	LimitMax(nCutSwing, uint8(64));
+	LimitMax(nResSwing, uint8(64));
+	
+#ifdef MODPLUG_TRACKER
+	MPT_UNREFERENCED_PARAMETER(modType);
+	const uint8 range = ENVELOPE_MAX;
+#else
+	const uint8 range = modType == MOD_TYPE_AMS2 ? uint8_max : ENVELOPE_MAX;
+#endif
+	VolEnv.Sanitize();
+	PanEnv.Sanitize();
+	PitchEnv.Sanitize(range);
+}
+
+
+OPENMPT_NAMESPACE_END

@@ -11,6 +11,8 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -169,12 +171,11 @@ bool CSoundFile::ReadDSM(FileReader &file, ModLoadingFlags loadFlags)
 	file.ReadStructPartial(songHeader, chunkHeader.size);
 	songHeader.ConvertEndianness();
 
-	InitializeGlobals();
-	mpt::String::Read<mpt::String::maybeNullTerminated>(songName, songHeader.songName);
-	m_nType = MOD_TYPE_DSM;
+	InitializeGlobals(MOD_TYPE_DSM);
+	mpt::String::Read<mpt::String::maybeNullTerminated>(m_songName, songHeader.songName);
 	m_nChannels = Clamp(songHeader.numChannels, uint16(1), uint16(16));
 	m_nDefaultSpeed = songHeader.speed;
-	m_nDefaultTempo = songHeader.bpm;
+	m_nDefaultTempo.Set(songHeader.bpm);
 	m_nDefaultGlobalVolume = std::min(songHeader.globalVol, uint8(64)) * 4u;
 	if(!m_nDefaultGlobalVolume) m_nDefaultGlobalVolume = MAX_GLOBAL_VOLUME;
 	if(songHeader.mastervol == 0x80)
@@ -195,7 +196,7 @@ bool CSoundFile::ReadDSM(FileReader &file, ModLoadingFlags loadFlags)
 		}
 	}
 
-	Order.ReadFromArray(songHeader.orders, songHeader.numOrders);
+	Order.ReadFromArray(songHeader.orders, songHeader.numOrders, 0xFF, 0xFE);
 
 	// Read pattern and sample chunks
 	PATTERNINDEX patNum = 0;
@@ -206,7 +207,7 @@ bool CSoundFile::ReadDSM(FileReader &file, ModLoadingFlags loadFlags)
 		if(!memcmp(chunkHeader.magic, "PATT", 4) && (loadFlags & loadPatternData))
 		{
 			// Read pattern
-			if(Patterns.Insert(patNum, 64))
+			if(!Patterns.Insert(patNum, 64))
 			{
 				continue;
 			}
@@ -214,7 +215,7 @@ bool CSoundFile::ReadDSM(FileReader &file, ModLoadingFlags loadFlags)
 
 			ROWINDEX row = 0;
 			PatternRow rowBase = Patterns[patNum];
-			while(chunk.AreBytesLeft() && row < 64)
+			while(chunk.CanRead(1) && row < 64)
 			{
 				uint8 flag = chunk.ReadUint8();
 				if(!flag)
@@ -309,3 +310,6 @@ bool CSoundFile::ReadDSM(FileReader &file, ModLoadingFlags loadFlags)
 
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

@@ -18,7 +18,9 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
-#include <iterator>
+
+OPENMPT_NAMESPACE_BEGIN
+
 
 /////////////////////////////////////////////////////////////////////
 // Common code for both AMS formats
@@ -42,8 +44,8 @@ static bool ReadAMSString(std::string &dest, FileReader &file)
 
 
 // Read AMS or AMS2 (newVersion = true) pattern. At least this part of the format is more or less identical between the two trackers...
-static void ReadAMSPattern(CPattern &pattern, bool newVersion, FileReader &patternChunk, CSoundFile &sndFile)
-//-----------------------------------------------------------------------------------------------------------
+static void ReadAMSPattern(CPattern &pattern, bool newVersion, FileReader &patternChunk)
+//--------------------------------------------------------------------------------------
 {
 	enum
 	{
@@ -95,12 +97,12 @@ static void ReadAMSPattern(CPattern &pattern, bool newVersion, FileReader &patte
 		CMD_GLOBALVOLUME,	// Global volume (0... 127)
 	};
 
-	static ModCommand dummy;
+	ModCommand dummy = ModCommand::Empty();
 
 	for(ROWINDEX row = 0; row < pattern.GetNumRows(); row++)
 	{
 		PatternRow baseRow = pattern.GetRow(row);
-		while(patternChunk.AreBytesLeft())
+		while(patternChunk.CanRead(1))
 		{
 			const uint8 flags = patternChunk.ReadUint8();
 			if(flags == emptyRow)
@@ -150,7 +152,7 @@ static void ReadAMSPattern(CPattern &pattern, bool newVersion, FileReader &patte
 					{
 						// PT commands
 						m.command = effect;
-						sndFile.ConvertModCommand(m);
+						CSoundFile::ConvertModCommand(m);
 
 						// Post-fix some commands
 						switch(m.command)
@@ -395,15 +397,13 @@ bool CSoundFile::ReadAMS(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
+	InitializeGlobals(MOD_TYPE_AMS);
 
-	m_nType = MOD_TYPE_AMS;
 	m_SongFlags = SONG_ITCOMPATGXX | SONG_ITOLDEFFECTS;
 	m_nChannels = (fileHeader.channelConfig & 0x1F) + 1;
 	m_nSamples = fileHeader.numSamps;
-	SetModFlag(MSF_COMPATIBLE_PLAY, true);
 	SetupMODPanning(true);
-	madeWithTracker = mpt::String::Print("Extreme's Tracker %1.%2", fileHeader.versionHigh, fileHeader.versionLow);
+	m_madeWithTracker = mpt::String::Print("Extreme's Tracker %1.%2", fileHeader.versionHigh, fileHeader.versionLow);
 
 	std::vector<bool> packSample(fileHeader.numSamps);
 
@@ -417,7 +417,7 @@ bool CSoundFile::ReadAMS(FileReader &file, ModLoadingFlags loadFlags)
 	}
 
 	// Texts
-	ReadAMSString(songName, file);
+	ReadAMSString(m_songName, file);
 
 	// Read sample names
 	for(SAMPLEINDEX smp = 1; smp <= GetNumSamples(); smp++)
@@ -438,7 +438,7 @@ bool CSoundFile::ReadAMS(FileReader &file, ModLoadingFlags loadFlags)
 		char name[11];
 		ReadAMSString(name, file);
 		// Create pattern now, so name won't be reset later.
-		if(!Patterns.Insert(pat, 64))
+		if(Patterns.Insert(pat, 64))
 		{
 			Patterns[pat].SetName(name);
 		}
@@ -463,12 +463,11 @@ bool CSoundFile::ReadAMS(FileReader &file, ModLoadingFlags loadFlags)
 			}
 		}
 
-		std::string str;
-		std::copy(textOut.begin(), textOut.end(), std::back_inserter(str));
-		str = mpt::To(mpt::CharsetCP437, mpt::CharsetCP437AMS, str);
+		std::string str(textOut.begin(), textOut.end());
+		str = mpt::ToCharset(mpt::CharsetCP437, mpt::CharsetCP437AMS, str);
 
 		// Packed text doesn't include any line breaks!
-		songMessage.ReadFixedLineLength(str.c_str(), str.length(), 76, 0);
+		m_songMessage.ReadFixedLineLength(mpt::byte_cast<const mpt::byte*>(str.c_str()), str.length(), 76, 0);
 	}
 
 	// Read Order List
@@ -490,7 +489,7 @@ bool CSoundFile::ReadAMS(FileReader &file, ModLoadingFlags loadFlags)
 
 		if(loadFlags & loadPatternData)
 		{
-			ReadAMSPattern(Patterns[pat], false, patternChunk, *this);
+			ReadAMSPattern(Patterns[pat], false, patternChunk);
 		}
 	}
 
@@ -558,7 +557,7 @@ struct PACKED AMS2Envelope
 	// Read envelope and do partial conversion.
 	void ConvertToMPT(InstrumentEnvelope &mptEnv, FileReader &file)
 	{
-		file.Read(*this);
+		file.ReadStruct(*this);
 
 		// Read envelope points
 		uint8 data[64][3];
@@ -699,21 +698,12 @@ struct PACKED AMS2SampleHeader
 			mptSmp.uFlags = CHN_PANNING;
 		}
 
-		if(flags & smp16Bit)
-		{
-			mptSmp.uFlags.set(CHN_16BIT);
-		}
+		if(flags & smp16Bit) mptSmp.uFlags.set(CHN_16BIT);
 		if((flags & smpLoop) && mptSmp.nLoopStart < mptSmp.nLoopEnd)
 		{
 			mptSmp.uFlags.set(CHN_LOOP);
-			if(flags & smpBidiLoop)
-			{
-				mptSmp.uFlags.set(CHN_PINGPONGLOOP);
-			}
-			if(flags & smpReverse)
-			{
-				mptSmp.uFlags.set(CHN_REVERSE);
-			}
+			if(flags & smpBidiLoop) mptSmp.uFlags.set(CHN_PINGPONGLOOP);
+			if(flags & smpReverse) mptSmp.uFlags.set(CHN_REVERSE);
 		}
 	}
 };
@@ -757,9 +747,9 @@ bool CSoundFile::ReadAMS2(FileReader &file, ModLoadingFlags loadFlags)
 		return false;
 	}
 
-	InitializeGlobals();
+	InitializeGlobals(MOD_TYPE_AMS2);
 
-	if(!ReadAMSString(songName, file)
+	if(!ReadAMSString(m_songName, file)
 		|| !file.ReadConvertEndianness(fileHeader)
 		|| fileHeader.versionHigh != 2 || fileHeader.versionLow > 2)
 	{
@@ -769,23 +759,22 @@ bool CSoundFile::ReadAMS2(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 	
-	m_nType = MOD_TYPE_AMS2;
 	m_nInstruments = fileHeader.numIns;
 	m_nChannels = 32;
-	SetModFlag(MSF_COMPATIBLE_PLAY, true);
 	SetupMODPanning(true);
-	madeWithTracker = mpt::String::Print("Velvet Studio %1.%2", fileHeader.versionHigh, mpt::fmt::dec0<2>(fileHeader.versionLow));
+	m_madeWithTracker = mpt::String::Print("Velvet Studio %1.%2", fileHeader.versionHigh, mpt::fmt::dec0<2>(fileHeader.versionLow));
 
 	uint16 headerFlags;
 	if(fileHeader.versionLow >= 2)
 	{
-		m_nDefaultTempo = std::max(uint8(32), static_cast<uint8>(file.ReadUint16LE() >> 8));	// 16.16 Tempo
+		uint16 tempo = std::max(uint16(32 << 8), file.ReadUint16LE());	// 8.8 tempo
+		m_nDefaultTempo.SetRaw((tempo * TEMPO::fractFact) >> 8);
 		m_nDefaultSpeed = std::max(uint8(1), file.ReadUint8());
 		file.Skip(3);	// Default values for pattern editor
 		headerFlags = file.ReadUint16LE();
 	} else
 	{
-		m_nDefaultTempo = std::max(uint8(32), file.ReadUint8());
+		m_nDefaultTempo.Set(std::max(uint8(32), file.ReadUint8()));
 		m_nDefaultSpeed = std::max(uint8(1), file.ReadUint8());
 		headerFlags = file.ReadUint8();
 	}
@@ -891,9 +880,7 @@ bool CSoundFile::ReadAMS2(FileReader &file, ModLoadingFlags loadFlags)
 	{
 		std::string str;
 		file.ReadString<mpt::String::spacePadded>(str, composerLength);
-		str = mpt::To(mpt::CharsetCP437, mpt::CharsetCP437AMS2, str);
-		songMessage.Read(str.c_str(), str.length(), SongMessage::leAutodetect);
-		songArtist = str;
+		m_songArtist = mpt::ToUnicode(mpt::CharsetCP437AMS2, str);
 	}
 
 	// Channel names
@@ -932,11 +919,10 @@ bool CSoundFile::ReadAMS2(FileReader &file, ModLoadingFlags loadFlags)
 				textOut[writeLen++] = c;
 			}
 		}
-		std::string str;
-		std::copy(textOut.begin(), textOut.begin() + descriptionHeader.unpackedLen, std::back_inserter(str));
-		str = mpt::To(mpt::CharsetCP437, mpt::CharsetCP437AMS2, str);
+		std::string str(textOut.begin(), textOut.begin() + descriptionHeader.unpackedLen);
+		str = mpt::ToCharset(mpt::CharsetCP437, mpt::CharsetCP437AMS2, str);
 		// Packed text doesn't include any line breaks!
-		songMessage.ReadFixedLineLength(str.c_str(), str.length(), 74, 0);
+		m_songMessage.ReadFixedLineLength(mpt::byte_cast<const mpt::byte*>(str.c_str()), str.length(), 74, 0);
 	}
 
 	// Read Order List
@@ -962,7 +948,7 @@ bool CSoundFile::ReadAMS2(FileReader &file, ModLoadingFlags loadFlags)
 			// We don't need to know the number of channels or commands.
 			patternChunk.Skip(1);
 
-			if(Patterns.Insert(pat, numRows))
+			if(!Patterns.Insert(pat, numRows))
 			{
 				continue;
 			}
@@ -971,7 +957,7 @@ bool CSoundFile::ReadAMS2(FileReader &file, ModLoadingFlags loadFlags)
 			ReadAMSString(patternName, patternChunk);
 			Patterns[pat].SetName(patternName);
 
-			ReadAMSPattern(Patterns[pat], true, patternChunk, *this);
+			ReadAMSPattern(Patterns[pat], true, patternChunk);
 		}
 	}
 
@@ -1002,11 +988,11 @@ bool CSoundFile::ReadAMS2(FileReader &file, ModLoadingFlags loadFlags)
 		if(sourceInstr == 0
 			|| --sourceInstr >= firstSample.size())
 		{
-				continue;
+			continue;
 		}
 
 		SAMPLEINDEX sourceSample = ((sampleSettings[smp] & sampleIndexMask) >> sampleIndexShift) + firstSample[sourceInstr];
-		if(sourceSample > GetNumSamples())
+		if(sourceSample > GetNumSamples() || Samples[sourceSample].pSample == nullptr)
 		{
 			continue;
 		}
@@ -1014,13 +1000,7 @@ bool CSoundFile::ReadAMS2(FileReader &file, ModLoadingFlags loadFlags)
 		// Copy over original sample
 		ModSample &sample = Samples[smp + 1];
 		ModSample &source = Samples[sourceSample];
-		if(source.uFlags & CHN_16BIT)
-		{
-			sample.uFlags |= CHN_16BIT;
-		} else
-		{
-			sample.uFlags &= ~CHN_16BIT;
-		}
+		sample.uFlags.set(CHN_16BIT, source.uFlags[CHN_16BIT]);
 		sample.nLength = source.nLength;
 		if(sample.AllocateSample())
 		{
@@ -1123,3 +1103,6 @@ void AMSUnpack(const int8 * const source, size_t sourceSize, void * const dest, 
 
 	delete[] tempBuf;
 }
+
+
+OPENMPT_NAMESPACE_END

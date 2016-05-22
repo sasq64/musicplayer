@@ -14,6 +14,8 @@
 #include "Resampler.h"
 #include "MixerInterface.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 template<int channelsOut, int channelsIn, typename out, typename in, size_t mixPrecision>
 struct IntToIntTraits : public MixerTraits<channelsOut, channelsIn, out, in>
 {
@@ -47,7 +49,7 @@ struct LinearInterpolation
 
 	forceinline void End(const ModChannel &) { }
 
-	forceinline void operator() (typename Traits::outbuf_t &outSample, const typename Traits::input_t * const inBuffer, const int32 posLo)
+	forceinline void operator() (typename Traits::outbuf_t &outSample, const typename Traits::input_t * const MPT_RESTRICT inBuffer, const int32 posLo)
 	{
 		static_assert(Traits::numChannelsIn <= Traits::numChannelsOut, "Too many input channels");
 		const typename Traits::output_t fract = posLo >> 8;
@@ -69,7 +71,7 @@ struct FastSincInterpolation
 	forceinline void Start(const ModChannel &, const CResampler &) { }
 	forceinline void End(const ModChannel &) { }
 
-	forceinline void operator() (typename Traits::outbuf_t &outSample, const typename Traits::input_t * const inBuffer, const int32 posLo)
+	forceinline void operator() (typename Traits::outbuf_t &outSample, const typename Traits::input_t * const MPT_RESTRICT inBuffer, const int32 posLo)
 	{
 		static_assert(Traits::numChannelsIn <= Traits::numChannelsOut, "Too many input channels");
 		const int16 *lut = CResampler::FastSincTable + ((posLo >> 6) & 0x3FC);
@@ -93,13 +95,19 @@ struct PolyphaseInterpolation
 
 	forceinline void Start(const ModChannel &chn, const CResampler &resampler)
 	{
+		#ifdef MODPLUG_TRACKER
+			// Otherwise causes "warning C4100: 'resampler' : unreferenced formal parameter"
+			// because all 3 tables are static members.
+			// #pragma warning fails with this templated case for unknown reasons.
+			MPT_UNREFERENCED_PARAMETER(resampler);
+		#endif // MODPLUG_TRACKER
 		sinc = (((chn.nInc > 0x13000) || (chn.nInc < -0x13000)) ?
 			(((chn.nInc > 0x18000) || (chn.nInc < -0x18000)) ? resampler.gDownsample2x : resampler.gDownsample13x) : resampler.gKaiserSinc);
 	}
 
 	forceinline void End(const ModChannel &) { }
 
-	forceinline void operator() (typename Traits::outbuf_t &outSample, const typename Traits::input_t * const inBuffer, const int32 posLo)
+	forceinline void operator() (typename Traits::outbuf_t &outSample, const typename Traits::input_t * const MPT_RESTRICT inBuffer, const int32 posLo)
 	{
 		static_assert(Traits::numChannelsIn <= Traits::numChannelsOut, "Too many input channels");
 		const SINC_TYPE *lut = sinc + ((posLo >> (16 - SINC_PHASES_BITS)) & SINC_MASK) * SINC_WIDTH;
@@ -132,7 +140,7 @@ struct FIRFilterInterpolation
 
 	forceinline void End(const ModChannel &) { }
 
-	forceinline void operator() (typename Traits::outbuf_t &outSample, const typename Traits::input_t * const inBuffer, const int32 posLo)
+	forceinline void operator() (typename Traits::outbuf_t &outSample, const typename Traits::input_t * const MPT_RESTRICT inBuffer, const int32 posLo)
 	{
 		static_assert(Traits::numChannelsIn <= Traits::numChannelsOut, "Too many input channels");
 		const int16 * const lut = WFIRlut + (((posLo + WFIR_FRACHALVE) >> WFIR_FRACSHIFT) & WFIR_FRACMASK);
@@ -196,7 +204,7 @@ template<class Traits>
 struct MixMonoFastNoRamp : public NoRamp<Traits>
 {
 	typedef NoRamp<Traits> base_t;
-	forceinline void operator() (const typename Traits::outbuf_t &outSample, const ModChannel &, typename Traits::output_t * const outBuffer)
+	forceinline void operator() (const typename Traits::outbuf_t &outSample, const ModChannel &, typename Traits::output_t * const MPT_RESTRICT outBuffer)
 	{
 		typename Traits::output_t vol = outSample[0] * base_t::lVol;
 		for(int i = 0; i < Traits::numChannelsOut; i++)
@@ -211,7 +219,7 @@ template<class Traits>
 struct MixMonoNoRamp : public NoRamp<Traits>
 {
 	typedef NoRamp<Traits> base_t;
-	forceinline void operator() (const typename Traits::outbuf_t &outSample, const ModChannel &, typename Traits::output_t * const outBuffer)
+	forceinline void operator() (const typename Traits::outbuf_t &outSample, const ModChannel &, typename Traits::output_t * const MPT_RESTRICT outBuffer)
 	{
 		outBuffer[0] += outSample[0] * base_t::lVol;
 		outBuffer[1] += outSample[0] * base_t::rVol;
@@ -222,7 +230,7 @@ struct MixMonoNoRamp : public NoRamp<Traits>
 template<class Traits>
 struct MixMonoRamp : public Ramp
 {
-	forceinline void operator() (const typename Traits::outbuf_t &outSample, const ModChannel &chn, typename Traits::output_t * const outBuffer)
+	forceinline void operator() (const typename Traits::outbuf_t &outSample, const ModChannel &chn, typename Traits::output_t * const MPT_RESTRICT outBuffer)
 	{
 		lRamp += chn.leftRamp;
 		rRamp += chn.rightRamp;
@@ -236,7 +244,7 @@ template<class Traits>
 struct MixStereoNoRamp : public NoRamp<Traits>
 {
 	typedef NoRamp<Traits> base_t;
-	forceinline void operator() (const typename Traits::outbuf_t &outSample, const ModChannel &, typename Traits::output_t * const outBuffer)
+	forceinline void operator() (const typename Traits::outbuf_t &outSample, const ModChannel &, typename Traits::output_t * const MPT_RESTRICT outBuffer)
 	{
 		outBuffer[0] += outSample[0] * base_t::lVol;
 		outBuffer[1] += outSample[1] * base_t::rVol;
@@ -247,7 +255,7 @@ struct MixStereoNoRamp : public NoRamp<Traits>
 template<class Traits>
 struct MixStereoRamp : public Ramp
 {
-	forceinline void operator() (const typename Traits::outbuf_t &outSample, const ModChannel &chn, typename Traits::output_t * const outBuffer)
+	forceinline void operator() (const typename Traits::outbuf_t &outSample, const ModChannel &chn, typename Traits::output_t * const MPT_RESTRICT outBuffer)
 	{
 		lRamp += chn.leftRamp;
 		rRamp += chn.rightRamp;
@@ -297,7 +305,7 @@ struct ResonantFilter
 	}
 
 	// Filter values are clipped to double the input range
-#define ClipFilter(x) Clamp<typename Traits::output_t, typename Traits::output_t>(x, int16_min << 1, int16_max << 1)
+#define ClipFilter(x) Clamp<typename Traits::output_t, typename Traits::output_t>(x, int16_min * 2, int16_max * 2)
 
 	forceinline void operator() (typename Traits::outbuf_t &outSample, const ModChannel &chn)
 	{
@@ -315,3 +323,6 @@ struct ResonantFilter
 
 #undef ClipFilter
 };
+
+
+OPENMPT_NAMESPACE_END

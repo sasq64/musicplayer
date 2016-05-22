@@ -14,6 +14,9 @@
 #include "Mixer.h"
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 struct ModChannel;
 
 
@@ -27,7 +30,7 @@ void ApplyGain(int32 *soundBuffer, std::size_t channels, std::size_t countChunk,
 void ApplyGain(float *outputBuffer, float * const *outputBuffers, std::size_t offset, std::size_t channels, std::size_t countChunk, float gainFactor);
 #endif // !MODPLUG_TRACKER
 
-void InitMixBuffer(mixsample_t *pBuffer, UINT nSamples);
+void InitMixBuffer(mixsample_t *pBuffer, uint32 nSamples);
 void InterleaveFrontRear(mixsample_t *pFrontBuf, mixsample_t *pRearBuf, uint32 nFrames);
 void MonoFromStereo(mixsample_t *pMixBuf, uint32 nSamples);
 
@@ -36,3 +39,6 @@ void DeinterleaveStereo(const mixsample_t *input, mixsample_t *outputL, mixsampl
 
 void EndChannelOfs(ModChannel &chn, mixsample_t *pBuffer, uint32 nSamples);
 void StereoFill(mixsample_t *pBuffer, uint32 nSamples, mixsample_t &rofs, mixsample_t &lofs);
+
+
+OPENMPT_NAMESPACE_END

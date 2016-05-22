@@ -17,6 +17,8 @@
 #include "Loaders.h"
 #include "ChunkReader.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -46,7 +48,7 @@ struct PACKED DMFChunk
 		idPATT	= MAGIC4LE('P','A','T','T'),	// Patterns
 		idSMPI	= MAGIC4LE('S','M','P','I'),	// Sample headers
 		idSMPD	= MAGIC4LE('S','M','P','D'),	// Sample data
-		idSMPJ	= MAGIC4LE('S','M','P','J'),	// Sample jump table (XTrakcker 32 only)
+		idSMPJ	= MAGIC4LE('S','M','P','J'),	// Sample jump table (XTracker 32 only)
 		idENDE	= MAGIC4LE('E','N','D','E'),	// Last four bytes of DMF file
 		idSETT	= MAGIC4LE('S','E','T','T'),	// Probably contains GUI settings
 	};
@@ -131,7 +133,7 @@ struct PACKED DMFSampleHeader
 		smpCompMask = 0x0C,
 		smpComp1	= 0x04,	// Compression type 1
 		smpComp2	= 0x08,	// Compression type 2 (unused)
-		smpComp3	= 0x0C,	// Compression type 3 (dito)
+		smpComp3	= 0x0C,	// Compression type 3 (ditto)
 		smpLibrary	= 0x80,	// Sample is stored in a library
 	};
 
@@ -220,7 +222,7 @@ struct DMFPatternSettings
 			noteBuffer = lastNote = NOTE_NONE;
 			vibratoType = 8;
 			tremoloType = 4;
-			highOffset = 0;
+			highOffset = 6;
 			playDir = false;
 		}
 	};
@@ -249,10 +251,10 @@ static uint8 DMFporta2MPT(uint8 val, const uint8 internalTicks, const bool hasFi
 {
 	if(val == 0)
 		return 0;
-	else if((val <= 0x0F || internalTicks < 2) && hasFine)
+	else if((val <= 0x0F && hasFine) || internalTicks < 2)
 		return (val | 0xF0);
 	else
-		return MAX(1, (val / (internalTicks - 1)));	// no porta on first tick!
+		return std::max<uint8>(1, (val / (internalTicks - 1)));	// no porta on first tick!
 }
 
 
@@ -260,10 +262,10 @@ static uint8 DMFporta2MPT(uint8 val, const uint8 internalTicks, const bool hasFi
 static uint8 DMFslide2MPT(uint8 val, const uint8 internalTicks, const bool up)
 //----------------------------------------------------------------------------
 {
-	val = MAX(1, val / 4);
+	val = std::max<uint8>(1, val / 4);
 	const bool isFine = (val < 0x0F) || (internalTicks < 2);
 	if(!isFine)
-		val = MAX(1, (val + internalTicks - 2) / (internalTicks - 1));	// no slides on first tick! "+ internalTicks - 2" for rounding precision
+		val = std::max<uint8>(1, (val + internalTicks - 2) / (internalTicks - 1));	// no slides on first tick! "+ internalTicks - 2" for rounding precision
 
 	if(up)
 		return (isFine ? 0x0F : 0x00) | (val << 4);
@@ -396,14 +398,14 @@ static PATTERNINDEX ConvertDMFPattern(FileReader &file, DMFPatternSettings &sett
 	file.ReadConvertEndianness(patHead);
 
 	const ROWINDEX numRows = Clamp(ROWINDEX(patHead.numRows), ROWINDEX(1), MAX_PATTERN_ROWS);
-	const PATTERNINDEX pat = sndFile.Patterns.Insert(numRows);
+	const PATTERNINDEX pat = sndFile.Patterns.InsertAny(numRows);
 	if(pat == PATTERNINDEX_INVALID)
 	{
 		return pat;
 	}
 
 	PatternRow m = sndFile.Patterns[pat].GetRow(0);
-	const CHANNELINDEX numChannels = std::min(sndFile.GetNumChannels(), CHANNELINDEX(patHead.numTracks));
+	const CHANNELINDEX numChannels = std::min<CHANNELINDEX>(sndFile.GetNumChannels() - 1, patHead.numTracks);
 
 	// When breaking to a pattern with less channels that the previous pattern,
 	// all voices in the now unused channels are killed:
@@ -529,7 +531,7 @@ static PATTERNINDEX ConvertDMFPattern(FileReader &file, DMFPatternSettings &sett
 				//const int tickspeed = (tempoRealBPMmode) ? MAX(1, (tempoData * beat * 4) / 60) : tempoData;
 				const int tickspeed = (settings.realBPMmode) ? std::max(1, settings.tempoBPM * settings.beat * 2) : ((settings.tempoTicks + 1) * 30);
 				// Try to find matching speed - try higher speeds first, so that effects like arpeggio and tremor work better.
-				for(speed = 255; speed > 1; speed--)
+				for(speed = 255; speed > 2; speed--)
 				{
 					// Original unoptimized formula:
 					// tempo = 30 * tickspeed * speed / 48;
@@ -959,7 +961,7 @@ bool CSoundFile::ReadDMF(FileReader &file, ModLoadingFlags loadFlags)
 {
 	DMFFileHeader fileHeader;
 	file.Rewind();
-	if(!file.Read(fileHeader)
+	if(!file.ReadStruct(fileHeader)
 		|| memcmp(fileHeader.signature, "DDMF", 4)
 		|| !fileHeader.version || fileHeader.version > 10)
 	{
@@ -969,9 +971,13 @@ bool CSoundFile::ReadDMF(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
-	mpt::String::Read<mpt::String::spacePadded>(songName, fileHeader.songname);
-	mpt::String::Read<mpt::String::spacePadded>(songArtist, fileHeader.composer);
+	InitializeGlobals(MOD_TYPE_DMF);
+	mpt::String::Read<mpt::String::spacePadded>(m_songName, fileHeader.songname);
+	{
+		std::string artist;
+		mpt::String::Read<mpt::String::spacePadded>(artist, fileHeader.composer);
+		m_songArtist = mpt::ToUnicode(mpt::CharsetCP437, artist);
+	}
 
 	FileHistory mptHistory;
 	MemsetZero(mptHistory);
@@ -1039,9 +1045,6 @@ bool CSoundFile::ReadDMF(FileReader &file, ModLoadingFlags loadFlags)
 				}
 			}
 		}
-	} else
-	{
-		return false;
 	}
 
 	// Read song message
@@ -1052,7 +1055,7 @@ bool CSoundFile::ReadDMF(FileReader &file, ModLoadingFlags loadFlags)
 		// The skipped byte seems to always be 0.
 		// This also matches how XT 1.03 itself displays the song message.
 		chunk.Skip(1);
-		songMessage.ReadFixedLineLength(chunk, chunk.GetLength() - 1, 40, 0);
+		m_songMessage.ReadFixedLineLength(chunk, chunk.GetLength() - 1, 40, 0);
 	}
 	
 	// Read sample headers + data
@@ -1091,11 +1094,9 @@ bool CSoundFile::ReadDMF(FileReader &file, ModLoadingFlags loadFlags)
 	}
 
 	InitializeChannels();
-	m_nType = MOD_TYPE_DMF;
 	m_SongFlags = SONG_LINEARSLIDES | SONG_ITCOMPATGXX;	// this will be converted to IT format by MPT. SONG_ITOLDEFFECTS is not set because of tremor and vibrato.
-	SetModFlag(MSF_COMPATIBLE_PLAY, true);
 	m_nDefaultSpeed = 6;
-	m_nDefaultTempo = 120;
+	m_nDefaultTempo.Set(120);
 	m_nDefaultGlobalVolume = 256;
 	m_nSamplePreAmp = m_nVSTiVolume = 48;
 
@@ -1123,8 +1124,8 @@ struct DMFHTree
 
 
 // DMF Huffman ReadBits
-static BYTE DMFReadBits(DMFHTree *tree, uint32 nbits)
-//---------------------------------------------------
+static uint8 DMFReadBits(DMFHTree *tree, uint32 nbits)
+//----------------------------------------------------
 {
 	uint8 x = 0, bitv = 1;
 	while(nbits--)
@@ -1218,3 +1219,5 @@ uintptr_t DMFUnpack(uint8 *psample, const uint8 *ibuf, const uint8 *ibufmax, uin
 	return tree.ibuf - ibuf;
 }
 
+
+OPENMPT_NAMESPACE_END

@@ -11,6 +11,10 @@
 
 #pragma once
 
+OPENMPT_NAMESPACE_BEGIN
+
+extern const char NoteNamesSharp[12][4];
+extern const char NoteNamesFlat[12][4];
 
 extern const uint8 ImpulseTrackerPortaVolCmd[16];
 extern const uint16 ProTrackerPeriodTable[6*12];
@@ -34,3 +38,8 @@ extern const uint32 LinearSlideUpTable[256];
 extern const uint32 LinearSlideDownTable[256];
 extern const float ITResonanceTable[128];
 extern const uint16 XMPanningTable[256];
+
+extern const uint8 AutoVibratoIT2XM[8];
+extern const uint8 AutoVibratoXM2IT[8];
+
+OPENMPT_NAMESPACE_END

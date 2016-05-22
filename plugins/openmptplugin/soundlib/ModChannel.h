@@ -10,14 +10,12 @@
 
 #pragma once
 
+OPENMPT_NAMESPACE_BEGIN
+
 class CSoundFile;
 
-#if MPT_COMPILER_MSVC
-#pragma warning(disable:4324) //structure was padded due to __declspec(align())
-#endif
-
 // Mix Channel Struct
-struct ALIGN(32) ModChannel
+struct ModChannel
 {
 	// Envelope playback info
 	struct EnvInfo
@@ -40,12 +38,12 @@ struct ALIGN(32) ModChannel
 	uint32 nPosLo;			// 16-bit fractional part of play position
 	int32 nInc;				// 16.16 fixed point sample speed relative to mixing frequency (0x10000 = one sample per output sample, 0x20000 = two samples per output sample, etc...)
 	int32 leftVol;			// 0...4096 (12 bits, since 16 bits + 12 bits = 28 bits = 0dB in integer mixer, see MIXING_ATTENUATION)
-	int32 rightVol;			// dito
+	int32 rightVol;			// Ditto
 	int32 leftRamp;			// Ramping delta, 20.12 fixed point (see VOLUMERAMPPRECISION)
-	int32 rightRamp;		// dito
+	int32 rightRamp;		// Ditto
 	// Up to here: 32 bytes
 	int32 rampLeftVol;		// Current ramping volume, 20.12 fixed point (see VOLUMERAMPPRECISION)
-	int32 rampRightVol;		// dito
+	int32 rampRightVol;		// Ditto
 	mixsample_t nFilter_Y[2][2];					// Filter memory - two history items per sample channel
 	mixsample_t nFilter_A0, nFilter_B0, nFilter_B1;	// Filter coeffs
 	mixsample_t nFilter_HP;
@@ -59,11 +57,12 @@ struct ALIGN(32) ModChannel
 	uint32 nRampLength;
 	// Up to here: 100 bytes
 
-	const ModSample *pModSample;			// Currently assigned sample slot (can already be stopped)
+	const ModSample *pModSample;			// Currently assigned sample slot (may already be stopped)
 
 	// Information not used in the mixer
 	const ModInstrument *pModInstrument;	// Currently assigned instrument slot
 	SmpLength proTrackerOffset;				// Offset for instrument-less notes in ProTracker mode
+	SmpLength oldOffset;
 	FlagSet<ChannelFlags> dwOldFlags;		// Flags from previous tick
 	int32 newLeftVol, newRightVol;
 	int32 nRealVolume, nRealPan;
@@ -80,15 +79,15 @@ struct ALIGN(32) ModChannel
 	int32 nVolSwing, nPanSwing;
 	int32 nCutSwing, nResSwing;
 	int32 nRestorePanOnNewNote; //If > 0, nPan should be set to nRestorePanOnNewNote - 1 on new note. Used to recover from panswing.
-	uint32 nOldGlobalVolSlide;
 	uint32 nEFxOffset; // offset memory for Invert Loop (EFx, .MOD only)
 	int32 nRetrigCount, nRetrigParam;
 	ROWINDEX nPatternLoop;
 	CHANNELINDEX nMasterChn;
+	ModCommand rowCommand;
 	// 8-bit members
 	uint8 resamplingMode;
-	uint8 nRestoreResonanceOnNewNote; //Like above
-	uint8 nRestoreCutoffOnNewNote; //Like above
+	uint8 nRestoreResonanceOnNewNote;	// See nRestorePanOnNewNote
+	uint8 nRestoreCutoffOnNewNote;		// ditto
 	uint8 nNote, nNNA;
 	uint8 nLastNote;				// Last note, ignoring note offs and cuts - for MIDI macros
 	uint8 nArpeggioLastNote, nArpeggioBaseNote;	// For plugin arpeggio
@@ -96,12 +95,13 @@ struct ALIGN(32) ModChannel
 	uint8 nOldVolumeSlide, nOldFineVolUpDown;
 	uint8 nOldPortaUpDown, nOldFinePortaUpDown, nOldExtraFinePortaUpDown;
 	uint8 nOldPanSlide, nOldChnVolSlide;
+	uint8 nOldGlobalVolSlide;
 	uint8 nVibratoType, nVibratoSpeed, nVibratoDepth;
 	uint8 nTremoloType, nTremoloSpeed, nTremoloDepth;
 	uint8 nPanbrelloType, nPanbrelloSpeed, nPanbrelloDepth;
-	int8  nPanbrelloRandomMemory;
+	int8  nPanbrelloOffset, nPanbrelloRandomMemory;
 	uint8 nOldCmdEx, nOldVolParam, nOldTempo;
-	uint8 nOldOffset, nOldHiOffset;
+	uint8 nOldHiOffset;
 	uint8 nCutOff, nResonance;
 	uint8 nTremorCount, nTremorParam;
 	uint8 nPatternLoopCount;
@@ -109,34 +109,33 @@ struct ALIGN(32) ModChannel
 	uint8 nActiveMacro, nFilterMode;
 	uint8 nEFxSpeed, nEFxDelay;		// memory for Invert Loop (EFx, .MOD only)
 	uint8 nNoteSlideCounter, nNoteSlideSpeed, nNoteSlideStep;	// IMF / PTM Note Slide
-	bool isFirstTick;
+	uint8 lastZxxParam;	// Memory for \xx slides
+	bool isFirstTick : 1;
 
-	ModCommand rowCommand;
+	//-->Variables used to make user-definable tuning modes work with pattern effects.
+	//If true, freq should be recalculated in ReadNote() on first tick.
+	//Currently used only for vibrato things - using in other context might be 
+	//problematic.
+	bool m_ReCalculateFreqOnFirstTick : 1;
+
+	//To tell whether to calculate frequency.
+	bool m_CalculateFreq : 1;
+
+	int32 m_PortamentoFineSteps, m_PortamentoTickSlide;
+
+	uint32 m_Freq;
+	float m_VibratoDepth;
+	//<----
 
 	//NOTE_PCs memory.
 	float m_plugParamValueStep, m_plugParamTargetValue;
 	uint16 m_RowPlugParam;
 	PLUGINDEX m_RowPlug;
 
-	//-->Variables used to make user-definable tuning modes work with pattern effects.
-	int32 m_PortamentoFineSteps, m_PortamentoTickSlide;
-
-	uint32 m_Freq;
-	float m_VibratoDepth;
-
-	//If true, freq should be recalculated in ReadNote() on first tick.
-	//Currently used only for vibrato things - using in other context might be 
-	//problematic.
-	bool m_ReCalculateFreqOnFirstTick;
-
-	//To tell whether to calculate frequency.
-	bool m_CalculateFreq;
-	//<----
-
 	void ClearRowCmd() { rowCommand = ModCommand::Empty(); }
 
 	// Get a reference to a specific envelope of this channel
-	const EnvInfo &GetEnvelope(enmEnvelopeTypes envType) const
+	const EnvInfo &GetEnvelope(EnvelopeType envType) const
 	{
 		switch(envType)
 		{
@@ -150,7 +149,7 @@ struct ALIGN(32) ModChannel
 		}
 	}
 
-	EnvInfo &GetEnvelope(enmEnvelopeTypes envType)
+	EnvInfo &GetEnvelope(EnvelopeType envType)
 	{
 		return const_cast<EnvInfo &>(static_cast<const ModChannel &>(*this).GetEnvelope(envType));
 	}
@@ -172,6 +171,7 @@ struct ALIGN(32) ModChannel
 	};
 
 	void Reset(ResetFlags resetMask, const CSoundFile &sndFile, CHANNELINDEX sourceChannel);
+	void Stop();
 
 	typedef uint32 volume_t;
 	volume_t GetVSTVolume() { return (pModInstrument) ? pModInstrument->nGlobalVol * 4 : nVolume; }
@@ -191,7 +191,7 @@ struct ALIGN(32) ModChannel
 
 
 // Default pattern channel settings
-struct ALIGN(32) ModChannelSettings
+struct ModChannelSettings
 {
 	FlagSet<ChannelFlags> dwFlags;	// Channel flags
 	uint16 nPan;					// Initial pan (0...256)
@@ -214,6 +214,4 @@ struct ALIGN(32) ModChannelSettings
 	}
 };
 
-#if MPT_COMPILER_MSVC
-#pragma warning(default:4324) //structure was padded due to __declspec(align())
-#endif
+OPENMPT_NAMESPACE_END

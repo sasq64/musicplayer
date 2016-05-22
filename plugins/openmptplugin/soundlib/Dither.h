@@ -12,6 +12,9 @@
 #pragma once
 
 
+OPENMPT_NAMESPACE_BEGIN
+
+
 struct DitherModPlugState
 {
 	uint32 rng_a;
@@ -58,9 +61,12 @@ private:
 	DitherMode mode;
 public:
 	Dither();
-	void SetMode(DitherMode mode);
+	void SetMode(DitherMode mode_);
 	DitherMode GetMode() const;
 	void Reset();
 	void Process(int *mixbuffer, std::size_t count, std::size_t channels, int bits);
-	static std::wstring GetModeName(DitherMode mode);
+	static mpt::ustring GetModeName(DitherMode mode);
 };
+
+
+OPENMPT_NAMESPACE_END

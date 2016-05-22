@@ -12,6 +12,8 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -362,7 +364,9 @@ static void ImportIMFEffect(ModCommand &m)
 			break;
 		case 0xC: // note cut
 		case 0xD: // note delay
-			// no change
+			// Apparently, Imago Orpheus doesn't cut samples on tick 0.
+			if(!m.param)
+				m.command = CMD_NONE;
 			break;
 		case 0xE: // ignore envelope
 			/* predicament: we can only disable one envelope at a time.
@@ -396,7 +400,9 @@ bool CSoundFile::ReadIMF(FileReader &file, ModLoadingFlags loadFlags)
 	IMFFileHeader fileHeader;
 	file.Rewind();
 	if(!file.ReadConvertEndianness(fileHeader)
-		|| memcmp(fileHeader.im10, "IM10", 4))
+		|| memcmp(fileHeader.im10, "IM10", 4)
+		|| fileHeader.ordNum > CountOf(fileHeader.orderlist)
+		|| fileHeader.insNum >= MAX_INSTRUMENTS)
 	{
 		return false;
 	}
@@ -439,7 +445,7 @@ bool CSoundFile::ReadIMF(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
+	InitializeGlobals(MOD_TYPE_IMF);
 	m_nChannels = detectedChannels;
 
 	//From mikmod: work around an Orpheus bug
@@ -454,15 +460,12 @@ bool CSoundFile::ReadIMF(FileReader &file, ModLoadingFlags loadFlags)
 				ChnSettings[chn].dwFlags.reset(CHN_MUTE);
 	}
 
-	m_nType = MOD_TYPE_IMF;
-	SetModFlag(MSF_COMPATIBLE_PLAY, true);
-
 	// Song Name
-	mpt::String::Read<mpt::String::nullTerminated>(songName, fileHeader.title);
+	mpt::String::Read<mpt::String::nullTerminated>(m_songName, fileHeader.title);
 
 	m_SongFlags = (fileHeader.flags & IMFFileHeader::linearSlides) ? SONG_LINEARSLIDES : SongFlags(0);
 	m_nDefaultSpeed = fileHeader.tempo;
-	m_nDefaultTempo = fileHeader.bpm;
+	m_nDefaultTempo.Set(fileHeader.bpm);
 	m_nDefaultGlobalVolume = Clamp(fileHeader.master, uint8(0), uint8(64)) * 4;
 	m_nSamplePreAmp = Clamp(fileHeader.amp, uint8(4), uint8(127));
 
@@ -479,7 +482,7 @@ bool CSoundFile::ReadIMF(FileReader &file, ModLoadingFlags loadFlags)
 		const uint16 length = file.ReadUint16LE(), numRows = file.ReadUint16LE();
 		FileReader patternChunk = file.ReadChunk(length - 4);
 
-		if(!(loadFlags & loadPatternData) || Patterns.Insert(pat, numRows))
+		if(!(loadFlags & loadPatternData) || !Patterns.Insert(pat, numRows))
 		{
 			continue;
 		}
@@ -592,17 +595,18 @@ bool CSoundFile::ReadIMF(FileReader &file, ModLoadingFlags loadFlags)
 		{
 			IMFSample sampleHeader;
 			file.ReadConvertEndianness(sampleHeader);
-			m_nSamples++;
 
-			if(memcmp(sampleHeader.is10, "IS10", 4) || m_nSamples >= MAX_SAMPLES)
+			const SAMPLEINDEX smpID = firstSample + smp;
+			if(memcmp(sampleHeader.is10, "IS10", 4) || smpID >= MAX_SAMPLES)
 			{
 				continue;
 			}
 
-			ModSample &sample = Samples[firstSample + smp];
+			m_nSamples = smpID;
+			ModSample &sample = Samples[smpID];
 
 			sampleHeader.ConvertToMPT(sample);
-			strcpy(m_szNames[m_nSamples], sample.filename);
+			strcpy(m_szNames[smpID], sample.filename);
 
 			if(sampleHeader.length)
 			{
@@ -623,3 +627,6 @@ bool CSoundFile::ReadIMF(FileReader &file, ModLoadingFlags loadFlags)
 
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

@@ -14,6 +14,10 @@
 #include <vector>
 #include <string>
 
+
+OPENMPT_NAMESPACE_BEGIN
+
+
 class CTuningCollection;
 
 namespace CTuningS11n
@@ -100,7 +104,7 @@ public:
 	mpt::PathString GetSaveFilePath() const {return m_SavefilePath;}
 #endif // MODPLUG_NO_FILESAVE
 
-	std::string GetVersionString() const {return Stringify(static_cast<int>(s_SerializationVersion));}
+	std::string GetVersionString() const {return mpt::ToString(static_cast<int>(s_SerializationVersion));}
 
 	size_t GetNameLengthMax() const {return 256;}
 
@@ -155,3 +159,6 @@ private:
 
 //END PRIVATE METHODS.
 };
+
+
+OPENMPT_NAMESPACE_END

@@ -12,7 +12,11 @@
 
 #include <vector>
 #include "Snd_defs.h"
+
+OPENMPT_NAMESPACE_BEGIN
+
 class CSoundFile;
+class ModSequence;
 
 //==============
 class RowVisitor
@@ -25,6 +29,7 @@ protected:
 	typedef std::vector<VisitedRowsBaseType> VisitedRowsType;
 
 	const CSoundFile &sndFile;
+	const ModSequence *Order;
 
 	// Memory for every row in the module if it has been visited or not.
 	VisitedRowsType visitedRows;
@@ -34,16 +39,16 @@ protected:
 
 public:
 
-	RowVisitor(const CSoundFile &sf) : sndFile(sf), currentOrder(0)
+	RowVisitor(const CSoundFile &sf, SEQUENCEINDEX sequence = SEQUENCEINDEX_INVALID) : sndFile(sf), currentOrder(0)
 	{
-		Initialize(true);
+		Initialize(true, sequence);
 	};
 
-	RowVisitor(const RowVisitor &other) : sndFile(other.sndFile), visitedRows(other.visitedRows), visitOrder(other.visitOrder), currentOrder(other.currentOrder) { };
+	RowVisitor(const RowVisitor &other) : sndFile(other.sndFile), Order(other.Order), visitedRows(other.visitedRows), visitOrder(other.visitOrder), currentOrder(other.currentOrder) { };
 
 	// Resize / Clear the row vector.
 	// If reset is true, the vector is not only resized to the required dimensions, but also completely cleared (i.e. all visited rows are unset).
-	void Initialize(bool reset);
+	void Initialize(bool reset, SEQUENCEINDEX sequence = SEQUENCEINDEX_INVALID);
 
 	// Mark a row as visited.
 	void Visit(ORDERINDEX order, ROWINDEX row)
@@ -91,3 +96,5 @@ protected:
 	void AddVisitedRow(ORDERINDEX order, ROWINDEX row);
 
 };
+
+OPENMPT_NAMESPACE_END

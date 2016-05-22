@@ -10,6 +10,9 @@
 
 #pragma once
 
+#include <deque>
+#include "../common/mutex.h"
+
 // Copied packing options from affectx.h
 #if TARGET_API_MAC_CARBON
 	#ifdef __LP64__
@@ -26,8 +29,7 @@
 	#pragma pack(8)
 #endif
 
-#include <deque>
-#include "../common/mutex.h"
+OPENMPT_NAMESPACE_BEGIN
 
 // Alternative, easy to use implementation of VstEvents struct.
 template <size_t N>
@@ -53,7 +55,7 @@ protected:
 	std::deque<BiggestVstEvent> eventQueue;
 	// Since plugins can also add events to the queue (even from a different thread than the processing thread),
 	// we need to ensure that reading and writing is never done in parallel.
-	Util::mutex criticalSection;
+	mpt::mutex criticalSection;
 
 public:
 
@@ -99,7 +101,7 @@ public:
 			memcpy(e->sysexDump, reinterpret_cast<const VstMidiSysexEvent *>(event)->sysexDump, e->dumpBytes);
 		}
 
-		Util::lock_guard<Util::mutex> lock(criticalSection);
+		mpt::lock_guard<mpt::mutex> lock(criticalSection);
 		if(insertFront)
 		{
 			eventQueue.push_front(copyEvent);
@@ -113,7 +115,7 @@ public:
 	// Set up the queue for transmitting to the plugin. Returns number of elements that are going to be transmitted.
 	VstInt32 Finalise()
 	{
-		Util::lock_guard<Util::mutex> lock(criticalSection);
+		mpt::lock_guard<mpt::mutex> lock(criticalSection);
 		numEvents = std::min<VstInt32>(eventQueue.size(), N);
 		for(VstInt32 i = 0; i < numEvents; i++)
 		{
@@ -125,7 +127,7 @@ public:
 	// Remove transmitted events from the queue
 	void Clear()
 	{
-		Util::lock_guard<Util::mutex> lock(criticalSection);
+		mpt::lock_guard<mpt::mutex> lock(criticalSection);
 		if(numEvents)
 		{
 			// Release temporarily allocated buffer for SysEx messages
@@ -150,3 +152,6 @@ public:
 #elif defined __BORLANDC__
 	#pragma -a-
 #endif
+
+
+OPENMPT_NAMESPACE_END

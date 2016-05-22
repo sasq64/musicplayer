@@ -15,6 +15,11 @@
 
 #include "stdafx.h"
 #include "Loaders.h"
+#include "mod_specifications.h"
+
+
+OPENMPT_NAMESPACE_BEGIN
+
 
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
@@ -147,16 +152,22 @@ bool CSoundFile::ReadGDM(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
-	m_nType = gdmFormatOrigin[fileHeader.originalFormat];
+	InitializeGlobals(gdmFormatOrigin[fileHeader.originalFormat]);
 	m_ContainerType = MOD_CONTAINERTYPE_GDM;
-	madeWithTracker = mpt::String::Print("BWSB 2GDM %1.%2 (converted from %3)", fileHeader.trackerMajorVer, fileHeader.formatMinorVer, ModTypeToTracker(GetType()));
+	m_madeWithTracker = mpt::String::Print("BWSB 2GDM %1.%2 (converted from %3)", fileHeader.trackerMajorVer, fileHeader.formatMinorVer, ModTypeToTracker(GetType()));
 
 	// Song name
-	mpt::String::Read<mpt::String::maybeNullTerminated>(songName, fileHeader.songTitle);
+	mpt::String::Read<mpt::String::maybeNullTerminated>(m_songName, fileHeader.songTitle);
 
 	// Artist name
-	mpt::String::Read<mpt::String::maybeNullTerminated>(songArtist, fileHeader.songMusician);
+	{
+		std::string artist;
+		mpt::String::Read<mpt::String::maybeNullTerminated>(artist, fileHeader.songMusician);
+		if(artist != "Unknown")
+		{
+			m_songArtist = mpt::ToUnicode(mpt::CharsetCP437, artist);
+		}
+	}
 
 	// Read channel pan map... 0...15 = channel panning, 16 = surround channel, 255 = channel does not exist
 	m_nChannels = 32;
@@ -179,12 +190,12 @@ bool CSoundFile::ReadGDM(FileReader &file, ModLoadingFlags loadFlags)
 
 	m_nDefaultGlobalVolume = MIN(fileHeader.masterVol * 4, 256);
 	m_nDefaultSpeed = fileHeader.tempo;
-	m_nDefaultTempo = fileHeader.bpm;
+	m_nDefaultTempo.Set(fileHeader.bpm);
 
 	// Read orders
 	if(file.Seek(fileHeader.orderOffset))
 	{
-		Order.ReadAsByte(file, fileHeader.lastOrder + 1);
+		Order.ReadAsByte(file, fileHeader.lastOrder + 1, fileHeader.lastOrder + 1, 0xFF, 0xFE);
 	}
 
 	// Read samples
@@ -222,7 +233,7 @@ bool CSoundFile::ReadGDM(FileReader &file, ModLoadingFlags loadFlags)
 		}
 
 		sample.nLoopStart = std::min<SmpLength>(gdmSample.loopBegin, sample.nLength);	// in samples
-		sample.nLoopEnd = std::min<SmpLength>(gdmSample.loopEnd - 1, sample.nLength);	// dito
+		sample.nLoopEnd = std::min<SmpLength>(gdmSample.loopEnd - 1, sample.nLength);	// ditto
 		sample.FrequencyToTranspose();	// set transpose + finetune for mod files
 
 		// Fix transpose + finetune for some rare cases where transpose is not C-5 (e.g. sample 4 in wander2.gdm)
@@ -244,7 +255,7 @@ bool CSoundFile::ReadGDM(FileReader &file, ModLoadingFlags loadFlags)
 		if(gdmSample.flags & GDMSampleHeader::smpVolume)
 		{
 			// Default volume is used... 0...64, 255 = no default volume
-			sample.nVolume = MIN(gdmSample.volume, 64) * 4;
+			sample.nVolume = std::min(gdmSample.volume, uint8(64)) * 4;
 		} else
 		{
 			sample.nVolume = 256;
@@ -255,7 +266,8 @@ bool CSoundFile::ReadGDM(FileReader &file, ModLoadingFlags loadFlags)
 			// Default panning is used
 			sample.uFlags.set(CHN_PANNING);
 			// 0...15, 16 = surround (not supported), 255 = no default panning
-			sample.nPan = (gdmSample.panning > 15) ? 128 : MIN((gdmSample.panning * 16) + 8, 256);
+			sample.nPan = static_cast<uint16>((gdmSample.panning > 15) ? 128 : std::min((gdmSample.panning * 16) + 8, 256));
+			sample.uFlags.set(CHN_SURROUND, gdmSample.panning == 16);
 		} else
 		{
 			sample.nPan = 128;
@@ -268,7 +280,7 @@ bool CSoundFile::ReadGDM(FileReader &file, ModLoadingFlags loadFlags)
 		for(SAMPLEINDEX smp = 1; smp <= GetNumSamples(); smp++)
 		{
 			SampleIO(
-				(Samples[smp].uFlags & CHN_16BIT) ? SampleIO::_16bit : SampleIO::_8bit,
+				Samples[smp].uFlags[CHN_16BIT] ? SampleIO::_16bit : SampleIO::_8bit,
 				SampleIO::mono,
 				SampleIO::littleEndian,
 				SampleIO::unsignedPCM)
@@ -300,7 +312,7 @@ bool CSoundFile::ReadGDM(FileReader &file, ModLoadingFlags loadFlags)
 		}
 		FileReader chunk = file.ReadChunk(patternLength - 2);
 
-		if(!(loadFlags & loadPatternData) || !chunk.IsValid() || Patterns.Insert(pat, 64))
+		if(!(loadFlags & loadPatternData) || !chunk.IsValid() || !Patterns.Insert(pat, 64))
 		{
 			continue;
 		}
@@ -349,7 +361,7 @@ bool CSoundFile::ReadGDM(FileReader &file, ModLoadingFlags loadFlags)
 					m.command = CMD_NONE;
 					m.volcmd = VOLCMD_NONE;
 
-					while(chunk.AreBytesLeft())
+					while(chunk.CanRead(2))
 					{
 						uint8 effByte = chunk.ReadUint8();
 						uint8 paramByte = chunk.ReadUint8();
@@ -506,9 +518,12 @@ bool CSoundFile::ReadGDM(FileReader &file, ModLoadingFlags loadFlags)
 	// Read song comments
 	if(fileHeader.messageTextLength > 0 && file.Seek(fileHeader.messageTextOffset))
 	{
-		songMessage.Read(file, fileHeader.messageTextLength, SongMessage::leAutodetect);
+		m_songMessage.Read(file, fileHeader.messageTextLength, SongMessage::leAutodetect);
 	}
 
 	return true;
 
 }
+
+
+OPENMPT_NAMESPACE_END

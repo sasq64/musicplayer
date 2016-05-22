@@ -10,11 +10,15 @@
 
 #pragma once
 
+OPENMPT_NAMESPACE_BEGIN
 class CSoundFile;
 struct ModSample;
 struct ModChannel;
+OPENMPT_NAMESPACE_END
 
 #include "Snd_defs.h"
+
+OPENMPT_NAMESPACE_BEGIN
 
 namespace ctrlSmp
 {
@@ -31,7 +35,12 @@ enum ResetFlag
 // Return: Length of the new sample.
 SmpLength InsertSilence(ModSample &smp, const SmpLength nSilenceLength, const SmpLength nStartFrom, CSoundFile &sndFile);
 
-// Change sample size. 
+// Remove part of a sample [selStart, selEnd[.
+// Note: Removed memory is not freed.
+// Return: Length of the new sample.
+SmpLength RemoveRange(ModSample &smp, SmpLength selStart, SmpLength selEnd, CSoundFile &sndFile);
+
+// Change sample size.
 // Note: If resized sample is bigger, silence will be added to the sample's tail.
 // Return: Length of the new sample.
 SmpLength ResizeSample(ModSample &smp, const SmpLength nNewLength, CSoundFile &sndFile);
@@ -71,7 +80,10 @@ bool UnsignSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile &
 bool InvertSample(ModSample &smp, SmpLength iStart, SmpLength iEnd, CSoundFile &sndFile);
 
 // Crossfade sample data to create smooth loops
-bool XFadeSample(ModSample &smp, SmpLength iFadeLength, CSoundFile &sndFile);
+bool XFadeSample(ModSample &smp, SmpLength fadeLength, int fadeLaw, bool afterloopFade, bool useSustainLoop, CSoundFile &sndFile);
+
+// Silence parts of the sample data
+bool SilenceSample(ModSample &smp, SmpLength start, SmpLength end, CSoundFile &sndFile);
 
 enum StereoToMonoMode
 {
@@ -84,6 +96,9 @@ enum StereoToMonoMode
 // Convert a sample with any number of channels to mono
 bool ConvertToMono(ModSample &smp, CSoundFile &sndFile, StereoToMonoMode conversionMode);
 
+// Convert a mono sample to stereo
+bool ConvertToStereo(ModSample &smp, CSoundFile &sndFile);
+
 } // Namespace ctrlSmp
 
 namespace ctrlChn
@@ -91,10 +106,13 @@ namespace ctrlChn
 
 // Replaces sample from sound channels by given sample.
 void ReplaceSample( ModChannel (&Chn)[MAX_CHANNELS],
-					const ModSample * const pSample,
+					const ModSample &sample,
 					const void * const pNewSample,
 					const SmpLength nNewLength,
 					FlagSet<ChannelFlags> setFlags,
 					FlagSet<ChannelFlags> resetFlags);
 
 } // namespace ctrlChn
+
+
+OPENMPT_NAMESPACE_END

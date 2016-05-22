@@ -12,6 +12,8 @@
 #include "stdafx.h"
 #include "Loaders.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -49,7 +51,7 @@ struct PACKED OktSample
 	char   name[20];
 	uint32 length;		// length in bytes
 	uint16 loopStart;	// *2 for real value
-	uint16 loopLength;	// dito
+	uint16 loopLength;	// ditto
 	uint16 volume;		// default volume
 	uint16 type;		// 7-/8-bit sample
 
@@ -122,7 +124,7 @@ static void ReadOKTPattern(FileReader &chunk, PATTERNINDEX nPat, CSoundFile &snd
 
 	ROWINDEX rows = Clamp(static_cast<ROWINDEX>(chunk.ReadUint16BE()), ROWINDEX(1), MAX_PATTERN_ROWS);
 
-	if(sndFile.Patterns.Insert(nPat, rows))
+	if(!sndFile.Patterns.Insert(nPat, rows))
 	{
 		return;
 	}
@@ -155,11 +157,11 @@ static void ReadOKTPattern(FileReader &chunk, PATTERNINDEX nPat, CSoundFile &snd
 				break;
 
 			case 1: // 1 Portamento Down (Period)
-				m->command = CMD_PORTAMENTODOWN;
+				m->command = CMD_PORTAMENTOUP;
 				m->param &= 0x0F;
 				break;
 			case 2: // 2 Portamento Up (Period)
-				m->command = CMD_PORTAMENTOUP;
+				m->command = CMD_PORTAMENTODOWN;
 				m->param &= 0x0F;
 				break;
 
@@ -272,7 +274,7 @@ static void ReadOKTPattern(FileReader &chunk, PATTERNINDEX nPat, CSoundFile &snd
 
 			default:
 				m->command = m->param = 0;
-				//ASSERT(false);
+				//MPT_ASSERT_NOTREACHED();
 				break;
 			}
 		}
@@ -295,11 +297,10 @@ bool CSoundFile::ReadOKT(FileReader &file, ModLoadingFlags loadFlags)
 	std::vector<bool> sample7bit;	// 7-/8-bit sample
 	ORDERINDEX nOrders = 0;
 
-	InitializeGlobals();
-	songName = "";
+	InitializeGlobals(MOD_TYPE_OKT);
 
 	// Go through IFF chunks...
-	while(file.AreBytesLeft())
+	while(file.CanRead(sizeof(OktIffChunk)))
 	{
 		OktIffChunk iffHead;
 		if(!file.ReadConvertEndianness(iffHead))
@@ -371,7 +372,7 @@ bool CSoundFile::ReadOKT(FileReader &file, ModLoadingFlags loadFlags)
 
 		case OktIffChunk::idPATT:
 			// read the orderlist
-			Order.ReadAsByte(chunk, chunk.GetLength());
+			Order.ReadAsByte(chunk, chunk.GetLength(), ORDERINDEX_MAX, 0xFF, 0xFE);
 			break;
 
 		case OktIffChunk::idPBOD:
@@ -396,10 +397,9 @@ bool CSoundFile::ReadOKT(FileReader &file, ModLoadingFlags loadFlags)
 	if(m_nChannels == 0)
 		return false;
 
-	m_nDefaultTempo = 125;
+	m_nDefaultTempo.Set(125);
 	m_nDefaultGlobalVolume = MAX_GLOBAL_VOLUME;
 	m_nSamplePreAmp = m_nVSTiVolume = 48;
-	m_nType = MOD_TYPE_OKT;
 	m_nMinPeriod = 0x71 * 4;
 	m_nMaxPeriod = 0x358 * 4;
 
@@ -445,7 +445,8 @@ bool CSoundFile::ReadOKT(FileReader &file, ModLoadingFlags loadFlags)
 		nFileSmp++;
 	}
 
-	SetModFlag(MSF_COMPATIBLE_PLAY, true);
-
 	return true;
 }
+
+
+OPENMPT_NAMESPACE_END

@@ -11,7 +11,11 @@
 #include "stdafx.h"
 #include "Loaders.h"
 #include "ITTools.h"
+#include "Tables.h"
 #include "../common/StringFixer.h"
+
+
+OPENMPT_NAMESPACE_BEGIN
 
 
 // Convert all multi-byte numeric values to current platform's endianness or vice versa.
@@ -32,8 +36,8 @@ void ITFileHeader::ConvertEndianness()
 
 
 // Convert OpenMPT's internal envelope format into an IT/MPTM envelope.
-void ITEnvelope::ConvertToIT(const InstrumentEnvelope &mptEnv, BYTE envOffset, BYTE envDefault)
-//---------------------------------------------------------------------------------------------
+void ITEnvelope::ConvertToIT(const InstrumentEnvelope &mptEnv, uint8 envOffset, uint8 envDefault)
+//-----------------------------------------------------------------------------------------------
 {
 	// Envelope Flags
 	if(mptEnv.dwFlags[ENV_ENABLED]) flags |= ITEnvelope::envEnabled;
@@ -42,7 +46,7 @@ void ITEnvelope::ConvertToIT(const InstrumentEnvelope &mptEnv, BYTE envOffset, B
 	if(mptEnv.dwFlags[ENV_CARRY]) flags |= ITEnvelope::envCarry;
 
 	// Nodes and Loops
-	num = (uint8)MIN(mptEnv.nNodes, 25);
+	num = (uint8)std::min(mptEnv.nNodes, uint32(25));
 	lpb = (uint8)mptEnv.nLoopStart;
 	lpe = (uint8)mptEnv.nLoopEnd;
 	slb = (uint8)mptEnv.nSustainStart;
@@ -70,8 +74,8 @@ void ITEnvelope::ConvertToIT(const InstrumentEnvelope &mptEnv, BYTE envOffset, B
 
 
 // Convert IT/MPTM envelope data into OpenMPT's internal envelope format - To be used by ITInstrToMPT()
-void ITEnvelope::ConvertToMPT(InstrumentEnvelope &mptEnv, uint8 envOffset, int maxNodes) const
-//--------------------------------------------------------------------------------------------
+void ITEnvelope::ConvertToMPT(InstrumentEnvelope &mptEnv, uint8 envOffset, uint8 maxNodes) const
+//----------------------------------------------------------------------------------------------
 {
 	// Envelope Flags
 	mptEnv.dwFlags.set(ENV_ENABLED, (flags & ITEnvelope::envEnabled) != 0);
@@ -80,11 +84,11 @@ void ITEnvelope::ConvertToMPT(InstrumentEnvelope &mptEnv, uint8 envOffset, int m
 	mptEnv.dwFlags.set(ENV_CARRY, (flags & ITEnvelope::envCarry) != 0);
 
 	// Nodes and Loops
-	mptEnv.nNodes = MIN(num, maxNodes);
-	mptEnv.nLoopStart = MIN(lpb, static_cast<uint8>(maxNodes));
-	mptEnv.nLoopEnd = Clamp(lpe, mptEnv.nLoopStart, static_cast<uint8>(maxNodes));
-	mptEnv.nSustainStart = MIN(slb, static_cast<uint8>(maxNodes));
-	mptEnv.nSustainEnd = Clamp(sle, mptEnv.nSustainStart, static_cast<uint8>(maxNodes));
+	mptEnv.nNodes = std::min(num, maxNodes);
+	mptEnv.nLoopStart = std::min(lpb, maxNodes);
+	mptEnv.nLoopEnd = Clamp(lpe, mptEnv.nLoopStart, maxNodes);
+	mptEnv.nSustainStart = std::min(slb, maxNodes);
+	mptEnv.nSustainEnd = Clamp(sle, mptEnv.nSustainStart, maxNodes);
 
 	// Envelope Data
 	// Attention: Full MPTM envelope is stored in extended instrument properties
@@ -184,8 +188,8 @@ void ITOldInstrument::ConvertToMPT(ModInstrument &mptIns) const
 		mptIns.VolEnv.Values[i] = nodes[i * 2 + 1];
 	}
 
-	if(MAX(mptIns.VolEnv.nLoopStart, mptIns.VolEnv.nLoopEnd) >= mptIns.VolEnv.nNodes) mptIns.VolEnv.dwFlags.reset(ENV_LOOP);
-	if(MAX(mptIns.VolEnv.nSustainStart, mptIns.VolEnv.nSustainEnd) >= mptIns.VolEnv.nNodes) mptIns.VolEnv.dwFlags.reset(ENV_SUSTAIN);
+	if(std::max(mptIns.VolEnv.nLoopStart, mptIns.VolEnv.nLoopEnd) >= mptIns.VolEnv.nNodes) mptIns.VolEnv.dwFlags.reset(ENV_LOOP);
+	if(std::max(mptIns.VolEnv.nSustainStart, mptIns.VolEnv.nSustainEnd) >= mptIns.VolEnv.nNodes) mptIns.VolEnv.dwFlags.reset(ENV_SUSTAIN);
 }
 
 
@@ -213,14 +217,14 @@ uint32 ITInstrument::ConvertToIT(const ModInstrument &mptIns, bool compatExport,
 	mpt::String::Write<mpt::String::nullTerminated>(name, mptIns.name);
 
 	// Volume / Panning
-	fadeout = static_cast<uint16>(MIN(mptIns.nFadeOut >> 5, 256));
-	gbv = static_cast<uint8>(MIN(mptIns.nGlobalVol * 2, 128));
-	dfp = static_cast<uint8>(MIN(mptIns.nPan / 4, 64));
+	fadeout = static_cast<uint16>(std::min<uint32>(mptIns.nFadeOut >> 5, 256u));
+	gbv = static_cast<uint8>(std::min<uint32>(mptIns.nGlobalVol * 2u, 128u));
+	dfp = static_cast<uint8>(std::min<uint32>(mptIns.nPan / 4u, 64u));
 	if(!mptIns.dwFlags[INS_SETPANNING]) dfp |= ITInstrument::ignorePanning;
 
 	// Random Variation
-	rv = MIN(mptIns.nVolSwing, 100);
-	rp = MIN(mptIns.nPanSwing, 64);
+	rv = std::min(mptIns.nVolSwing, uint8(100));
+	rp = std::min(mptIns.nPanSwing, uint8(64));
 
 	// NNA Stuff
 	nna = mptIns.nNNA;
@@ -302,8 +306,8 @@ uint32 ITInstrument::ConvertToMPT(ModInstrument &mptIns, MODTYPE modFormat) cons
 	mptIns.dwFlags.set(INS_SETPANNING, !(dfp & ITInstrument::ignorePanning));
 
 	// Random Variation
-	mptIns.nVolSwing = MIN(rv, 100);
-	mptIns.nPanSwing = MIN(rp, 64);
+	mptIns.nVolSwing = std::min(rv, uint8(100));
+	mptIns.nPanSwing = std::min(rp, uint8(64));
 
 	// NNA Stuff
 	mptIns.nNNA = nna;
@@ -336,7 +340,7 @@ uint32 ITInstrument::ConvertToMPT(ModInstrument &mptIns, MODTYPE modFormat) cons
 	}
 
 	// Envelope point count. Limited to 25 in IT format.
-	const int maxNodes = (modFormat & MOD_TYPE_MPT) ? MAX_ENVPOINTS : 25;
+	const uint8 maxNodes = (modFormat & MOD_TYPE_MPT) ? MAX_ENVPOINTS : 25;
 
 	// Volume Envelope
 	volenv.ConvertToMPT(mptIns.VolEnv, 0, maxNodes);
@@ -357,10 +361,10 @@ uint32 ITInstrument::ConvertToMPT(ModInstrument &mptIns, MODTYPE modFormat) cons
 		}
 		if(note < 120)
 		{
-			mptIns.NoteMap[i] = note + 1u;
+			mptIns.NoteMap[i] = note + NOTE_MIN;
 		} else
 		{
-			mptIns.NoteMap[i] = static_cast<uint8>(i + 1);
+			mptIns.NoteMap[i] = static_cast<uint8>(i + NOTE_MIN);
 		}
 	}
 
@@ -463,8 +467,8 @@ void ITSample::ConvertEndianness()
 
 
 // Convert OpenMPT's internal sample representation to an ITSample.
-void ITSample::ConvertToIT(const ModSample &mptSmp, MODTYPE fromType, bool compress, bool compressIT215)
-//------------------------------------------------------------------------------------------------------
+void ITSample::ConvertToIT(const ModSample &mptSmp, MODTYPE fromType, bool compress, bool compressIT215, bool allowExternal)
+//--------------------------------------------------------------------------------------------------------------------------
 {
 	MemsetZero(*this);
 
@@ -523,16 +527,31 @@ void ITSample::ConvertToIT(const ModSample &mptSmp, MODTYPE fromType, bool compr
 	susloopend = mpt::saturate_cast<uint32>(mptSmp.nSustainEnd);
 
 	// Auto Vibrato settings
-	static const uint8 autovibxm2it[8] = { 0, 2, 4, 1, 3, 0, 0, 0 };	// OpenMPT VibratoType -> IT Vibrato
-	vit = autovibxm2it[mptSmp.nVibType & 7];
-	vis = MIN(mptSmp.nVibRate, 64);
-	vid = MIN(mptSmp.nVibDepth, 32);
-	vir = MIN(mptSmp.nVibSweep, 255);
+	vit = AutoVibratoXM2IT[mptSmp.nVibType & 7];
+	vis = std::min(mptSmp.nVibRate, uint8(64));
+	vid = std::min(mptSmp.nVibDepth, uint8(32));
+	vir = std::min(mptSmp.nVibSweep, uint8(255));
 
 	if((vid | vis) != 0 && (fromType & MOD_TYPE_XM))
 	{
 		// Sweep is upside down in XM
 		vir = 255 - vir;
+	}
+
+	if(mptSmp.uFlags[SMP_KEEPONDISK])
+	{
+#ifndef MPT_EXTERNAL_SAMPLES
+		MPT_UNREFERENCED_PARAMETER(allowExternal);
+#else
+		// Save external sample (filename at sample pointer)
+		if(allowExternal && mptSmp.HasSampleData())
+		{
+			cvt = ITSample::cvtExternalSample;
+		} else
+#endif // MPT_EXTERNAL_SAMPLES
+		{
+			length = loopbegin = loopend = susloopbegin = susloopend = 0;
+		}
 	}
 }
 
@@ -578,11 +597,16 @@ uint32 ITSample::ConvertToMPT(ModSample &mptSmp) const
 	mptSmp.SanitizeLoops();
 
 	// Auto Vibrato settings
-	static const uint8 autovibit2xm[8] = { VIB_SINE, VIB_RAMP_DOWN, VIB_SQUARE, VIB_RANDOM, VIB_RAMP_UP, 0, 0, 0 };	// IT Vibrato -> OpenMPT VibratoType
-	mptSmp.nVibType = autovibit2xm[vit & 7];
+	mptSmp.nVibType = AutoVibratoIT2XM[vit & 7];
 	mptSmp.nVibRate = vis;
 	mptSmp.nVibDepth = vid & 0x7F;
 	mptSmp.nVibSweep = vir;
+
+	if(cvt == ITSample::cvtExternalSample)
+	{
+		// Read external sample (filename at sample pointer)
+		mptSmp.uFlags.set(SMP_KEEPONDISK);
+	}
 
 	return samplepointer;
 }
@@ -671,3 +695,6 @@ void ITHistoryStruct::ConvertToIT(const FileHistory &mptHistory)
 	fattime = static_cast<uint16>((mptHistory.loadDate.tm_sec / 2) | (mptHistory.loadDate.tm_min << 5) | (mptHistory.loadDate.tm_hour << 11));
 	runtime = static_cast<uint32>(mptHistory.openTime * (18.2f / HISTORY_TIMER_PRECISION));
 }
+
+
+OPENMPT_NAMESPACE_END

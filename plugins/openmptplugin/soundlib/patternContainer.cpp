@@ -11,8 +11,12 @@
 #include "stdafx.h"
 #include "patternContainer.h"
 #include "Sndfile.h"
+#include "mod_specifications.h"
 #include "../common/serialization_utils.h"
 #include "../common/version.h"
+
+
+OPENMPT_NAMESPACE_BEGIN
 
 
 void CPatternContainer::ClearPatterns()
@@ -33,13 +37,39 @@ void CPatternContainer::DestroyPatterns()
 }
 
 
-PATTERNINDEX CPatternContainer::Insert(const ROWINDEX rows)
-//---------------------------------------------------------
+PATTERNINDEX CPatternContainer::Duplicate(PATTERNINDEX from, bool respectQtyLimits)
+//---------------------------------------------------------------------------------
+{
+	if(!IsValidPat(from))
+	{
+		return PATTERNINDEX_INVALID;
+	}
+
+	const CPattern oldPat = m_Patterns[from];
+	PATTERNINDEX newPatIndex = InsertAny(oldPat.GetNumRows(), respectQtyLimits);
+
+	if(newPatIndex != PATTERNINDEX_INVALID)
+	{
+		CPattern &newPat = m_Patterns[newPatIndex];
+		memcpy(newPat.m_ModCommands, oldPat.m_ModCommands, newPat.GetNumChannels() * newPat.GetNumRows() * sizeof(ModCommand));
+		newPat.m_Rows = oldPat.m_Rows;
+		newPat.m_RowsPerBeat = oldPat.m_RowsPerBeat;
+		newPat.m_RowsPerMeasure = oldPat.m_RowsPerMeasure;
+		newPat.m_PatternName = oldPat.m_PatternName;
+	}
+	return newPatIndex;
+}
+
+
+PATTERNINDEX CPatternContainer::InsertAny(const ROWINDEX rows, bool respectQtyLimits)
+//-----------------------------------------------------------------------------------
 {
 	PATTERNINDEX i = 0;
 	for(i = 0; i < m_Patterns.size(); i++)
 		if(!m_Patterns[i]) break;
-	if(Insert(i, rows))
+	if(respectQtyLimits && i >= m_rSndFile.GetModSpecifications().patternsMax)
+		return PATTERNINDEX_INVALID;
+	if(!Insert(i, rows))
 		return PATTERNINDEX_INVALID;
 	else return i;
 
@@ -49,11 +79,10 @@ PATTERNINDEX CPatternContainer::Insert(const ROWINDEX rows)
 bool CPatternContainer::Insert(const PATTERNINDEX index, const ROWINDEX rows)
 //---------------------------------------------------------------------------
 {
-	const CModSpecifications& specs = m_rSndFile.GetModSpecifications();
-	if(index >= specs.patternsMax || rows > MAX_PATTERN_ROWS || rows == 0)
-		return true;
+	if(rows > MAX_PATTERN_ROWS || rows == 0)
+		return false;
 	if(index < m_Patterns.size() && m_Patterns[index])
-		return true;
+		return false;
 
 	if(index >= m_Patterns.size())
 	{
@@ -64,19 +93,14 @@ bool CPatternContainer::Insert(const PATTERNINDEX index, const ROWINDEX rows)
 	m_Patterns[index].RemoveSignature();
 	m_Patterns[index].SetName("");
 
-	if(!m_Patterns[index]) return true;
-
-	return false;
+	return m_Patterns[index] != nullptr;
 }
 
 
-bool CPatternContainer::Remove(const PATTERNINDEX ipat)
+void CPatternContainer::Remove(const PATTERNINDEX ipat)
 //-----------------------------------------------------
 {
-	if(ipat >= m_Patterns.size())
-		return true;
-	m_Patterns[ipat].Deallocate();
-	return false;
+	if(ipat < m_Patterns.size()) m_Patterns[ipat].Deallocate();
 }
 
 
@@ -87,23 +111,12 @@ bool CPatternContainer::IsPatternEmpty(const PATTERNINDEX nPat) const
 		return false;
 	
 	const ModCommand *m = m_Patterns[nPat].m_ModCommands;
-	for(size_t i = m_Patterns[nPat].GetNumChannels() * m_Patterns[nPat].GetNumRows(); i > 0; i--, m++)
+	for(const ModCommand *mEnd = m + m_Patterns[nPat].GetNumChannels() * m_Patterns[nPat].GetNumRows(); m != mEnd; m++)
 	{
-		if(!m->IsEmpty(true))
+		if(!m->IsEmpty())
 			return false;
 	}
 	return true;
-}
-
-
-PATTERNINDEX CPatternContainer::GetIndex(const MODPATTERN* const pPat) const
-//--------------------------------------------------------------------------
-{
-	const PATTERNINDEX endI = static_cast<PATTERNINDEX>(m_Patterns.size());
-	for(PATTERNINDEX i = 0; i<endI; i++)
-		if(&m_Patterns[i] == pPat) return i;
-
-	return endI;
 }
 
 
@@ -135,6 +148,7 @@ void CPatternContainer::OnModTypeChanged(const MODTYPE /*oldtype*/)
 		for(PATTERNINDEX nPat = 0; nPat < m_Patterns.size(); nPat++)
 		{
 			m_Patterns[nPat].RemoveSignature();
+			m_Patterns[nPat].RemoveTempoSwing();
 		}
 	}
 }
@@ -198,7 +212,7 @@ void WriteModPatterns(std::ostream& oStrm, const CPatternContainer& patc)
 	uint16 nCount = 0;
 	for(uint16 i = 0; i < nPatterns; i++) if (patc[i])
 	{
-		ssb.WriteItem(patc[i], srlztn::IdLE<uint16>(i).GetChars(), sizeof(i), &WriteModPattern);
+		ssb.WriteItem(patc[i], srlztn::ID::FromInt<uint16>(i), &WriteModPattern);
 		nCount = i + 1;
 	}
 	ssb.WriteItem<uint16>(nCount, "num"); // Index of last pattern + 1.
@@ -219,10 +233,12 @@ void ReadModPatterns(std::istream& iStrm, CPatternContainer& patc, const size_t)
 		nPatterns = nCount;
 	LimitMax(nPatterns, ModSpecs::mptm.patternsMax);
 	if (nPatterns > patc.Size())
-		patc.ResizeArray(nPatterns);	
+		patc.ResizeArray(nPatterns);
 	for(uint16 i = 0; i < nPatterns; i++)
 	{
-		ssb.ReadItem(patc[i], srlztn::IdLE<uint16>(i).GetChars(), sizeof(i), &ReadModPattern);
+		ssb.ReadItem(patc[i], srlztn::ID::FromInt<uint16>(i), &ReadModPattern);
 	}
 }
 
+
+OPENMPT_NAMESPACE_END

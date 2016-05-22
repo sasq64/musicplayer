@@ -13,6 +13,8 @@
 #include "Snd_defs.h"
 #include "ModChannel.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 class CResampler;
 
 //////////////////////////////////////////////////////////////////////////
@@ -97,7 +99,9 @@ static void SampleLoop(ModChannel &chn, const CResampler &resampler, typename Tr
 
 	c.nPos += smpPos >> 16;
 	c.nPosLo = smpPos & 0xFFFF;
-};
+}
 
 // Type of the SampleLoop function above
 typedef void (*MixFuncInterface)(ModChannel &, const CResampler &, mixsample_t *, int);
+
+OPENMPT_NAMESPACE_END

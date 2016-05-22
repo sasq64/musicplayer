@@ -13,6 +13,8 @@
 #include "ChunkReader.h"
 #include "Tagging.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -237,13 +239,13 @@ struct PACKED WAVSampleLoop
 	}
 
 	// Apply WAV loop information to a mod sample.
-	void ApplyToSample(SmpLength &start, SmpLength &end, SmpLength sampleLength, FlagSet<ChannelFlags, uint16> &flags, ChannelFlags enableFlag, ChannelFlags bidiFlag, bool mptLoopFix) const;
+	void ApplyToSample(SmpLength &start, SmpLength &end, SmpLength sampleLength, SampleFlags &flags, ChannelFlags enableFlag, ChannelFlags bidiFlag, bool mptLoopFix) const;
 
 	// Convert internal loop information into a WAV loop.
 	void ConvertToWAV(SmpLength start, SmpLength end, bool bidi);
 };
 
-STATIC_ASSERT(sizeof(RIFFHeader) == 12);
+STATIC_ASSERT(sizeof(WAVSampleLoop) == 24);
 
 
 // MPT-specific "xtra" chunk
@@ -323,6 +325,17 @@ struct PACKED WAVCuePoint
 		SwapBytesLE(blockStart);
 		SwapBytesLE(offset);
 	}
+
+	// Set up sample information
+	void ConvertToWAV(uint32 id_, SmpLength offset_)
+	{
+		id = id_;
+		position = offset_;
+		riffChunkID = static_cast<uint32>(RIFFChunk::iddata);
+		chunkStart = 0;	// we use no Wave List Chunk (wavl) as we have only one data block, so this should be 0.
+		blockStart = 0;	// ditto
+		offset = offset_;
+	}
 };
 
 STATIC_ASSERT(sizeof(WAVCuePoint) == 24);
@@ -339,7 +352,7 @@ class WAVReader
 {
 protected:
 	ChunkReader file;
-	FileReader sampleData, smplChunk, xtraChunk, wsmpChunk;
+	FileReader sampleData, smplChunk, xtraChunk, wsmpChunk, cueChunk;
 	ChunkReader::ChunkList<RIFFChunk> infoChunk;
 
 	FileReader::off_t sampleLength;
@@ -384,9 +397,6 @@ class WAVWriter
 //=============
 {
 protected:
-	// When writing to file: File handle
-	FILE *f;
-	bool fileOwned;
 	// When writing to a stream: Stream pointer
 	std::ostream *s;
 	// When writing to memory: Memory address + length
@@ -403,10 +413,6 @@ protected:
 	RIFFChunk chunkHeader;
 
 public:
-	// Output to file: Initialize with filename. The created FILE* is owned by this instance.
-	WAVWriter(const mpt::PathString &filename);
-	// Output to file: Initialize with FILE*.
-	WAVWriter(FILE *file);
 	// Output to stream: Initialize with std::ostream*.
 	WAVWriter(std::ostream *stream);
 	// Output to clipboard: Initialize with pointer to memory and size of reserved memory.
@@ -415,7 +421,7 @@ public:
 	~WAVWriter();
 
 	// Check if anything can be written to the file.
-	bool IsValid() const { return f != nullptr || s != nullptr || memory != nullptr; }
+	bool IsValid() const { return s != nullptr || memory != nullptr; }
 
 	// Finalize the file by closing the last open chunk and updating the file header. Returns total size of file.
 	size_t Finalize();
@@ -424,8 +430,6 @@ public:
 
 	// Skip some bytes... For example after writing sample data.
 	void Skip(size_t numBytes) { Seek(position + numBytes); }
-	// Get file handle
-	FILE *GetFile() { return f; }
 	// Get position in file (not counting any changes done to the file from outside this class, i.e. through GetFile())
 	size_t GetPosition() const { return position; }
 
@@ -458,6 +462,8 @@ public:
 	void WriteMetatags(const FileTags &tags);
 	// Write a sample loop information chunk to the file.
 	void WriteLoopInformation(const ModSample &sample);
+	// Write a sample's cue points to the file.
+	void WriteCueInformation(const ModSample &sample);
 	// Write MPT's sample information chunk to the file.
 	void WriteExtraInformation(const ModSample &sample, MODTYPE modType, const char *sampleName = nullptr);
 
@@ -472,7 +478,9 @@ protected:
 	void Write(const void *data, size_t numBytes);
 
 	// Write a single tag into a open idLIST chunk
-	void WriteTag(RIFFChunk::id_type id, const std::wstring &wideText);
+	void WriteTag(RIFFChunk::id_type id, const mpt::ustring &utext);
 };
 
 #endif // MODPLUG_NO_FILESAVE
+
+OPENMPT_NAMESPACE_END

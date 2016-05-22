@@ -15,10 +15,16 @@
 #include "../common/version.h"
 #include "../common/misc_util.h"
 #include "XMTools.h"
+#ifndef MODPLUG_NO_FILESAVE
+#include "../common/mptFileIO.h"
+#endif
 #include <algorithm>
 #ifdef MODPLUG_TRACKER
 #include "../mptrack/TrackerSettings.h"	// For super smooth ramping option
 #endif // MODPLUG_TRACKER
+
+
+OPENMPT_NAMESPACE_BEGIN
 
 
 // Allocate samples for an instrument
@@ -149,7 +155,7 @@ static void ReadXMPatterns(FileReader &file, const XMFileHeader &fileHeader, CSo
 		file.Seek(curPos + headerSize);
 		FileReader patternChunk = file.ReadChunk(packedSize);
 
-		if(sndFile.Patterns.Insert(pat, numRows) || packedSize == 0)
+		if(!sndFile.Patterns.Insert(pat, numRows) || packedSize == 0)
 		{
 			continue;
 		}
@@ -201,7 +207,7 @@ static void ReadXMPatterns(FileReader &file, const XMFileHeader &fileHeader, CSo
 
 			if(m->command | m->param)
 			{
-				sndFile.ConvertModCommand(*m);
+				CSoundFile::ConvertModCommand(*m);
 			} else
 			{
 				m->command = CMD_NONE;
@@ -265,7 +271,7 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 	if(!file.ReadConvertEndianness(fileHeader)
 		|| fileHeader.channels == 0
 		|| fileHeader.channels > MAX_BASECHANNELS
-		|| mpt::strnicmp(fileHeader.signature, "Extended Module: ", 17)
+		|| mpt::CompareNoCaseAscii(fileHeader.signature, "Extended Module: ", 17)
 		|| !file.CanRead(fileHeader.orders))
 	{
 		return false;
@@ -274,10 +280,9 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
+	InitializeGlobals(MOD_TYPE_XM);
 	InitializeChannels();
-	ChangeModTypeTo(MOD_TYPE_XM);
-	m_nMixLevels = mixLevels_compatible_FT2;
+	m_nMixLevels = mixLevelsCompatible;
 
 	FlagSet<TrackerVersions> madeWith(verUnknown);
 
@@ -300,37 +305,59 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 		{
 			// ???
 			madeWith.set(verConfirmed);
-			madeWithTracker = "FastTracker Clone";
+			m_madeWithTracker = "FastTracker Clone";
 		}
 	} else
 	{
 		// Something else!
 		madeWith = verUnknown | verConfirmed;
 
-		mpt::String::Read<mpt::String::spacePadded>(madeWithTracker, fileHeader.trackerName);
+		mpt::String::Read<mpt::String::spacePadded>(m_madeWithTracker, fileHeader.trackerName);
+
+		if(!memcmp(fileHeader.trackerName, "MilkyTracker ", 12))
+		{
+			// MilkyTracker prior to version 0.90.87 doesn't set a version string.
+			// Luckily, starting with v0.90.87, MilkyTracker also implements the FT2 panning scheme.
+			if(memcmp(fileHeader.trackerName + 12, "        ", 8))
+			{
+				m_nMixLevels = mixLevelsCompatibleFT2;
+			}
+		} else if(!memcmp(fileHeader.trackerName, "MadTracker 2.0\0", 15))
+		{
+			// Fix channel 2 in m3_cha.xm
+			m_playBehaviour.reset(kFT2PortaNoNote);
+			// Fix arpeggios in kragle_-_happy_day.xm
+			m_playBehaviour.reset(kFT2Arpeggio);
+		} else if(!memcmp(fileHeader.trackerName, "Skale Tracker\0", 14))
+		{
+			m_playBehaviour.reset(kFT2OffsetOutOfRange);
+		}
 	}
 
-	mpt::String::Read<mpt::String::spacePadded>(songName, fileHeader.songName);
+	mpt::String::Read<mpt::String::spacePadded>(m_songName, fileHeader.songName);
 
 	m_nMinPeriod = 1;
 	m_nMaxPeriod = 31999;
 
-	m_nRestartPos = fileHeader.restartPos;
+	Order.SetRestartPos(fileHeader.restartPos);
 	m_nChannels = fileHeader.channels;
 	m_nInstruments = std::min(fileHeader.instruments, uint16(MAX_INSTRUMENTS - 1));
 	if(fileHeader.speed)
 		m_nDefaultSpeed = fileHeader.speed;
 	if(fileHeader.tempo)
-		m_nDefaultTempo = Clamp(fileHeader.tempo, uint16(32), uint16(512));
+		m_nDefaultTempo.Set(Clamp(fileHeader.tempo, uint16(32), uint16(512)));
 
 	m_SongFlags.reset();
 	m_SongFlags.set(SONG_LINEARSLIDES, (fileHeader.flags & XMFileHeader::linearSlides) != 0);
 	m_SongFlags.set(SONG_EXFILTERRANGE, (fileHeader.flags & XMFileHeader::extendedFilterRange) != 0);
 
-	// set this here already because XMs compressed with BoobieSqueezer will exit the function early
-	SetModFlag(MSF_COMPATIBLE_PLAY, true);
-
 	Order.ReadAsByte(file, fileHeader.orders);
+	if(fileHeader.orders == 0 && madeWith[verFT2Generic])
+	{
+		// Fix lamb_-_dark_lighthouse.xm, which only contains one pattern and an empty order list
+		Order.resize(1);
+		Order[0] = 0;
+	}
 	file.Seek(fileHeader.size + 60);
 
 	if(fileHeader.version >= 0x0104)
@@ -347,16 +374,16 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 	for(INSTRUMENTINDEX instr = 1; instr <= m_nInstruments; instr++)
 	{
 		// First, try to read instrument header length...
-		XMInstrumentHeader instrHeader;
-		instrHeader.size = file.ReadUint32LE();
-		if(instrHeader.size == 0)
+		uint32 headerSize = file.ReadUint32LE();
+		if(headerSize == 0)
 		{
-			instrHeader.size = sizeof(XMInstrumentHeader);
+			headerSize = sizeof(XMInstrumentHeader);
 		}
 
 		// Now, read the complete struct.
 		file.SkipBack(4);
-		file.ReadStructPartial(instrHeader, instrHeader.size);
+		XMInstrumentHeader instrHeader;
+		file.ReadStructPartial(instrHeader, headerSize);
 		instrHeader.ConvertEndianness();
 
 		// Time for some version detection stuff.
@@ -367,12 +394,12 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 			{
 				// ModPlug Tracker Alpha
 				m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 00, 00, A5);
-				madeWithTracker = "ModPlug Tracker 1.0 alpha";
+				m_madeWithTracker = "ModPlug Tracker 1.0 alpha";
 			} else if(instrHeader.size == 263)
 			{
 				// ModPlug Tracker Beta (Beta 1 still behaves like Alpha, but Beta 3.3 does it this way)
 				m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 00, 00, B3);
-				madeWithTracker = "ModPlug Tracker 1.0 beta";
+				m_madeWithTracker = "ModPlug Tracker 1.0 beta";
 			} else
 			{
 				// WTF?
@@ -440,14 +467,14 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 			// Need to memorize those if we're going to skip any samples...
 			std::vector<uint32> sampleSize(instrHeader.numSamples);
 
-			// Early versions of Sk@le Tracker didn't set sampleHeaderSize (this fixes IFULOVE.XM)
-			const size_t copyBytes = (instrHeader.sampleHeaderSize > 0) ? instrHeader.sampleHeaderSize : sizeof(XMSample);
+			// Early versions of Sk@le Tracker set instrHeader.sampleHeaderSize = 0 (IFULOVE.XM)
+			// cybernostra weekend has instrHeader.sampleHeaderSize = 0x12, which would leave out the sample name, but FT2 still reads the name.
+			MPT_ASSERT(instrHeader.sampleHeaderSize == 0 || instrHeader.sampleHeaderSize == sizeof(XMSample));
 
 			for(SAMPLEINDEX sample = 0; sample < instrHeader.numSamples; sample++)
 			{
 				XMSample sampleHeader;
-				file.ReadStructPartial(sampleHeader, copyBytes);
-				sampleHeader.ConvertEndianness();
+				file.ReadConvertEndianness(sampleHeader);
 
 				sampleFlags.push_back(sampleHeader.GetSampleFormat());
 				sampleSize[sample] = sampleHeader.length;
@@ -477,8 +504,8 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 				{
 					// Sample 15 in dirtysex.xm by J/M/T/M is a 16-bit sample with an odd size of 0x18B according to the header, while the real sample size would be 0x18A.
 					// Always read as many bytes as specified in the header, even if the sample reader would probably read less bytes.
-					FileReader sampleChunk = file.ReadChunk(sampleSize[sample]);
-					if(sample < sampleSlots.size())
+					FileReader sampleChunk = file.ReadChunk(sampleFlags[sample].GetEncoding() != SampleIO::ADPCM ? sampleSize[sample] : (16 + (sampleSize[sample] + 1) / 2));
+					if(sample < sampleSlots.size() && (loadFlags & loadSampleData))
 					{
 						sampleFlags[sample].ReadSample(Samples[sampleSlots[sample]], sampleChunk);
 					}
@@ -489,26 +516,32 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 
 	if(sampleReserved == 0 && madeWith[verNewModPlug] && memchr(fileHeader.songName, '\0', sizeof(fileHeader.songName)) != nullptr)
 	{
-		// Null-terminated song name: Quite possibly MPT.
-		madeWith |= verConfirmed;
+		// Null-terminated song name: Quite possibly MPT. (could really be an MPT-made file resaved in FT2, though)
+		madeWith.set(verConfirmed);
 	}
 
 	if(fileHeader.version < 0x0104)
 	{
 		// Load Patterns and Samples (Version 1.02 and 1.03)
-		ReadXMPatterns(file, fileHeader, *this);
-
-		for(SAMPLEINDEX sample = 1; sample <= GetNumSamples(); sample++)
+		if(loadFlags & (loadPatternData | loadSampleData))
 		{
-			sampleFlags[sample - 1].ReadSample(Samples[sample], file);
+			ReadXMPatterns(file, fileHeader, *this);
+		}
+
+		if(loadFlags & loadSampleData)
+		{
+			for(SAMPLEINDEX sample = 1; sample <= GetNumSamples(); sample++)
+			{
+				sampleFlags[sample - 1].ReadSample(Samples[sample], file);
+			}
 		}
 	}
 
 	// Read song comments: "text"
 	if(file.ReadMagic("text"))
 	{
-		songMessage.Read(file, file.ReadUint32LE(), SongMessage::leCR);
-		madeWith |= verConfirmed;
+		m_songMessage.Read(file, file.ReadUint32LE(), SongMessage::leCR);
+		madeWith.set(verConfirmed);
 	}
 	
 	// Read midi config: "MIDI"
@@ -517,7 +550,7 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 		file.ReadStructPartial(m_MidiCfg, file.ReadUint32LE());
 		m_MidiCfg.Sanitize();
 		m_SongFlags |= SONG_EMBEDMIDICFG;
-		madeWith |= verConfirmed;
+		madeWith.set(verConfirmed);
 	}
 
 	// Read pattern names: "PNAM"
@@ -531,7 +564,7 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 			file.ReadString<mpt::String::maybeNullTerminated>(patName, MAX_PATTERNNAME);
 			Patterns[pat].SetName(patName);
 		}
-		madeWith |= verConfirmed;
+		madeWith.set(verConfirmed);
 	}
 
 	// Read channel names: "CNAM"
@@ -542,7 +575,7 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 		{
 			file.ReadString<mpt::String::maybeNullTerminated>(ChnSettings[chn].szName, MAX_CHANNELNAME);
 		}
-		madeWith |= verConfirmed;
+		madeWith.set(verConfirmed);
 	}
 
 	// Read mix plugins information
@@ -552,7 +585,7 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 		LoadMixPlugins(file);
 		if(file.GetPosition() != oldPos)
 		{
-			madeWith |= verConfirmed;
+			madeWith.set(verConfirmed);
 		}
 	}
 
@@ -561,11 +594,11 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 		if(madeWith[verModPlug1_09])
 		{
 			m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 09, 00, 00);
-			madeWithTracker = "ModPlug Tracker 1.09";
+			m_madeWithTracker = "ModPlug Tracker 1.09";
 		} else if(madeWith[verNewModPlug])
 		{
 			m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 16, 00, 00);
-			madeWithTracker = "ModPlug Tracker 1.16";
+			m_madeWithTracker = "ModPlug Tracker 1.10 - 1.16";
 		}
 	}
 
@@ -577,36 +610,53 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 		mpt::String::SetNullTerminator(mptVersion);
 		m_dwLastSavedWithVersion = MptVersion::ToNum(mptVersion);
 		madeWith = verOpenMPT | verConfirmed;
+
+		if(m_dwLastSavedWithVersion < MAKE_VERSION_NUMERIC(1, 22, 07, 19))
+			m_nMixLevels = mixLevelsCompatible;
+		else
+			m_nMixLevels = mixLevelsCompatibleFT2;
 	}
 
 	if(m_dwLastSavedWithVersion != 0 && !madeWith[verOpenMPT])
 	{
-		m_nMixLevels = mixLevels_original;
-		SetModFlag(MSF_COMPATIBLE_PLAY, false);
+		m_nMixLevels = mixLevelsOriginal;
+		m_playBehaviour.reset();
 	}
 
-	if(madeWith[verFT2Generic]
-		&& fileHeader.version >= 0x0104	// Old versions of FT2 didn't have (smooth) ramping. Disable it for those versions where we can be sure that there should be no ramping.
-#ifdef MODPLUG_TRACKER
-		&& TrackerSettings::Instance().autoApplySmoothFT2Ramping
-#endif // MODPLUG_TRACKER
-		)
+	if(madeWith[verFT2Generic])
 	{
-		// apply FT2-style super-soft volume ramping
-		SetModFlag(MSF_VOLRAMP, true);
+		m_nMixLevels = mixLevelsCompatibleFT2;
+
+		if(!m_SongFlags[SONG_EMBEDMIDICFG])
+		{
+			// FT2 allows typing in arbitrary unsupported effect letters such as Zxx.
+			// Prevent these commands from being interpreted as filter commands by erasing the default MIDI Config.
+			MemsetZero(m_MidiCfg.szMidiSFXExt);
+			MemsetZero(m_MidiCfg.szMidiZXXExt);
+		}
+
+		if(fileHeader.version >= 0x0104	// Old versions of FT2 didn't have (smooth) ramping. Disable it for those versions where we can be sure that there should be no ramping.
+#ifdef MODPLUG_TRACKER
+			&& TrackerSettings::Instance().autoApplySmoothFT2Ramping
+#endif // MODPLUG_TRACKER
+			)
+		{
+			// apply FT2-style super-soft volume ramping
+			m_playBehaviour.set(kFT2VolumeRamping);
+		}
 	}
 
-	if(madeWithTracker.empty())
+	if(m_madeWithTracker.empty())
 	{
 		if(madeWith[verDigiTracker] && sampleReserved == 0 && (instrType ? instrType : -1) == -1)
 		{
-			madeWithTracker = "DigiTrakker";
+			m_madeWithTracker = "DigiTrakker";
 		} else if(madeWith[verFT2Generic])
 		{
-			madeWithTracker = "FastTracker 2 or compatible";
+			m_madeWithTracker = "FastTracker 2 or compatible";
 		} else
 		{
-			madeWithTracker = "Unknown";
+			m_madeWithTracker = "Unknown";
 		}
 	}
 
@@ -619,23 +669,18 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 		LoadExtendedInstrumentProperties(file, &interpretOpenMPTMade);
 	}
 
-	LoadExtendedSongProperties(GetType(), file, &interpretOpenMPTMade);
+	LoadExtendedSongProperties(file, &interpretOpenMPTMade);
 
-	if(interpretOpenMPTMade)
+	if(interpretOpenMPTMade && m_dwLastSavedWithVersion == 0)
 	{
-		UpgradeModFlags();
-
-		if(m_dwLastSavedWithVersion == 0)
-		{
-			// Up to OpenMPT 1.17.02.45 (r165), it was possible that the "last saved with" field was 0
-			// when saving a file in OpenMPT for the first time.
-			m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 17, 00, 00);
-		}
+		// Up to OpenMPT 1.17.02.45 (r165), it was possible that the "last saved with" field was 0
+		// when saving a file in OpenMPT for the first time.
+		m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 17, 00, 00);
 	}
 
 	if(m_dwLastSavedWithVersion >= MAKE_VERSION_NUMERIC(1, 17, 00, 00))
 	{
-		madeWithTracker = "OpenMPT " + MptVersion::ToStr(m_dwLastSavedWithVersion);
+		m_madeWithTracker = "OpenMPT " + MptVersion::ToStr(m_dwLastSavedWithVersion);
 	}
 
 	// We no longer allow any --- or +++ items in the order list now.
@@ -653,8 +698,8 @@ bool CSoundFile::ReadXM(FileReader &file, ModLoadingFlags loadFlags)
 
 #ifndef MODPLUG_NO_FILESAVE
 
-#define str_tooMuchPatternData	(GetStrI18N("Warning: File format limit was reached. Some pattern data may not get written to file."))
-#define str_pattern				(GetStrI18N("pattern"))
+#define str_tooMuchPatternData	("Warning: File format limit was reached. Some pattern data may not get written to file.")
+#define str_pattern				("pattern")
 
 
 bool CSoundFile::SaveXM(const mpt::PathString &filename, bool compatibilityExport)
@@ -672,22 +717,26 @@ bool CSoundFile::SaveXM(const mpt::PathString &filename, bool compatibilityExpor
 	MemsetZero(fileHeader);
 
 	memcpy(fileHeader.signature, "Extended Module: ", 17);
-	mpt::String::Write<mpt::String::spacePadded>(fileHeader.songName, songName);
+	mpt::String::Write<mpt::String::spacePadded>(fileHeader.songName, m_songName);
 	fileHeader.eof = 0x1A;
-	std::string openMptTrackerName = MptVersion::GetOpenMPTVersionStr();
+	const std::string openMptTrackerName = MptVersion::GetOpenMPTVersionStr();
 	mpt::String::Write<mpt::String::spacePadded>(fileHeader.trackerName, openMptTrackerName);
 
 	// Writing song header
 	fileHeader.version = 0x0104;					// XM Format v1.04
 	fileHeader.size = sizeof(XMFileHeader) - 60;	// minus everything before this field
-	fileHeader.restartPos = m_nRestartPos;
+	fileHeader.restartPos = Order.GetRestartPos();
 
-	fileHeader.channels = (m_nChannels + 1) & 0xFFFE; // avoid odd channel count for FT2 compatibility
-	if((m_nChannels % 2u) && m_nChannels < MAX_BASECHANNELS) addChannel = true;
-	if(compatibilityExport && fileHeader.channels > 32)
+	fileHeader.channels = m_nChannels;
+	if((m_nChannels % 2u) && m_nChannels < 32)
+	{
+		// Avoid odd channel count for FT2 compatibility
+		fileHeader.channels++;
+		addChannel = true;
+	} else if(compatibilityExport && fileHeader.channels > 32)
+	{
 		fileHeader.channels = 32;
-	if(fileHeader.channels > MAX_BASECHANNELS) fileHeader.channels = MAX_BASECHANNELS;
-	fileHeader.channels = fileHeader.channels;
+	}
 
 	// Find out number of orders and patterns used.
 	// +++ and --- patterns are not taken into consideration as FastTracker does not support them.
@@ -712,7 +761,7 @@ bool CSoundFile::SaveXM(const mpt::PathString &filename, bool compatibilityExpor
 
 	fileHeader.orders = maxOrders;
 	fileHeader.patterns = numPatterns;
-	fileHeader.size = fileHeader.size + maxOrders;
+	fileHeader.size = fileHeader.size + (compatibilityExport ? 256 : maxOrders);
 
 	uint16 writeInstruments;
 	if(m_nInstruments > 0)
@@ -725,19 +774,34 @@ bool CSoundFile::SaveXM(const mpt::PathString &filename, bool compatibilityExpor
 	fileHeader.flags = fileHeader.flags;
 
 	// Fasttracker 2 will happily accept any tempo faster than 255 BPM. XMPlay does also support this, great!
-	fileHeader.tempo = static_cast<uint16>(m_nDefaultTempo);
+	fileHeader.tempo = static_cast<uint16>(m_nDefaultTempo.GetInt());
 	fileHeader.speed = static_cast<uint16>(Clamp(m_nDefaultSpeed, 1u, 31u));
 
 	fileHeader.ConvertEndianness();
 	fwrite(&fileHeader, 1, sizeof(fileHeader), f);
 
 	// write order list (without +++ and ---, explained above)
+	ORDERINDEX writtenOrders = 0;
 	for(ORDERINDEX ord = 0; ord < Order.GetLengthTailTrimmed(); ord++)
 	{
+		if(compatibilityExport && (writtenOrders >= 256))
+		{
+			break;
+		}
 		if(Order[ord] != Order.GetIgnoreIndex() && Order[ord] != Order.GetInvalidPatIndex())
 		{
 			uint8 ordItem = static_cast<uint8>(Order[ord]);
 			fwrite(&ordItem, 1, 1, f);
+			writtenOrders++;
+		}
+	}
+	if(compatibilityExport)
+	{
+		while(writtenOrders < 256)
+		{
+			uint8 ordItem = 0;
+			fwrite(&ordItem, 1, 1, f);
+			writtenOrders++;
 		}
 	}
 
@@ -987,16 +1051,16 @@ bool CSoundFile::SaveXM(const mpt::PathString &filename, bool compatibilityExpor
 		// Writing song comments
 		char magic[4];
 		int32 size;
-		if(!songMessage.empty())
+		if(!m_songMessage.empty())
 		{
 			memcpy(magic, "text", 4);
 			fwrite(magic, 1, 4, f);
 
-			size = songMessage.length();
+			size = m_songMessage.length();
 			SwapBytesLE(size);
 			fwrite(&size, 1, 4, f);
 
-			fwrite(songMessage.c_str(), 1, songMessage.length(), f);
+			fwrite(m_songMessage.c_str(), 1, m_songMessage.length(), f);
 		}
 		// Writing midi cfg
 		if(m_SongFlags[SONG_EMBEDMIDICFG])
@@ -1055,9 +1119,9 @@ bool CSoundFile::SaveXM(const mpt::PathString &filename, bool compatibilityExpor
 
 		//Save hacked-on extra info
 		SaveMixPlugins(f);
-		if(m_nInstruments)
+		if(GetNumInstruments())
 		{
-			SaveExtendedInstrumentProperties(MIN(GetNumInstruments(), writeInstruments), f);
+			SaveExtendedInstrumentProperties(writeInstruments, f);
 		}
 		SaveExtendedSongProperties(f);
 	}
@@ -1067,3 +1131,6 @@ bool CSoundFile::SaveXM(const mpt::PathString &filename, bool compatibilityExpor
 }
 
 #endif // MODPLUG_NO_FILESAVE
+
+
+OPENMPT_NAMESPACE_END

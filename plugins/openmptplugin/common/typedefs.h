@@ -12,28 +12,20 @@
 
 
 
-#if MPT_COMPILER_MSVC
-#pragma warning(error : 4309) // Treat "truncation of constant value"-warning as error.
-#endif
+OPENMPT_NAMESPACE_BEGIN
 
 
 
-#if MPT_COMPILER_MSVC && MPT_MSVC_AT_LEAST(2010,0)
-#define MPT_COMPILER_HAS_RVALUE_REF
-#endif
-
-
-
-#if MPT_COMPILER_MSVC && MPT_MSVC_AT_LEAST(2010,0)
-#define HAS_TYPE_TRAITS
-#endif
+// Platform has native IEEE floating point representation.
+// (Currently always assumed)
+#define MPT_PLATFORM_IEEE_FLOAT 1
 
 
 
 #if MPT_COMPILER_MSVC
 
 #if MPT_MSVC_BEFORE(2010,0)
-#define nullptr		0
+#define nullptr 0
 #endif
 
 #elif MPT_COMPILER_GCC
@@ -59,7 +51,7 @@
 #define PACKED __declspec(align(1))
 #define NEEDS_PRAGMA_PACK
 #elif MPT_COMPILER_GCC || MPT_COMPILER_CLANG
-#if MPT_COMPILER_GCC && defined(WIN32)
+#if MPT_COMPILER_GCC && MPT_OS_WINDOWS
 // Some versions of mingw64 need this when windows-hosted. Strange.
 #define NEEDS_PRAGMA_PACK
 #endif
@@ -70,26 +62,16 @@
 
 
 
-#if MPT_COMPILER_MSVC
-#define ALIGN(n) __declspec(align(n))
-#elif MPT_COMPILER_GCC || MPT_COMPILER_CLANG
-#define ALIGN(n) __attribute__((aligned(n)))
-#else
-#define ALIGN(n) alignas(n)
-#endif
-
-
-
 // Advanced inline attributes
 #if MPT_COMPILER_MSVC
 #define forceinline __forceinline
-#define noinline __declspec(noinline)
+#define MPT_NOINLINE __declspec(noinline)
 #elif MPT_COMPILER_GCC || MPT_COMPILER_CLANG
 #define forceinline __attribute__((always_inline)) inline
-#define noinline __attribute__((noinline))
+#define MPT_NOINLINE __attribute__((noinline))
 #else
 #define forceinline inline
-#define noinline
+#define MPT_NOINLINE
 #endif
 
 
@@ -129,17 +111,147 @@
 #if defined(_MFC_VER)
 typedef CMemoryException * MPTMemoryException;
 #else
+OPENMPT_NAMESPACE_END
 #include <new>
+OPENMPT_NAMESPACE_BEGIN
 typedef std::bad_alloc & MPTMemoryException;
 #endif
 
 
 
+// For mpt::make_shared<T>, we sacrifice perfect forwarding in order to keep things simple here.
+// Templated for up to 4 parameters. Add more when required.
+
+OPENMPT_NAMESPACE_END
 #include <memory>
-#if MPT_COMPILER_MSVC && MPT_MSVC_BEFORE(2010,0)
+OPENMPT_NAMESPACE_BEGIN
+
+#if MPT_COMPILER_GCC && MPT_GCC_BEFORE(4,3,0)
+OPENMPT_NAMESPACE_END
+#include <tr1/memory>
+OPENMPT_NAMESPACE_BEGIN
+#endif
+
+#if (MPT_COMPILER_MSVC && MPT_MSVC_BEFORE(2010,0)) || (MPT_COMPILER_GCC && MPT_GCC_BEFORE(4,3,0))
+
 #define MPT_SHARED_PTR std::tr1::shared_ptr
+#define MPT_CONST_POINTER_CAST std::tr1::const_pointer_cast
+#define MPT_STATIC_POINTER_CAST std::tr1::static_pointer_cast
+#define MPT_DYNAMIC_POINTER_CAST std::tr1::dynamic_pointer_cast
+namespace mpt {
+template <typename T> inline MPT_SHARED_PTR<T> make_shared() { return MPT_SHARED_PTR<T>(new T()); }
+template <typename T, typename T1> inline MPT_SHARED_PTR<T> make_shared(const T1 &x1) { return MPT_SHARED_PTR<T>(new T(x1)); }
+template <typename T, typename T1, typename T2> inline MPT_SHARED_PTR<T> make_shared(const T1 &x1, const T2 &x2) { return MPT_SHARED_PTR<T>(new T(x1, x2)); }
+template <typename T, typename T1, typename T2, typename T3> inline MPT_SHARED_PTR<T> make_shared(const T1 &x1, const T2 &x2, const T3 &x3) { return MPT_SHARED_PTR<T>(new T(x1, x2, x3)); }
+template <typename T, typename T1, typename T2, typename T3, typename T4> inline MPT_SHARED_PTR<T> make_shared(const T1 &x1, const T2 &x2, const T3 &x3, const T4 &x4) { return MPT_SHARED_PTR<T>(new T(x1, x2, x3, x4)); }
+} // namespace mpt
+
 #else
+
 #define MPT_SHARED_PTR std::shared_ptr
+#define MPT_CONST_POINTER_CAST std::const_pointer_cast
+#define MPT_STATIC_POINTER_CAST std::static_pointer_cast
+#define MPT_DYNAMIC_POINTER_CAST std::dynamic_pointer_cast
+namespace mpt {
+template <typename T> inline MPT_SHARED_PTR<T> make_shared() { return std::make_shared<T>(); }
+template <typename T, typename T1> inline MPT_SHARED_PTR<T> make_shared(const T1 &x1) { return std::make_shared<T>(x1); }
+template <typename T, typename T1, typename T2> inline MPT_SHARED_PTR<T> make_shared(const T1 &x1, const T2 &x2) { return std::make_shared<T>(x1, x2); }
+template <typename T, typename T1, typename T2, typename T3> inline MPT_SHARED_PTR<T> make_shared(const T1 &x1, const T2 &x2, const T3 &x3) { return std::make_shared<T>(x1, x2, x3); }
+template <typename T, typename T1, typename T2, typename T3, typename T4> inline MPT_SHARED_PTR<T> make_shared(const T1 &x1, const T2 &x2, const T3 &x3, const T4 &x4) { return std::make_shared<T>(x1, x2, x3, x4); }
+} // namespace mpt
+
+#endif
+
+
+
+#if MPT_COMPILER_MSVC
+#define MPT_CONSTANT_IF(x) \
+  __pragma(warning(push)) \
+  __pragma(warning(disable:4127)) \
+  if(x) \
+  __pragma(warning(pop)) \
+/**/
+#define MPT_MAYBE_CONSTANT_IF(x) \
+  __pragma(warning(push)) \
+  __pragma(warning(disable:4127)) \
+  if(x) \
+  __pragma(warning(pop)) \
+/**/
+#endif
+
+#if MPT_COMPILER_GCC
+#if MPT_GCC_AT_LEAST(4,6,0)
+#define MPT_MAYBE_CONSTANT_IF(x) \
+  _Pragma("GCC diagnostic push") \
+  _Pragma("GCC diagnostic ignored \"-Wtype-limits\"") \
+  if(x) \
+  _Pragma("GCC diagnostic pop") \
+/**/
+#elif MPT_GCC_AT_LEAST(4,5,0)
+#define MPT_MAYBE_CONSTANT_IF(x) \
+  _Pragma("GCC diagnostic ignored \"-Wtype-limits\"") \
+  if(x) \
+/**/
+#elif MPT_GCC_AT_LEAST(4,4,0)
+// GCC 4.4 does not like _Pragma diagnostic inside functions.
+// As GCC 4.4 is one of our major compilers, we do not want a noisy build.
+// Thus, just disable this warning globally. (not required for now)
+//#pragma GCC diagnostic ignored "-Wtype-limits"
+#endif
+#endif
+
+#if MPT_COMPILER_CLANG
+#define MPT_MAYBE_CONSTANT_IF(x) \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Wtype-limits\"") \
+  if(x) \
+  _Pragma("clang diagnostic pop") \
+/**/
+#endif
+
+#if !defined(MPT_CONSTANT_IF)
+// MPT_CONSTANT_IF disables compiler warnings for conditions that are either always true or always false for some reason (dependent on template arguments for example)
+#define MPT_CONSTANT_IF(x) if(x)
+#endif
+
+#if !defined(MPT_MAYBE_CONSTANT_IF)
+// MPT_MAYBE_CONSTANT_IF disables compiler warnings for conditions that may in some case be either always false or always true (this may turn out to be useful in ASSERTions in some cases).
+#define MPT_MAYBE_CONSTANT_IF(x) if(x)
+#endif
+
+
+
+#if MPT_COMPILER_MSVC
+// MSVC warns for the well-known and widespread "do { } while(0)" idiom with warning level 4 ("conditional expression is constant").
+// It does not warn with "while(0,0)". However this again causes warnings with other compilers.
+// Solve it with a macro.
+#define MPT_DO do
+#define MPT_WHILE_0 while(0,0)
+#endif
+
+#ifndef MPT_DO
+#define MPT_DO do
+#endif
+#ifndef MPT_WHILE_0
+#define MPT_WHILE_0 while(0)
+#endif
+
+
+
+// Static code checkers might need to get the knowledge of our assertions transferred to them.
+#define MPT_CHECKER_ASSUME_ASSERTIONS 1
+//#define MPT_CHECKER_ASSUME_ASSERTIONS 0
+
+#if MPT_COMPILER_MSVC
+#ifdef MPT_BUILD_ANALYZED
+#if MPT_CHECKER_ASSUME_ASSERTIONS
+#define MPT_CHECKER_ASSUME(x) __analysis_assume(!!(x))
+#endif
+#endif
+#endif
+
+#ifndef MPT_CHECKER_ASSUME
+#define MPT_CHECKER_ASSUME(x) MPT_DO { } MPT_WHILE_0
 #endif
 
 
@@ -149,82 +261,88 @@ typedef std::bad_alloc & MPTMemoryException;
 #if !defined(ASSERT)
 #error "MFC is expected to #define ASSERT"
 #endif // !defined(ASERRT)
-#define MPT_ASSERT_IS_DEFINED
+#define MPT_FRAMEWORK_ASSERT_IS_DEFINED
 
 #if defined(_DEBUG)
- #define MPT_ASSERT_IS_ACTIVE 1
+ #define MPT_FRAMEWORK_ASSERT_IS_ACTIVE 1
 #else // !_DEBUG
- #define MPT_ASSERT_IS_ACTIVE 0
+ #define MPT_FRAMEWORK_ASSERT_IS_ACTIVE 0
 #endif // _DEBUG
+
+// let MFC handle our asserts
+#define MPT_ASSERT_USE_FRAMEWORK 1
 
 #else // !_MFC_VER
 
 #if defined(ASSERT)
-#error "ASSERT(expr) is expected to NOT be defined by any other header"
+#define MPT_FRAMEWORK_ASSERT_IS_DEFINED
+#if defined(_DEBUG)
+ #define MPT_FRAMEWORK_ASSERT_IS_ACTIVE 1
+#else // !_DEBUG
+ #define MPT_FRAMEWORK_ASSERT_IS_ACTIVE 0
+#endif // _DEBUG
 #endif // !defined(ASERRT)
+
+// handle assert in our own way without relying on some platform-/framework-specific assert implementation
+#define MPT_ASSERT_USE_FRAMEWORK 0
 
 #endif // _MFC_VER
 
 
-#if defined(MPT_ASSERT_IS_DEFINED)
+#if defined(MPT_FRAMEWORK_ASSERT_IS_DEFINED) && (MPT_ASSERT_USE_FRAMEWORK == 1)
 
-//#define ASSERT // already defined
-#define ASSERT_WARN_MESSAGE(expr,msg) ASSERT(expr)
+#define MPT_ASSERT_NOTREACHED()          ASSERT(0)
+#define MPT_ASSERT(expr)                 ASSERT((expr))
+#define MPT_ASSERT_MSG(expr, msg)        ASSERT((expr) && (msg))
+#if (MPT_FRAMEWORK_ASSERT_IS_ACTIVE == 1)
+#define MPT_ASSERT_ALWAYS(expr)          ASSERT((expr))
+#define MPT_ASSERT_ALWAYS_MSG(expr, msg) ASSERT((expr) && (msg))
+#else
+#define MPT_ASSERT_ALWAYS(expr)          MPT_DO { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr); } MPT_CHECKER_ASSUME(expr); } MPT_WHILE_0
+#define MPT_ASSERT_ALWAYS_MSG(expr, msg) MPT_DO { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr, msg); } MPT_CHECKER_ASSUME(expr); } MPT_WHILE_0
+#ifndef MPT_ASSERT_HANDLER_NEEDED
+#define MPT_ASSERT_HANDLER_NEEDED
+#endif
+#endif
 
 #elif defined(NO_ASSERTS)
 
-#define MPT_ASSERT_IS_DEFINED
-#define MPT_ASSERT_IS_ACTIVE 0
-#define ASSERT(expr) do { } while(0)
-#define ASSERT_WARN_MESSAGE(expr,msg) do { } while(0)
+#define MPT_ASSERT_NOTREACHED()          MPT_CHECKER_ASSUME(0)
+#define MPT_ASSERT(expr)                 MPT_CHECKER_ASSUME(expr)
+#define MPT_ASSERT_MSG(expr, msg)        MPT_CHECKER_ASSUME(expr)
+#define MPT_ASSERT_ALWAYS(expr)          MPT_DO { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr); } MPT_CHECKER_ASSUME(expr); } MPT_WHILE_0
+#define MPT_ASSERT_ALWAYS_MSG(expr, msg) MPT_DO { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr, msg); } MPT_CHECKER_ASSUME(expr); } MPT_WHILE_0
+#ifndef MPT_ASSERT_HANDLER_NEEDED
+#define MPT_ASSERT_HANDLER_NEEDED
+#endif
 
 #else // !NO_ASSERTS
 
-#define MPT_ASSERT_IS_DEFINED
-#define MPT_ASSERT_IS_ACTIVE 1
-#define ASSERT(expr) do { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr); } } while(0)
-#define ASSERT_WARN_MESSAGE(expr,msg) do { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr, msg); } } while(0)
+#define MPT_ASSERT_NOTREACHED()          MPT_DO { MPT_CONSTANT_IF(!(0)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, "0"); } MPT_CHECKER_ASSUME(0); } MPT_WHILE_0
+#define MPT_ASSERT(expr)                 MPT_DO { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr); } MPT_CHECKER_ASSUME(expr); } MPT_WHILE_0
+#define MPT_ASSERT_MSG(expr, msg)        MPT_DO { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr, msg); } MPT_CHECKER_ASSUME(expr); } MPT_WHILE_0
+#define MPT_ASSERT_ALWAYS(expr)          MPT_DO { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr); } MPT_CHECKER_ASSUME(expr); } MPT_WHILE_0
+#define MPT_ASSERT_ALWAYS_MSG(expr, msg) MPT_DO { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr, msg); } MPT_CHECKER_ASSUME(expr); } MPT_WHILE_0
 #ifndef MPT_ASSERT_HANDLER_NEEDED
 #define MPT_ASSERT_HANDLER_NEEDED
 #endif
 
 #endif // NO_ASSERTS
 
-// error checking
-#if !defined(MPT_ASSERT_IS_DEFINED)
-#error "ASSERT(expr) has to be defined"
-#endif // !MPT_ASSERT_IS_DEFINED
-#if MPT_ASSERT_IS_ACTIVE && defined(NO_ASSERTS)
-#error "ASSERT is active but NO_ASSERT is defined"
-#elif !MPT_ASSERT_IS_ACTIVE && !defined(NO_ASSERTS)
-#error "NO_ASSERT is not defined but ASSERTs are not active"
-#endif
-
-
-#if (MPT_ASSERT_IS_ACTIVE == 1)
-
-#define ALWAYS_ASSERT(expr) ASSERT(expr)
-#define ALWAYS_ASSERT_WARN_MESSAGE(expr,msg) ASSERT_WARN_MESSAGE(expr,msg)
-
-#else // (MPT_ASSERT_IS_ACTIVE != 1)
-
-#define ALWAYS_ASSERT(expr) do { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr); } } while(0)
-#define ALWAYS_ASSERT_WARN_MESSAGE(expr,msg) do { if(!(expr)) { AssertHandler(__FILE__, __LINE__, __FUNCTION__, #expr, msg); } } while(0)
-#ifndef MPT_ASSERT_HANDLER_NEEDED
-#define MPT_ASSERT_HANDLER_NEEDED
-#endif
-
-#endif // MPT_ASSERT_IS_ACTIVE
-
 
 #if defined(MPT_ASSERT_HANDLER_NEEDED)
 // custom assert handler needed
-noinline void AssertHandler(const char *file, int line, const char *function, const char *expr, const char *msg=nullptr);
+MPT_NOINLINE void AssertHandler(const char *file, int line, const char *function, const char *expr, const char *msg=nullptr);
 #endif // MPT_ASSERT_HANDLER_NEEDED
 
 
 // Compile time assert.
-#if MPT_COMPILER_MSVC && MPT_MSVC_BEFORE(2010,0)
+#if (MPT_COMPILER_GCC && MPT_GCC_BEFORE(4,3,0))
+	#define MPT_SA_CONCAT(x, y) x ## y
+	#define MPT_SA_HELPER(x) MPT_SA_CONCAT(OPENMPT_STATIC_ASSERT_, x)
+	#define OPENMPT_STATIC_ASSERT MPT_SA_HELPER(__LINE__)
+	#define static_assert(expr, msg) typedef char OPENMPT_STATIC_ASSERT[(expr)?1:-1]
+#elif (MPT_COMPILER_MSVC && MPT_MSVC_BEFORE(2010,0))
 	#define static_assert(expr, msg) typedef char OPENMPT_STATIC_ASSERT[(expr)?1:-1]
 #endif
 #define STATIC_ASSERT(expr) static_assert((expr), "compile time assertion failed: " #expr)
@@ -236,25 +354,16 @@ noinline void AssertHandler(const char *file, int line, const char *function, co
 #elif MPT_COMPILER_CLANG
 #define MPT_FALLTHROUGH [[clang::fallthrough]]
 #else
-#define MPT_FALLTHROUGH do { } while(0)
-#endif
-
-
-#include <cstdarg>
-#if MPT_COMPILER_MSVC
-#ifndef va_copy
-#define va_copy(dst, src) do { (dst) = (src); } while (0)
-#endif
+#define MPT_FALLTHROUGH MPT_DO { } MPT_WHILE_0
 #endif
 
 
 
-#define __STDC_CONSTANT_MACROS
-#define __STDC_LIMIT_MACROS
+#if (MPT_COMPILER_MSVC && MPT_MSVC_BEFORE(2010,0)) || (MPT_COMPILER_GCC && MPT_GCC_BEFORE(4,3,0))
 
-#if MPT_COMPILER_MSVC && MPT_MSVC_BEFORE(2010,0)
-
+OPENMPT_NAMESPACE_END
 #include "stdint.h"
+OPENMPT_NAMESPACE_BEGIN
 
 typedef int8_t   int8;
 typedef int16_t  int16;
@@ -267,7 +376,9 @@ typedef uint64_t uint64;
 
 #else
 
+OPENMPT_NAMESPACE_END
 #include <cstdint>
+OPENMPT_NAMESPACE_BEGIN
 
 typedef std::int8_t   int8;
 typedef std::int16_t  int16;
@@ -280,54 +391,9 @@ typedef std::uint64_t uint64;
 
 #endif
 
-#ifdef ANDROID
-
+OPENMPT_NAMESPACE_END
 #include <stdint.h>
-
-// Android NDK appears to provide a different (and incomplete) <stdint.h> when compiling C++.
-// Provide these macros ourselves if they are not defined by here.
-
-#ifndef INT8_MIN
-#define INT8_MIN (-128)
-#endif
-#ifndef INT8_MAX
-#define INT8_MAX (127)
-#endif
-#ifndef UINT8_MAX
-#define UINT8_MAX (255)
-#endif
-
-#ifndef INT16_MIN
-#define INT16_MIN (-32768)
-#endif
-#ifndef INT16_MAX
-#define INT16_MAX (32767)
-#endif
-#ifndef UINT16_MAX
-#define UINT16_MAX (65535)
-#endif
-
-#ifndef INT32_MIN
-#define INT32_MIN (-2147483647-1)
-#endif
-#ifndef INT32_MAX
-#define INT32_MAX (2147483647)
-#endif
-#ifndef UINT32_MAX
-#define UINT32_MAX (4294967295U)
-#endif
-
-#ifndef INT64_MIN
-#define INT64_MIN ((-9223372036854775807ll)-1)
-#endif
-#ifndef INT64_MAX
-#define INT64_MAX ((9223372036854775807ll))
-#endif
-#ifndef UINT64_MAX
-#define UINT64_MAX ((18446744073709551615ull))
-#endif
-
-#endif // ANDROID
+OPENMPT_NAMESPACE_BEGIN
 
 const int8 int8_min     = INT8_MIN;
 const int16 int16_min   = INT16_MIN;
@@ -353,21 +419,21 @@ struct int24
 	explicit int24(int other)
 	{
 		#ifdef MPT_PLATFORM_BIG_ENDIAN
-			bytes[0] = ((unsigned int)other>>16)&0xff;
-			bytes[1] = ((unsigned int)other>> 8)&0xff;
-			bytes[2] = ((unsigned int)other>> 0)&0xff;
+			bytes[0] = (static_cast<unsigned int>(other)>>16)&0xff;
+			bytes[1] = (static_cast<unsigned int>(other)>> 8)&0xff;
+			bytes[2] = (static_cast<unsigned int>(other)>> 0)&0xff;
 		#else
-			bytes[0] = ((unsigned int)other>> 0)&0xff;
-			bytes[1] = ((unsigned int)other>> 8)&0xff;
-			bytes[2] = ((unsigned int)other>>16)&0xff;
+			bytes[0] = (static_cast<unsigned int>(other)>> 0)&0xff;
+			bytes[1] = (static_cast<unsigned int>(other)>> 8)&0xff;
+			bytes[2] = (static_cast<unsigned int>(other)>>16)&0xff;
 		#endif
 	}
 	operator int() const
 	{
 		#ifdef MPT_PLATFORM_BIG_ENDIAN
-			return ((int8)bytes[0] * 65536) + (bytes[1] * 256) + bytes[2];
+			return (static_cast<int8>(bytes[0]) * 65536) + (bytes[1] * 256) + bytes[2];
 		#else
-			return ((int8)bytes[2] * 65536) + (bytes[1] * 256) + bytes[0];
+			return (static_cast<int8>(bytes[2]) * 65536) + (bytes[1] * 256) + bytes[0];
 		#endif
 	}
 };
@@ -376,44 +442,22 @@ STATIC_ASSERT(sizeof(int24) == 3);
 #define int24_max (0+0x007fffff)
 
 
-// 32-bit wrapper for encoding 32-bit floats
-struct uint8_4
-{
-	uint8 x[4];
-	uint8_4() { }
-	uint8_4(uint8 a, uint8 b, uint8 c, uint8 d) { x[0] = a; x[1] = b; x[2] = c; x[3] = d; }
-	uint32 GetBE() const { return (x[0] << 24) | (x[1] << 16) | (x[2] <<  8) | (x[3] <<  0); }
-	uint32 GetLE() const { return (x[0] <<  0) | (x[1] <<  8) | (x[2] << 16) | (x[3] << 24); }
-	uint8_4 & SetBE(uint32 y) { x[0] = (y >> 24)&0xff; x[1] = (y >> 16)&0xff; x[2] = (y >>  8)&0xff; x[3] = (y >>  0)&0xff; return *this; }
-	uint8_4 & SetLE(uint32 y) { x[0] = (y >>  0)&0xff; x[1] = (y >>  8)&0xff; x[2] = (y >> 16)&0xff; x[3] = (y >> 24)&0xff; return *this; }
-};
-STATIC_ASSERT(sizeof(uint8_4) == 4);
-
-
 typedef float float32;
 STATIC_ASSERT(sizeof(float32) == 4);
 
-union FloatInt32
-{
-	float32 f;
-	uint32 i;
-};
-STATIC_ASSERT(sizeof(FloatInt32) == 4);
+typedef double float64;
+STATIC_ASSERT(sizeof(float64) == 8);
 
 
 
-#if !defined(WIN32)
+namespace mpt {
 
-// openmpt assumes these type have exact WIN32 semantics
+STATIC_ASSERT(sizeof(char) == 1);
 
-typedef std::uint8_t  BYTE;
-typedef std::uint16_t WORD;
-typedef std::uint32_t DWORD;
-typedef std::int32_t  LONG;
-typedef std::uint32_t UINT;
+typedef unsigned char byte;
+STATIC_ASSERT(sizeof(mpt::byte) == 1);
 
-#endif // !WIN32
-
+} // namespace mpt
 
 
 
@@ -421,28 +465,6 @@ typedef std::uint32_t UINT;
 #define MPT_PRINTF_FUNC(formatstringindex,varargsindex) __attribute__((format(printf, formatstringindex, varargsindex)))
 #else
 #define MPT_PRINTF_FUNC(formatstringindex,varargsindex)
-#endif
-
-//To mark string that should be translated in case of multilingual version.
-#define GetStrI18N(x)	(x)
-
-#define MULTICHAR4_LE_MSVC(a,b,c,d) static_cast<uint32>( (static_cast<uint8>(a) << 24) | (static_cast<uint8>(b) << 16) | (static_cast<uint8>(c) << 8) | (static_cast<uint8>(d) << 0) )
-
-
-
-//STRINGIZE makes a string of given argument. If used with #defined value,
-//the string is made of the contents of the defined value.
-#define HELPER_STRINGIZE(x)			#x
-#define STRINGIZE(x)				HELPER_STRINGIZE(x)
-
-
-
-#ifndef MAX
-#define MAX(a,b) (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef MIN
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
 #endif
 
 
@@ -453,3 +475,29 @@ typedef std::uint32_t UINT;
 #define MPT_UNREFERENCED_PARAMETER(x) (void)(x)
 #endif
 
+#define MPT_UNUSED_VARIABLE(x) MPT_UNREFERENCED_PARAMETER(x)
+
+
+
+#if MPT_COMPILER_MSVC
+// warning LNK4221: no public symbols found; archive member will be inaccessible
+// There is no way to selectively disable linker warnings.
+// #pragma warning does not apply and a command line option does not exist.
+// Some options:
+//  1. Macro which generates a variable with a unique name for each file (which means we have to pass the filename to the macro)
+//  2. unnamed namespace containing any symbol (does not work for c++11 compilers because they actually have internal linkage now)
+//  3. An unused trivial inline function.
+// Option 3 does not actually solve the problem though, which leaves us with option 1.
+// In any case, for optimized builds, the linker will just remove the useless symbol.
+#define MPT_MSVC_WORKAROUND_LNK4221_CONCAT_DETAIL(x,y) x##y
+#define MPT_MSVC_WORKAROUND_LNK4221_CONCAT(x,y) MPT_MSVC_WORKAROUND_LNK4221_CONCAT_DETAIL(x,y)
+#define MPT_MSVC_WORKAROUND_LNK4221(x) int MPT_MSVC_WORKAROUND_LNK4221_CONCAT(mpt_msvc_workaround_lnk4221_,x) = 0;
+#endif
+
+#ifndef MPT_MSVC_WORKAROUND_LNK4221
+#define MPT_MSVC_WORKAROUND_LNK4221(x)
+#endif
+
+
+
+OPENMPT_NAMESPACE_END

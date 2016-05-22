@@ -10,20 +10,27 @@
 
 #pragma once
 
+OPENMPT_NAMESPACE_BEGIN
+
 class CSoundFile;
 
 // Sample Struct
 struct ModSample
 {
 	SmpLength nLength;						// In samples, not bytes
-	SmpLength nLoopStart, nLoopEnd;			// Dito
-	SmpLength nSustainStart, nSustainEnd;	// Dito
-	void   *pSample;						// Pointer to sample data
+	SmpLength nLoopStart, nLoopEnd;			// Ditto
+	SmpLength nSustainStart, nSustainEnd;	// Ditto
+	union
+	{
+		void  *pSample;						// Pointer to sample data
+		int8  *pSample8;					// Pointer to 8-bit sample data
+		int16 *pSample16;					// Pointer to 16-bit sample data
+	};
 	uint32 nC5Speed;						// Frequency of middle-C, in Hz (for IT/S3M/MPTM)
 	uint16 nPan;							// Default sample panning (if pan flag is set), 0...256
 	uint16 nVolume;							// Default volume, 0...256
 	uint16 nGlobalVol;						// Global volume (sample volume is multiplied by this), 0...64
-	FlagSet<ChannelFlags, uint16> uFlags;	// Sample flags
+	SampleFlags uFlags;						// Sample flags (see ChannelFlags enum)
 	int8   RelativeTone;					// Relative note to middle c (for MOD/XM)
 	int8   nFineTune;						// Finetune period (for MOD/XM), -128...127
 	uint8  nVibType;						// Auto vibrato type, see VibratoType enum
@@ -32,12 +39,15 @@ struct ModSample
 	uint8  nVibRate;						// Auto vibrato rate (speed)
 	//char name[MAX_SAMPLENAME];			// Maybe it would be nicer to have sample names here, but that would require some refactoring. Also, the current structure size is 64 Bytes - would adding the sample name here slow down the mixer (cache misses)?
 	char filename [MAX_SAMPLEFILENAME];
+	SmpLength cues[9];
 
 	ModSample(MODTYPE type = MOD_TYPE_NONE)
 	{
 		pSample = nullptr;
 		Initialize(type);
 	}
+
+	bool HasSampleData() const { return pSample != nullptr && nLength != 0; }
 
 	// Return the size of one (elementary) sample in bytes.
 	uint8 GetElementarySampleSize() const { return (uFlags & CHN_16BIT) ? 2 : 1; }
@@ -87,4 +97,9 @@ struct ModSample
 	void TransposeToFrequency();
 	static int FrequencyToTranspose(uint32 freq);
 	void FrequencyToTranspose();
+
+	// Check if the sample's cue points are the default cue point set.
+	bool HasCustomCuePoints() const;
 };
+
+OPENMPT_NAMESPACE_END

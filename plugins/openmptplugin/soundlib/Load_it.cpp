@@ -12,24 +12,31 @@
 #include "stdafx.h"
 #include "Loaders.h"
 #include "tuningcollection.h"
+#include "mod_specifications.h"
 #ifdef MODPLUG_TRACKER
 #include "../mptrack/moddoc.h"
 #include "../mptrack/TrackerSettings.h"
-#endif
+#endif // MODPLUG_TRACKER
+#ifdef MPT_EXTERNAL_SAMPLES
+#include "../common/mptPathString.h"
+#endif // MPT_EXTERNAL_SAMPLES
+#include "../common/mptIO.h"
 #include "../common/serialization_utils.h"
-#include "../common/mptFstream.h"
-#include <sstream>
-#include <list>
+#ifndef MODPLUG_NO_FILESAVE
+#include "../common/mptFileIO.h"
+#endif // MODPLUG_NO_FILESAVE
+#include "plugins/PlugInterface.h"
+#include "../common/mptBufferIO.h"
 #include "../common/version.h"
 #include "ITTools.h"
 #include <time.h>
-#if MPT_COMPILER_GCC
-#include <ext/stdio_sync_filebuf.h>
-#endif
 
-#define str_tooMuchPatternData	(GetStrI18N(("Warning: File format limit was reached. Some pattern data may not get written to file.")))
-#define str_pattern				(GetStrI18N(("pattern")))
-#define str_PatternSetTruncationNote (GetStrI18N(("The module contains %1 patterns but only %2 patterns can be loaded in this OpenMPT version.")))
+
+OPENMPT_NAMESPACE_BEGIN
+
+#define str_tooMuchPatternData	("Warning: File format limit was reached. Some pattern data may not get written to file.")
+#define str_pattern				("pattern")
+#define str_PatternSetTruncationNote ("The module contains %1 patterns but only %2 patterns can be loaded in this OpenMPT version.")
 #define str_LoadingIncompatibleVersion	"The file informed that it is incompatible with this version of OpenMPT. Loading was terminated."
 #define str_LoadingMoreRecentVersion	"The loaded file was made with a more recent OpenMPT version and this version may not be able to load all the features or play the file correctly."
 
@@ -47,7 +54,7 @@ MPTM version history for cwtv-field in "IT" header (only for MPTM files!):
 				       0x88A->0x88B. Now extended orderlist is saved as extension.
 0x88C(1.17.02.48) -> 0x88D(1.17.02.49): Some tuning related changes - that part fails to read on older versions.
 0x88B -> 0x88C: Changed type in which tuning number is printed to file: size_t -> uint16.
-0x88A -> 0x88B: Changed order-to-pattern-index table type from BYTE-array to vector<UINT>.
+0x88A -> 0x88B: Changed order-to-pattern-index table type from uint8-array to vector<uint32>.
 */
 
 
@@ -86,7 +93,7 @@ static void WriteTuningMap(std::ostream& oStrm, const CSoundFile& sf)
 		TNTS_MAP tNameToShort_Map;
 
 		unsigned short figMap = 0;
-		for(UINT i = 1; i <= sf.GetNumInstruments(); i++) if (sf.Instruments[i] != nullptr)
+		for(INSTRUMENTINDEX i = 1; i <= sf.GetNumInstruments(); i++) if (sf.Instruments[i] != nullptr)
 		{
 			TNTS_MAP_ITER iter = tNameToShort_Map.find(sf.Instruments[i]->pTuning);
 			if(iter != tNameToShort_Map.end())
@@ -103,15 +110,15 @@ static void WriteTuningMap(std::ostream& oStrm, const CSoundFile& sf)
 		for(TNTS_MAP_ITER iter = tNameToShort_Map.begin(); iter != tNameToShort_Map.end(); iter++)
 		{
 			if(iter->first)
-				srlztn::StringToBinaryStream<uint8>(oStrm, iter->first->GetName());
+				mpt::IO::WriteSizedStringLE<uint8>(oStrm, iter->first->GetName());
 			else //Case: Using original IT tuning.
-				srlztn::StringToBinaryStream<uint8>(oStrm, "->MPT_ORIGINAL_IT<-");
+				mpt::IO::WriteSizedStringLE<uint8>(oStrm, "->MPT_ORIGINAL_IT<-");
 
-			srlztn::Binarywrite<uint16>(oStrm, iter->second);
+			mpt::IO::WriteIntLE<uint16>(oStrm, iter->second);
 		}
 
 		//Writing tuning data for instruments.
-		for(UINT i = 1; i <= sf.GetNumInstruments(); i++)
+		for(INSTRUMENTINDEX i = 1; i <= sf.GetNumInstruments(); i++)
 		{
 			TNTS_MAP_ITER iter = tNameToShort_Map.find(sf.Instruments[i]->pTuning);
 			if(iter == tNameToShort_Map.end()) //Should never happen
@@ -119,7 +126,7 @@ static void WriteTuningMap(std::ostream& oStrm, const CSoundFile& sf)
 				sf.AddToLog("Error: 210807_1");
 				return;
 			}
-			srlztn::Binarywrite(oStrm, iter->second);
+			mpt::IO::WriteIntLE<uint16>(oStrm, iter->second);
 		}
 	}
 }
@@ -142,7 +149,7 @@ static bool ReadTuningMapTemplate(std::istream& iStrm, std::map<uint16, std::str
 	{
 		std::string temp;
 		uint16 ui;
-		if(srlztn::StringFromBinaryStream<STRSIZETYPE>(iStrm, temp, 255))
+		if(!mpt::IO::ReadSizedStringLE<STRSIZETYPE>(iStrm, temp, 255))
 			return true;
 
 		iStrm.read(reinterpret_cast<char*>(&ui), sizeof(ui));
@@ -164,8 +171,8 @@ static void ReadTuningMap(std::istream& iStrm, CSoundFile& csf, const size_t = 0
 	ReadTuningMapTemplate<uint16, uint8>(iStrm, shortToTNameMap);
 
 	//Read & set tunings for instruments
-	std::list<std::string> notFoundTunings;
-	for(UINT i = 1; i<=csf.GetNumInstruments(); i++)
+	std::vector<std::string> notFoundTunings;
+	for(INSTRUMENTINDEX i = 1; i<=csf.GetNumInstruments(); i++)
 	{
 		uint16 ui;
 		iStrm.read(reinterpret_cast<char*>(&ui), sizeof(ui));
@@ -174,7 +181,7 @@ static void ReadTuningMap(std::istream& iStrm, CSoundFile& csf, const size_t = 0
 		{
 			const std::string str = iter->second;
 
-			if(str == std::string("->MPT_ORIGINAL_IT<-"))
+			if(str == "->MPT_ORIGINAL_IT<-")
 			{
 				csf.Instruments[i]->pTuning = nullptr;
 				continue;
@@ -201,9 +208,7 @@ static void ReadTuningMap(std::istream& iStrm, CSoundFile& csf, const size_t = 0
 				continue;
 
 			//Checking if not found tuning already noticed.
-			std::list<std::string>::iterator iter;
-			iter = find(notFoundTunings.begin(), notFoundTunings.end(), str);
-			if(iter == notFoundTunings.end())
+			if(std::find(notFoundTunings.begin(), notFoundTunings.end(), str) == notFoundTunings.end())
 			{
 				notFoundTunings.push_back(str);
 				std::string erm = std::string("Tuning ") + str + std::string(" used by the module was not found.");
@@ -218,9 +223,9 @@ static void ReadTuningMap(std::istream& iStrm, CSoundFile& csf, const size_t = 0
 			}
 			csf.Instruments[i]->pTuning = csf.GetDefaultTuning();
 
-		}
-		else //This 'else' happens probably only in case of corrupted file.
+		} else
 		{
+			//This 'else' happens probably only in case of corrupted file.
 			if(csf.Instruments[i])
 				csf.Instruments[i]->pTuning = csf.GetDefaultTuning();
 		}
@@ -271,8 +276,23 @@ size_t CSoundFile::ITInstrToMPT(FileReader &file, ModInstrument &ins, uint16 trk
 		size_t instSize = instrumentHeader.ConvertToMPT(ins, GetType());
 		file.Seek(offset + instSize);
 
-		// Try reading modular instrument data
-		instSize += LoadModularInstrumentData(file, ins);
+		// Try reading modular instrument data.
+		// Yes, it is completely idiotic that we have both this and LoadExtendedInstrumentProperties.
+		// This is only required for files saved with *really* old OpenMPT versions (pre-1.17-RC1).
+		// This chunk was also written in later versions (probably to maintain compatibility with
+		// those ancient versions), but this also means that redundant information is stored in the file.
+		// Starting from OpenMPT 1.25.02.07, this chunk is no longer written.
+		if(file.ReadMagic("MSNI"))
+		{
+			//...the next piece of data must be the total size of the modular data
+			FileReader modularData = file.ReadChunk(file.ReadUint32LE());
+			instSize += 8 + modularData.GetLength();
+			if(modularData.ReadMagic("GULP"))
+			{
+				ins.nMixPlug = modularData.ReadUint8();
+				if(ins.nMixPlug > MAX_MIXPLUGINS) ins.nMixPlug = 0;
+			}
+		}
 
 		return instSize;
 	}
@@ -309,7 +329,7 @@ std::string CSoundFile::GetSchismTrackerVersion(uint16 cwtv)
 		}
 	} else
 	{
-		version = mpt::String::Print("Schism Tracker %1.%2", 0, mpt::fmt::hex(cwtv & 0xFF));
+		version = mpt::String::Print("Schism Tracker 0.%1", mpt::fmt::hex(cwtv & 0xFF));
 	}
 	return version;
 }
@@ -333,7 +353,7 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 		return true;
 	}
 
-	InitializeGlobals();
+	InitializeGlobals(MOD_TYPE_IT);
 
 	bool interpretModPlugMade = false;
 
@@ -348,16 +368,14 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 	if(!memcmp(fileHeader.id, "tpm.", 4))
 	{
 		// Legacy MPTM files (old 1.17.02.xx releases)
-		ChangeModTypeTo(MOD_TYPE_MPT);
+		SetType(MOD_TYPE_MPT);
 	} else
 	{
 		if(mptStartPos <= file.GetLength() - 3 && fileHeader.cwtv > 0x888 && fileHeader.cwtv <= 0xFFF)
 		{
 			file.Seek(mptStartPos);
-			ChangeModTypeTo(file.ReadMagic("228") ? MOD_TYPE_MPT : MOD_TYPE_IT);
-		} else
-		{
-			ChangeModTypeTo(MOD_TYPE_IT);
+			if(file.ReadMagic("228"))
+				SetType(MOD_TYPE_MPT);
 		}
 
 		if(GetType() == MOD_TYPE_IT)
@@ -375,26 +393,27 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 				// OpenMPT 1.17 and 1.18 (raped IT format)
 				// Exact version number will be determined later.
 				interpretModPlugMade = true;
+				m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 17, 00, 00);
 			} else if(fileHeader.cwtv == 0x0217 && fileHeader.cmwt == 0x0200 && !memcmp(fileHeader.reserved, "\0\0\0\0", 4))
 			{
-				if(memchr(fileHeader.chnpan, 0xFF, sizeof(fileHeader.chnpan)) != NULL)
+				if(memchr(fileHeader.chnpan, 0xFF, sizeof(fileHeader.chnpan)) != nullptr)
 				{
 					// ModPlug Tracker 1.16 (semi-raped IT format)
 					m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 16, 00, 00);
-					madeWithTracker = "ModPlug tracker 1.09 - 1.16";
+					m_madeWithTracker = "ModPlug Tracker 1.09 - 1.16";
 				} else
 				{
 					// OpenMPT 1.17 disguised as this in compatible mode,
 					// but never writes 0xFF in the pan map for unused channels (which is an invalid value).
 					m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 17, 00, 00);
-					madeWithTracker = "OpenMPT 1.17 (compatibility export)";
+					m_madeWithTracker = "OpenMPT 1.17 (compatibility export)";
 				}
 				interpretModPlugMade = true;
 			} else if(fileHeader.cwtv == 0x0214 && fileHeader.cmwt == 0x0202 && !memcmp(fileHeader.reserved, "\0\0\0\0", 4))
 			{
 				// ModPlug Tracker b3.3 - 1.09, instruments 557 bytes apart
 				m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 09, 00, 00);
-				madeWithTracker = "ModPlug tracker b3.3 - 1.09";
+				m_madeWithTracker = "ModPlug Tracker b3.3 - 1.09";
 				interpretModPlugMade = true;
 			}
 		} else // case: type == MOD_TYPE_MPT
@@ -419,13 +438,33 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 	m_SongFlags.set(SONG_EMBEDMIDICFG, (fileHeader.flags & ITFileHeader::reqEmbeddedMIDIConfig) || (fileHeader.special & ITFileHeader::embedMIDIConfiguration));
 	m_SongFlags.set(SONG_EXFILTERRANGE, (fileHeader.flags & ITFileHeader::extendedFilterRange) != 0);
 
-	mpt::String::Read<mpt::String::spacePadded>(songName, fileHeader.songname);
+	mpt::String::Read<mpt::String::spacePadded>(m_songName, fileHeader.songname);
+
+	// Read row highlights
+	if((fileHeader.special & ITFileHeader::embedPatternHighlights))
+	{
+		// MPT 1.09 and older (and maybe also newer) versions leave this blank (0/0), but have the "special" flag set.
+		// Newer versions of MPT and OpenMPT 1.17 *always* write 4/16 here.
+		// Thus, we will just ignore those old versions.
+		// Note: OpenMPT 1.17.03.02 was the first version to properly make use of the time signature in the IT header.
+		// This poses a small unsolvable problem:
+		// - In compatible mode, we cannot distinguish this version from earlier 1.17 releases.
+		//   Thus we cannot know when to read this field or not (m_dwLastSavedWithVersion will always be 1.17.00.00).
+		//   Luckily OpenMPT 1.17.03.02 should not be very wide-spread.
+		// - In normal mode the time signature is always present in the song extensions anyway. So it's okay if we read
+		//   the signature here and maybe overwrite it later when parsing the song extensions.
+		if(m_dwLastSavedWithVersion == 0 || m_dwLastSavedWithVersion >= MAKE_VERSION_NUMERIC(1, 17, 03, 02))
+		{
+			m_nDefaultRowsPerBeat = fileHeader.highlight_minor;
+			m_nDefaultRowsPerMeasure = fileHeader.highlight_major;
+		}
+	}
 
 	// Global Volume
 	m_nDefaultGlobalVolume = fileHeader.globalvol << 1;
 	if(m_nDefaultGlobalVolume > MAX_GLOBAL_VOLUME) m_nDefaultGlobalVolume = MAX_GLOBAL_VOLUME;
 	if(fileHeader.speed) m_nDefaultSpeed = fileHeader.speed;
-	m_nDefaultTempo = std::max(uint8(32), fileHeader.tempo); // Tempo 31 is possible. due to conflicts with the rest of the engine, let's just clamp it to 32.
+	m_nDefaultTempo.Set(std::max(uint8(31), fileHeader.tempo));
 	m_nSamplePreAmp = std::min(fileHeader.mv, uint8(128));
 
 	// Reading Channels Pan Positions
@@ -443,7 +482,7 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 	file.Seek(sizeof(ITFileHeader));
 	if(GetType() == MOD_TYPE_IT)
 	{
-		Order.ReadAsByte(file, fileHeader.ordnum);
+		Order.ReadAsByte(file, fileHeader.ordnum, fileHeader.ordnum, 0xFF, 0xFE);
 	} else
 	{
 		if(fileHeader.cwtv > 0x88A && fileHeader.cwtv <= 0x88D)
@@ -451,18 +490,18 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 			Order.Deserialize(file);
 		} else
 		{
-			Order.ReadAsByte(file, fileHeader.ordnum);
-			// Replacing 0xFF and 0xFE with new corresponding indexes
-			Order.Replace(0xFE, Order.GetIgnoreIndex());
-			Order.Replace(0xFF, Order.GetInvalidPatIndex());
+			Order.ReadAsByte(file, fileHeader.ordnum, fileHeader.ordnum, 0xFF, 0xFE);
 		}
 	}
 
 	// Reading instrument, sample and pattern offsets
 	std::vector<uint32> insPos, smpPos, patPos;
-	file.ReadVectorLE(insPos, fileHeader.insnum);
-	file.ReadVectorLE(smpPos, fileHeader.smpnum);
-	file.ReadVectorLE(patPos, fileHeader.patnum);
+	if(!file.ReadVectorLE(insPos, fileHeader.insnum)
+		|| !file.ReadVectorLE(smpPos, fileHeader.smpnum)
+		|| !file.ReadVectorLE(patPos, fileHeader.patnum))
+	{
+		return false;
+	}
 
 	// Find the first parapointer.
 	// This is used for finding out whether the edit history is actually stored in the file or not,
@@ -471,26 +510,17 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 	uint32 minPtr = Util::MaxValueOfType(minPtr);
 	for(uint16 n = 0; n < fileHeader.insnum; n++)
 	{
-		if(insPos[n] > 0)
-		{
-			minPtr = std::min(minPtr, insPos[n]);
-		}
+		if(insPos[n] > 0) minPtr = std::min(minPtr, insPos[n]);
 	}
 
 	for(uint16 n = 0; n < fileHeader.smpnum; n++)
 	{
-		if(smpPos[n] > 0)
-		{
-			minPtr = std::min(minPtr, smpPos[n]);
-		}
+		if(smpPos[n] > 0) minPtr = std::min(minPtr, smpPos[n]);
 	}
 
 	for(uint16 n = 0; n < fileHeader.patnum; n++)
 	{
-		if(patPos[n] > 0)
-		{
-			minPtr = std::min(minPtr, patPos[n]);
-		}
+		if(patPos[n] > 0) minPtr = std::min(minPtr, patPos[n]);
 	}
 
 	if(fileHeader.special & ITFileHeader::embedSongMessage)
@@ -502,7 +532,7 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 	// This is only supposed to be present if bit 1 of the special flags is set.
 	// However, old versions of Schism and probably other trackers always set this bit
 	// even if they don't write the edit history count. So we have to filter this out...
-	// This is done by looking at the parapointers. If the history data end after
+	// This is done by looking at the parapointers. If the history data ends after
 	// the first parapointer, we assume that it's actually no history data.
 	if(fileHeader.special & ITFileHeader::embedEditHistory)
 	{
@@ -532,12 +562,12 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 		{
 			// These were not zero bytes -> We're in the wrong place!
 			file.SkipBack(2);
-			madeWithTracker = "UNMO3";
+			m_madeWithTracker = "UNMO3";
 		}
 	}
 
 	// Reading MIDI Output & Macros
-	if(m_SongFlags[SONG_EMBEDMIDICFG] && file.Read(m_MidiCfg))
+	if(m_SongFlags[SONG_EMBEDMIDICFG] && file.ReadStruct<MIDIMacroConfigData>(m_MidiCfg))
 	{
 			m_MidiCfg.Sanitize();
 	}
@@ -548,11 +578,6 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 		MemsetZero(m_MidiCfg.szMidiSFXExt);
 		MemsetZero(m_MidiCfg.szMidiZXXExt);
 		m_SongFlags.set(SONG_EMBEDMIDICFG);
-	}
-
-	if(file.ReadMagic("MODU"))
-	{
-		madeWithTracker = "BeRoTracker";
 	}
 
 	// Read pattern names: "PNAM"
@@ -590,7 +615,7 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 			// Generally, IT files should use CR for line endings. However, ChibiTracker uses LF. One could do...
 			// if(itHeader.cwtv == 0x0214 && itHeader.cmwt == 0x0214 && itHeader.reserved == ITFileHeader::chibiMagic) --> Chibi detected.
 			// But we'll just use autodetection here:
-			songMessage.Read(file, fileHeader.msglength, SongMessage::leAutodetect);
+			m_songMessage.Read(file, fileHeader.msglength, SongMessage::leAutodetect);
 		}
 	}
 
@@ -625,6 +650,7 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 
 	// Reading Samples
 	m_nSamples = std::min(fileHeader.smpnum, SAMPLEINDEX(MAX_SAMPLES - 1));
+	bool lastSampleCompressed = false;
 	for(SAMPLEINDEX i = 0; i < GetNumSamples(); i++)
 	{
 		ITSample sampleHeader;
@@ -632,22 +658,55 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 		{
 			if(!memcmp(sampleHeader.id, "IMPS", 4))
 			{
-				size_t sampleOffset = sampleHeader.ConvertToMPT(Samples[i + 1]);
+				ModSample &sample = Samples[i + 1];
+				size_t sampleOffset = sampleHeader.ConvertToMPT(sample);
 
 				mpt::String::Read<mpt::String::spacePadded>(m_szNames[i + 1], sampleHeader.name);
 
-				if((loadFlags & loadSampleData) && file.Seek(sampleOffset))
+				if(!file.Seek(sampleOffset))
+					continue;
+
+				lastSampleCompressed = false;
+				if(!sample.uFlags[SMP_KEEPONDISK])
 				{
-					sampleHeader.GetSampleFormat(fileHeader.cwtv).ReadSample(Samples[i + 1], file);
-					lastSampleOffset = std::max(lastSampleOffset, file.GetPosition());
+					SampleIO sampleIO = sampleHeader.GetSampleFormat(fileHeader.cwtv);
+					if(loadFlags & loadSampleData)
+					{
+						sampleIO.ReadSample(sample, file);
+					} else
+					{
+						if(sampleIO.GetEncoding() == SampleIO::signedPCM)
+							file.Skip(sample.nLength * (sampleIO.GetBitDepth() / 8) * sampleIO.GetNumChannels());
+						else
+							lastSampleCompressed = true;
+					}
+				} else
+				{
+					// External sample in MPTM file
+					size_t strLen;
+					file.ReadVarInt(strLen);
+					if(loadFlags & loadSampleData)
+					{
+						std::string filenameU8;
+						file.ReadString<mpt::String::maybeNullTerminated>(filenameU8, strLen);
+#ifdef MPT_EXTERNAL_SAMPLES
+						SetSamplePath(i + 1, mpt::PathString::FromUTF8(filenameU8));
+#else
+						AddToLog(LogWarning, mpt::String::Print(MPT_USTRING("Loading external sample %1 ('%2') failed: External samples are not supported."), i, mpt::ToUnicode(mpt::CharsetUTF8, filenameU8)));
+#endif // MPT_EXTERNAL_SAMPLES
+					} else
+					{
+						file.Skip(strLen);
+					}
 				}
+				lastSampleOffset = std::max(lastSampleOffset, file.GetPosition());
 			}
 		}
 	}
 	m_nSamples = std::max(SAMPLEINDEX(1), GetNumSamples());
 
-	m_nMinPeriod = 8;
-	m_nMaxPeriod = 0xF000;
+	m_nMinPeriod = 0;
+	m_nMaxPeriod = int32_max;
 
 	PATTERNINDEX numPats = std::min(static_cast<PATTERNINDEX>(patPos.size()), GetModSpecifications().patternsMax);
 
@@ -671,8 +730,8 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 		uint16 len = file.ReadUint16LE();
 		ROWINDEX numRows = file.ReadUint16LE();
 
-		if(numRows < GetModSpecifications().patternRowsMin
-			|| numRows > GetModSpecifications().patternRowsMax
+		if(numRows < 1
+			|| numRows > MAX_PATTERN_ROWS
 			|| !file.Skip(4))
 			continue;
 
@@ -680,7 +739,7 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 		ROWINDEX row = 0;
 		std::vector<uint8> chnMask(GetNumChannels());
 
-		while(row < numRows && patternData.AreBytesLeft())
+		while(row < numRows && patternData.CanRead(1))
 		{
 			uint8 b = patternData.ReadUint8();
 			if(!b)
@@ -722,23 +781,44 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 			// Effect
 			if(chnMask[ch] & 8) patternData.Skip(2);
 		}
+		lastSampleOffset = std::max(lastSampleOffset, file.GetPosition());
 	}
 
 	// Compute extra instruments settings position
 	if(lastSampleOffset > 0)
 	{
 		file.Seek(lastSampleOffset);
+		if(lastSampleCompressed)
+		{
+			// If the last sample was compressed, we do not know where it ends.
+			// Hence, in case we decided not to decode the sample data, we now
+			// have to emulate this until we reach EOF or some instrument / song properties.
+			while(file.CanRead(4))
+			{
+				if(file.ReadMagic("XTPM") || file.ReadMagic("STPM"))
+				{
+					uint32 id = file.ReadUint32LE();
+					file.SkipBack(8);
+					// Our chunk IDs should only contain ASCII characters
+					if(!(id & 0x80808080) && (id & 0x60606060))
+					{
+						break;
+					}
+				}
+				file.Skip(file.ReadUint16LE());
+			}
+		}
 	}
 
 	// Load instrument and song extensions.
 	LoadExtendedInstrumentProperties(file, &interpretModPlugMade);
 	if(interpretModPlugMade)
 	{
-		m_nMixLevels = mixLevels_original;
+		m_playBehaviour.reset();
+		m_nMixLevels = mixLevelsOriginal;
 	}
-	// We need to do this here, because if there no samples (so lastSampleOffset = 0), we need to look after the last pattern (sample data normally follows pattern data).
-	// And we need to do this before reading the patterns because m_nChannels might be modified by LoadExtendedSongProperties. *sigh*
-	LoadExtendedSongProperties(GetType(), file, &interpretModPlugMade);
+	// Need to do this before reading the patterns because m_nChannels might be modified by LoadExtendedSongProperties. *sigh*
+	LoadExtendedSongProperties(file, &interpretModPlugMade);
 
 	// Reading Patterns
 	Patterns.ResizeArray(std::max(MAX_PATTERNS, numPats));
@@ -747,7 +827,7 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 		if(patPos[pat] == 0 || !file.Seek(patPos[pat]))
 		{
 			// Empty 64-row pattern
-			if(Patterns.Insert(pat, 64))
+			if(!Patterns.Insert(pat, 64))
 			{
 				AddToLog(mpt::String::Print("Allocating patterns failed starting from pattern %1", pat));
 				break;
@@ -760,10 +840,8 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 		uint16 len = file.ReadUint16LE();
 		ROWINDEX numRows = file.ReadUint16LE();
 
-		if(numRows < GetModSpecifications().patternRowsMin
-			|| numRows > GetModSpecifications().patternRowsMax
-			|| !file.Skip(4)
-			|| Patterns.Insert(pat, numRows))
+		if(!file.Skip(4)
+			|| !Patterns.Insert(pat, numRows))
 			continue;
 			
 		FileReader patternData = file.ReadChunk(len);
@@ -774,15 +852,15 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 		std::vector<uint8> chnMask(GetNumChannels());
 		std::vector<ModCommand> lastValue(GetNumChannels(), ModCommand::Empty());
 
-		ModCommand *m = Patterns[pat];
+		ModCommand *patData = Patterns[pat];
 		ROWINDEX row = 0;
-		while(row < numRows && patternData.AreBytesLeft())
+		while(row < numRows && patternData.CanRead(1))
 		{
 			uint8 b = patternData.ReadUint8();
 			if(!b)
 			{
 				row++;
-				m += GetNumChannels();
+				patData += GetNumChannels();
 				continue;
 			}
 
@@ -797,7 +875,7 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 			{
 				chnMask.resize(ch + 1, 0);
 				lastValue.resize(ch + 1, ModCommand::Empty());
-				ASSERT(chnMask.size() <= GetNumChannels());
+				MPT_ASSERT(chnMask.size() <= GetNumChannels());
 			}
 
 			if(b & IT_bitmask_patternChanEnabled_c)  // 0x80
@@ -806,108 +884,94 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 			}
 
 			// Now we grab the data for this particular row/channel.
+			ModCommand dummy;
+			ModCommand &m = ch < m_nChannels ? patData[ch] : dummy;
 
-			if((chnMask[ch] & 0x10) && (ch < m_nChannels))
+			if(chnMask[ch] & 0x10)
 			{
-				m[ch].note = lastValue[ch].note;
+				m.note = lastValue[ch].note;
 			}
-			if((chnMask[ch] & 0x20) && (ch < m_nChannels))
+			if(chnMask[ch] & 0x20)
 			{
-				m[ch].instr = lastValue[ch].instr;
+				m.instr = lastValue[ch].instr;
 			}
-			if((chnMask[ch] & 0x40) && (ch < m_nChannels))
+			if(chnMask[ch] & 0x40)
 			{
-				m[ch].volcmd = lastValue[ch].volcmd;
-				m[ch].vol = lastValue[ch].vol;
+				m.volcmd = lastValue[ch].volcmd;
+				m.vol = lastValue[ch].vol;
 			}
-			if((chnMask[ch] & 0x80) && (ch < m_nChannels))
+			if(chnMask[ch] & 0x80)
 			{
-				m[ch].command = lastValue[ch].command;
-				m[ch].param = lastValue[ch].param;
+				m.command = lastValue[ch].command;
+				m.param = lastValue[ch].param;
 			}
 			if(chnMask[ch] & 1)	// Note
 			{
 				uint8 note = patternData.ReadUint8();
-				if(ch < m_nChannels)
+				if(note < 0x80) note += NOTE_MIN;
+				if(!(GetType() & MOD_TYPE_MPT))
 				{
-					if(note < 0x80) note++;
-					if(!(GetType() & MOD_TYPE_MPT))
-					{
-						if(note > NOTE_MAX && note < 0xFD) note = NOTE_FADE;
-						else if(note == 0xFD) note = NOTE_NONE;
-					}
-					m[ch].note = note;
-					lastValue[ch].note = note;
+					if(note > NOTE_MAX && note < 0xFD) note = NOTE_FADE;
+					else if(note == 0xFD) note = NOTE_NONE;
 				}
+				m.note = note;
+				lastValue[ch].note = note;
 			}
 			if(chnMask[ch] & 2)
 			{
 				uint8 instr = patternData.ReadUint8();
-				if(ch < m_nChannels)
-				{
-					m[ch].instr = instr;
-					lastValue[ch].instr = instr;
-				}
+				m.instr = instr;
+				lastValue[ch].instr = instr;
 			}
 			if(chnMask[ch] & 4)
 			{
 				uint8 vol = patternData.ReadUint8();
-				if(ch < m_nChannels)
+				// 0-64: Set Volume
+				if(vol <= 64) { m.volcmd = VOLCMD_VOLUME; m.vol = vol; } else
+				// 128-192: Set Panning
+				if(vol >= 128 && vol <= 192) { m.volcmd = VOLCMD_PANNING; m.vol = vol - 128; } else
+				// 65-74: Fine Volume Up
+				if(vol < 75) { m.volcmd = VOLCMD_FINEVOLUP; m.vol = vol - 65; } else
+				// 75-84: Fine Volume Down
+				if(vol < 85) { m.volcmd = VOLCMD_FINEVOLDOWN; m.vol = vol - 75; } else
+				// 85-94: Volume Slide Up
+				if(vol < 95) { m.volcmd = VOLCMD_VOLSLIDEUP; m.vol = vol - 85; } else
+				// 95-104: Volume Slide Down
+				if(vol < 105) { m.volcmd = VOLCMD_VOLSLIDEDOWN; m.vol = vol - 95; } else
+				// 105-114: Pitch Slide Up
+				if(vol < 115) { m.volcmd = VOLCMD_PORTADOWN; m.vol = vol - 105; } else
+				// 115-124: Pitch Slide Down
+				if(vol < 125) { m.volcmd = VOLCMD_PORTAUP; m.vol = vol - 115; } else
+				// 193-202: Portamento To
+				if(vol >= 193 && vol <= 202) { m.volcmd = VOLCMD_TONEPORTAMENTO; m.vol = vol - 193; } else
+				// 203-212: Vibrato depth
+				if(vol >= 203 && vol <= 212)
 				{
-					// 0-64: Set Volume
-					if(vol <= 64) { m[ch].volcmd = VOLCMD_VOLUME; m[ch].vol = vol; } else
-					// 128-192: Set Panning
-					if(vol >= 128 && vol <= 192) { m[ch].volcmd = VOLCMD_PANNING; m[ch].vol = vol - 128; } else
-					// 65-74: Fine Volume Up
-					if(vol < 75) { m[ch].volcmd = VOLCMD_FINEVOLUP; m[ch].vol = vol - 65; } else
-					// 75-84: Fine Volume Down
-					if(vol < 85) { m[ch].volcmd = VOLCMD_FINEVOLDOWN; m[ch].vol = vol - 75; } else
-					// 85-94: Volume Slide Up
-					if(vol < 95) { m[ch].volcmd = VOLCMD_VOLSLIDEUP; m[ch].vol = vol - 85; } else
-					// 95-104: Volume Slide Down
-					if(vol < 105) { m[ch].volcmd = VOLCMD_VOLSLIDEDOWN; m[ch].vol = vol - 95; } else
-					// 105-114: Pitch Slide Up
-					if(vol < 115) { m[ch].volcmd = VOLCMD_PORTADOWN; m[ch].vol = vol - 105; } else
-					// 115-124: Pitch Slide Down
-					if(vol < 125) { m[ch].volcmd = VOLCMD_PORTAUP; m[ch].vol = vol - 115; } else
-					// 193-202: Portamento To
-					if(vol >= 193 && vol <= 202) { m[ch].volcmd = VOLCMD_TONEPORTAMENTO; m[ch].vol = vol - 193; } else
-					// 203-212: Vibrato depth
-					if(vol >= 203 && vol <= 212)
-					{
-						m[ch].volcmd = VOLCMD_VIBRATODEPTH; m[ch].vol = vol - 203;
-						// Old versions of ModPlug saved this as vibrato speed instead, so let's fix that.
-						if(m[ch].vol && m_dwLastSavedWithVersion && m_dwLastSavedWithVersion <= MAKE_VERSION_NUMERIC(1, 17, 02, 54))
-							m[ch].volcmd = VOLCMD_VIBRATOSPEED;
-					} else
-					// 213-222: Unused (was velocity)
-					// 223-232: Offset
-					if(vol >= 223 && vol <= 232) { m[ch].volcmd = VOLCMD_OFFSET; m[ch].vol = vol - 223; }
-					lastValue[ch].volcmd = m[ch].volcmd;
-					lastValue[ch].vol = m[ch].vol;
-				}
+					m.volcmd = VOLCMD_VIBRATODEPTH; m.vol = vol - 203;
+					// Old versions of ModPlug saved this as vibrato speed instead, so let's fix that.
+					if(m.vol && m_dwLastSavedWithVersion && m_dwLastSavedWithVersion <= MAKE_VERSION_NUMERIC(1, 17, 02, 54))
+						m.volcmd = VOLCMD_VIBRATOSPEED;
+				} else
+				// 213-222: Unused (was velocity)
+				// 223-232: Offset
+				if(vol >= 223 && vol <= 232) { m.volcmd = VOLCMD_OFFSET; m.vol = vol - 223; }
+				lastValue[ch].volcmd = m.volcmd;
+				lastValue[ch].vol = m.vol;
 			}
 			// Reading command/param
 			if(chnMask[ch] & 8)
 			{
-				uint8 cmd = patternData.ReadUint8();
-				uint8 param = patternData.ReadUint8();
-				if(ch < m_nChannels)
-				{
-					if(cmd)
-					{
-						m[ch].command = cmd;
-						m[ch].param = param;
-						S3MConvert(m[ch], true);
-						lastValue[ch].command = m[ch].command;
-						lastValue[ch].param = m[ch].param;
-					}
-				}
+				m.command = patternData.ReadUint8();
+				m.param = patternData.ReadUint8();
+				S3MConvert(m, true);
+				// In some IT-compatible trackers, it is possible to input an parameter without a command.
+				// In this case, we still need to update the last value memory. OpenMPT didn't do this until v1.25.01.07.
+				// Example: ckbounce.it
+				lastValue[ch].command = m.command;
+				lastValue[ch].param = m.param;
 			}
 		}
 	}
-
-	UpgradeModFlags();
 
 	if(!m_dwLastSavedWithVersion && fileHeader.cwtv == 0x0888)
 	{
@@ -916,22 +980,22 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 		m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 17, 00, 00);
 	}
 
-	if(m_dwLastSavedWithVersion && madeWithTracker.empty())
+	if(m_dwLastSavedWithVersion && m_madeWithTracker.empty())
 	{
-		madeWithTracker = "OpenMPT " + MptVersion::ToStr(m_dwLastSavedWithVersion);
+		m_madeWithTracker = "OpenMPT " + MptVersion::ToStr(m_dwLastSavedWithVersion);
 		if(memcmp(fileHeader.reserved, "OMPT", 4) && (fileHeader.cwtv & 0xF000) == 0x5000)
 		{
-			madeWithTracker += " (compatibility export)";
+			m_madeWithTracker += " (compatibility export)";
 		} else if(MptVersion::IsTestBuild(m_dwLastSavedWithVersion))
 		{
-			madeWithTracker += " (test build)";
+			m_madeWithTracker += " (test build)";
 		}
 	} else
 	{
 		switch(fileHeader.cwtv >> 12)
 		{
 		case 0:
-			if(!madeWithTracker.empty())
+			if(!m_madeWithTracker.empty())
 			{
 				// BeRoTracker has been detected above.
 			} else if(fileHeader.cwtv == 0x0214 && fileHeader.cmwt == 0x0200 && fileHeader.flags == 9 && fileHeader.special == 0
@@ -940,130 +1004,146 @@ bool CSoundFile::ReadIT(FileReader &file, ModLoadingFlags loadFlags)
 				&& fileHeader.globalvol == 128 && fileHeader.mv == 100 && fileHeader.speed == 1 && fileHeader.sep == 128 && fileHeader.pwd == 0
 				&& fileHeader.msglength == 0 && fileHeader.msgoffset == 0 && !memcmp(fileHeader.reserved, "\0\0\0\0", 4))
 			{
-				madeWithTracker = "OpenSPC conversion";
+				m_madeWithTracker = "OpenSPC conversion";
 			} else if(fileHeader.cwtv == 0x0214 && fileHeader.cmwt == 0x0200 && !memcmp(fileHeader.reserved, "\0\0\0\0", 4))
 			{
 				// ModPlug Tracker 1.00a5, instruments 560 bytes apart
 				m_dwLastSavedWithVersion = MAKE_VERSION_NUMERIC(1, 00, 00, A5);
-				madeWithTracker = "ModPlug tracker 1.00a5";
+				m_madeWithTracker = "ModPlug Tracker 1.00a5";
 				interpretModPlugMade = true;
 			} else if(fileHeader.cwtv == 0x0214 && fileHeader.cmwt == 0x0214 && !memcmp(fileHeader.reserved, "CHBI", 4))
 			{
-				madeWithTracker = "ChibiTracker";
-			} else if(fileHeader.cwtv == 0x0214 && fileHeader.cmwt == 0x0214 && !(fileHeader.special & 3) && !memcmp(fileHeader.reserved, "\0\0\0\0", 4) && !strcmp(Samples[1].filename, "XXXXXXXX.YYY"))
+				m_madeWithTracker = "ChibiTracker";
+			} else if(fileHeader.cwtv == 0x0214 && fileHeader.cmwt == 0x0214 && !(fileHeader.special & 3) && !memcmp(fileHeader.reserved, "\0\0\0\0", 4) && m_nSamples > 0 && !strcmp(Samples[1].filename, "XXXXXXXX.YYY"))
 			{
-				madeWithTracker = "CheeseTracker";
-			} else
+				m_madeWithTracker = "CheeseTracker";
+			} else if(fileHeader.cmwt < 0x0888)
 			{
 				if(fileHeader.cmwt > 0x0214)
 				{
-					madeWithTracker = "Impulse Tracker 2.15";
+					m_madeWithTracker = "Impulse Tracker 2.15";
 				} else if(fileHeader.cwtv > 0x0214)
 				{
 					// Patched update of IT 2.14 (0x0215 - 0x0217 == p1 - p3)
 					// p4 (as found on modland) adds the ITVSOUND driver, but doesn't seem to change
 					// anything as far as file saving is concerned.
-					madeWithTracker = mpt::String::Print("Impulse Tracker 2.14p%1", fileHeader.cwtv - 0x0214);
+					m_madeWithTracker = mpt::String::Print("Impulse Tracker 2.14p%1", fileHeader.cwtv - 0x0214);
 				} else
 				{
-					madeWithTracker = mpt::String::Print("Impulse Tracker %1.%2", (fileHeader.cwtv & 0x0F00) >> 8, mpt::fmt::hex0<2>((fileHeader.cwtv & 0xFF)));
+					m_madeWithTracker = mpt::String::Print("Impulse Tracker %1.%2", (fileHeader.cwtv & 0x0F00) >> 8, mpt::fmt::hex0<2>((fileHeader.cwtv & 0xFF)));
+				}
+				if(m_FileHistory.empty() && memcmp(fileHeader.reserved, "\0\0\0\0", 4))
+				{
+					// IT encrypts the total edit time of a module in the "reserved" fild
+					uint32 editTime;
+					memcpy(&editTime, fileHeader.reserved, 4);
+					SwapBytesLE(editTime);
+					if(fileHeader.cwtv >= 0x0208)
+					{
+						editTime ^= 0x4954524B;	// 'ITRK'
+						editTime = (editTime >> 7) | (editTime << (32 - 7));
+						editTime = -(int32)editTime;
+						editTime = (editTime << 4) | (editTime >> (32 - 4));
+						editTime ^= 0x4A54484C;	// 'JTHL'
+					}
+
+					FileHistory hist;
+					MemsetZero(hist);
+					hist.openTime = static_cast<uint32>(editTime * (HISTORY_TIMER_PRECISION / 18.2f));
+					m_FileHistory.push_back(hist);
 				}
 			}
 			break;
 		case 1:
-			madeWithTracker = GetSchismTrackerVersion(fileHeader.cwtv);
+			m_madeWithTracker = GetSchismTrackerVersion(fileHeader.cwtv);
+			// Hertz in linear mode: Added 2015-01-29, https://github.com/schismtracker/schismtracker/commit/671b30311082a0e7df041fca25f989b5d2478f69
+			if(fileHeader.cwtv < 0x17CC)
+				m_playBehaviour.reset(kHertzInLinearMode);
+			// Qxx with short samples: Added 2016-05-13, https://github.com/schismtracker/schismtracker/commit/e7b1461fe751554309fd403713c2a1ef322105ca
+			if(fileHeader.cwtv < 0x19A2)
+				m_playBehaviour.reset(kITShortSampleRetrig);
+			break;
+		case 4:
+			m_madeWithTracker = mpt::format("pyIT %1.%2")((fileHeader.cwtv & 0x0F00) >> 8, mpt::fmt::hex0<2>((fileHeader.cwtv & 0xFF)));
 			break;
 		case 6:
-			madeWithTracker = "BeRoTracker";
+			m_madeWithTracker = "BeRoTracker";
 			break;
 		case 7:
-			madeWithTracker = mpt::String::Print("ITMCK %1.%2.%3", (fileHeader.cwtv >> 8) & 0x0F, (fileHeader.cwtv >> 4) & 0x0F, fileHeader.cwtv & 0x0F);
+			m_madeWithTracker = mpt::format("ITMCK %1.%2.%3")((fileHeader.cwtv >> 8) & 0x0F, (fileHeader.cwtv >> 4) & 0x0F, fileHeader.cwtv & 0x0F);
+			break;
+		case 0xD:
+			m_madeWithTracker = "spc2it";
 			break;
 		}
 	}
 
-	// Read row highlights
-	if((fileHeader.special & ITFileHeader::embedPatternHighlights))
+	if(GetType() == MOD_TYPE_MPT)
 	{
-		// MPT 1.09 and older (and maybe also newer) versions leave this blank (0/0), but have the "special" flag set.
-		// Newer versions of MPT and OpenMPT 1.17 *always* write 4/16 here.
-		// Thus, we will just ignore those old versions.
-		if(m_dwLastSavedWithVersion == 0 || m_dwLastSavedWithVersion >= MAKE_VERSION_NUMERIC(1, 17, 03, 02))
+		// START - mpt specific:
+		if(fileHeader.cwtv > 0x0889 && file.Seek(mptStartPos))
 		{
-			m_nDefaultRowsPerBeat = fileHeader.highlight_minor;
-			m_nDefaultRowsPerMeasure = fileHeader.highlight_major;
+			LoadMPTMProperties(file, fileHeader.cwtv);
 		}
-	}
-
-	if(GetType() == MOD_TYPE_IT)
-	{
-		// Set appropriate mod flags if the file was not made with MPT.
-		if(!interpretModPlugMade)
-		{
-			SetModFlag(MSF_MIDICC_BUGEMULATION, false);
-			SetModFlag(MSF_OLDVOLSWING, false);
-			SetModFlag(MSF_COMPATIBLE_PLAY, true);
-		}
-	} else
-	{
-		//START - mpt specific:
-		//Using member cwtv on pifh as the version number.
-		const uint16 version = fileHeader.cwtv;
-		if(version > 0x889 && file.Seek(mptStartPos))
-		{
-			std::istringstream iStrm(std::string(file.GetRawData(), file.BytesLeft()));
-
-			if(version >= 0x88D)
-			{
-				srlztn::SsbRead ssb(iStrm);
-				ssb.BeginRead("mptm", MptVersion::num);
-				ssb.ReadItem(GetTuneSpecificTunings(), "0", 1, &ReadTuningCollection);
-				ssb.ReadItem(*this, "1", 1, &ReadTuningMap);
-				ssb.ReadItem(Order, "2", 1, &ReadModSequenceOld);
-				ssb.ReadItem(Patterns, FileIdPatterns, strlen(FileIdPatterns), &ReadModPatterns);
-				ssb.ReadItem(Order, FileIdSequences, strlen(FileIdSequences), &ReadModSequences);
-
-				if(ssb.GetStatus() & srlztn::SNT_FAILURE)
-				{
-					AddToLog("Unknown error occured while deserializing file.");
-				}
-			} else //Loading for older files.
-			{
-				if(GetTuneSpecificTunings().Deserialize(iStrm))
-				{
-					AddToLog("Error occured - loading failed while trying to load tune specific tunings.");
-				} else
-				{
-					ReadTuningMap(iStrm, *this);
-				}
-			}
-		} //version condition(MPT)
 	}
 
 	return true;
 }
 
+
+void CSoundFile::LoadMPTMProperties(FileReader &file, uint16 cwtv)
+//----------------------------------------------------------------
+{
+	mpt::istringstream iStrm(file.GetRawDataAsString());
+
+	if(cwtv >= 0x88D)
+	{
+		srlztn::SsbRead ssb(iStrm);
+		ssb.BeginRead("mptm", MptVersion::num);
+		ssb.ReadItem(GetTuneSpecificTunings(), "0", &ReadTuningCollection);
+		ssb.ReadItem(*this, "1", &ReadTuningMap);
+		ssb.ReadItem(Order, "2", &ReadModSequenceOld);
+		ssb.ReadItem(Patterns, FileIdPatterns, &ReadModPatterns);
+		ssb.ReadItem(Order, FileIdSequences, &ReadModSequences);
+
+		if(ssb.GetStatus() & srlztn::SNT_FAILURE)
+		{
+			AddToLog(LogError, MPT_USTRING("Unknown error occurred while deserializing file."));
+		}
+	} else
+	{
+		// Loading for older files.
+		if(GetTuneSpecificTunings().Deserialize(iStrm))
+		{
+			AddToLog(LogError, MPT_USTRING("Loading tune specific tunings failed."));
+		} else
+		{
+			ReadTuningMap(iStrm, *this);
+		}
+	}
+}
+
+
 #ifndef MODPLUG_NO_FILESAVE
 
 // Save edit history. Pass a null pointer for *f to retrieve the number of bytes that would be written.
-static uint32 SaveITEditHistory(const CSoundFile *pSndFile, FILE *f)
-//------------------------------------------------------------------
+static uint32 SaveITEditHistory(const CSoundFile &sndFile, FILE *f)
+//-----------------------------------------------------------------
 {
-	size_t num = pSndFile->GetFileHistory().size();
+	size_t num = sndFile.GetFileHistory().size();
 #ifdef MODPLUG_TRACKER
-	CModDoc *pModDoc = pSndFile->GetpModDoc();
+	const CModDoc *pModDoc = sndFile.GetpModDoc();
 	num += (pModDoc != nullptr) ? 1 : 0;	// + 1 for this session
 #endif // MODPLUG_TRACKER
 
-	uint16 fnum = (uint16)MIN(num, uint16_max);		// Number of entries that are actually going to be written
-	const uint32 bytes_written = 2 + fnum * 8;		// Number of bytes that are actually going to be written
+	uint16 fnum = mpt::saturate_cast<uint16>(num);	// Number of entries that are actually going to be written
+	const uint32 bytesWritten = 2 + fnum * 8;		// Number of bytes that are actually going to be written
 
 	if(f == nullptr)
-		return bytes_written;
+		return bytesWritten;
 
 	// Write number of history entries
-	SwapBytesLE(fnum);
-	fwrite(&fnum, 2, 1, f);
+	mpt::IO::WriteIntLE(f, fnum);
 
 	// Write history data
 	const size_t start = (num > uint16_max) ? num - uint16_max : 0;
@@ -1072,11 +1152,11 @@ static uint32 SaveITEditHistory(const CSoundFile *pSndFile, FILE *f)
 		FileHistory mptHistory;
 
 #ifdef MODPLUG_TRACKER
-		if(n < pSndFile->GetFileHistory().size())
+		if(n < sndFile.GetFileHistory().size())
 #endif // MODPLUG_TRACKER
 		{
 			// Previous timestamps
-			mptHistory = pSndFile->GetFileHistory().at(n);
+			mptHistory = sndFile.GetFileHistory().at(n);
 #ifdef MODPLUG_TRACKER
 		} else
 		{
@@ -1089,7 +1169,7 @@ static uint32 SaveITEditHistory(const CSoundFile *pSndFile, FILE *f)
 			if (p != nullptr)
 				mptHistory.loadDate = *p;
 			else
-				pSndFile->AddToLog("localtime() returned nullptr.");
+				sndFile.AddToLog("Unable to retrieve current time.");
 
 			mptHistory.openTime = (uint32)(difftime(time(nullptr), creationTime) * (double)HISTORY_TIMER_PRECISION);
 #endif // MODPLUG_TRACKER
@@ -1101,7 +1181,7 @@ static uint32 SaveITEditHistory(const CSoundFile *pSndFile, FILE *f)
 		fwrite(&itHistory, 1, sizeof(itHistory), f);
 	}
 
-	return bytes_written;
+	return bytesWritten;
 }
 
 
@@ -1110,9 +1190,10 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 {
 	const CModSpecifications &specs = (GetType() == MOD_TYPE_MPT ? ModSpecs::mptm : (compatibilityExport ? ModSpecs::it : ModSpecs::itEx));
 
-	DWORD dwChnNamLen;
+	uint32 dwChnNamLen;
 	ITFileHeader itHeader;
-	DWORD dwPos = 0, dwHdrPos = 0, dwExtra = 0;
+	uint64 dwPos = 0;
+	uint32 dwHdrPos = 0, dwExtra = 0;
 	FILE *f;
 
 	if(filename.empty() || ((f = mpt_fopen(filename, "wb")) == NULL)) return false;
@@ -1121,7 +1202,7 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 	MemsetZero(itHeader);
 	dwChnNamLen = 0;
 	memcpy(itHeader.id, "IMPM", 4);
-	mpt::String::Write<mpt::String::nullTerminated>(itHeader.songname, songName);
+	mpt::String::Write<mpt::String::nullTerminated>(itHeader.songname, m_songName);
 
 	itHeader.highlight_minor = (uint8)std::min(m_nDefaultRowsPerBeat, ROWINDEX(uint8_max));
 	itHeader.highlight_major = (uint8)std::min(m_nDefaultRowsPerMeasure, ROWINDEX(uint8_max));
@@ -1129,7 +1210,7 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 	if(GetType() == MOD_TYPE_MPT)
 	{
 		if(!Order.NeedsExtraDatafield()) itHeader.ordnum = Order.size();
-		else itHeader.ordnum = MIN(Order.size(), MAX_ORDERS); //Writing MAX_ORDERS at max here, and if there's more, writing them elsewhere.
+		else itHeader.ordnum = std::min(Order.size(), MAX_ORDERS); //Writing MAX_ORDERS at max here, and if there's more, writing them elsewhere.
 
 		//Crop unused orders from the end.
 		while(itHeader.ordnum > 1 && Order[itHeader.ordnum - 1] == Order.GetInvalidPatIndex()) itHeader.ordnum--;
@@ -1188,16 +1269,16 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 	if(m_SongFlags[SONG_EXFILTERRANGE] && !compatibilityExport) itHeader.flags |= ITFileHeader::extendedFilterRange;
 
 	itHeader.globalvol = (uint8)(m_nDefaultGlobalVolume >> 1);
-	itHeader.mv = (uint8)MIN(m_nSamplePreAmp, 128);
-	itHeader.speed = (uint8)MIN(m_nDefaultSpeed, 255);
- 	itHeader.tempo = (uint8)MIN(m_nDefaultTempo, 255);  //Limit this one to 255, we save the real one as an extension below.
+	itHeader.mv = (uint8)MIN(m_nSamplePreAmp, 128u);
+	itHeader.speed = (uint8)MIN(m_nDefaultSpeed, 255u);
+ 	itHeader.tempo = (uint8)MIN(m_nDefaultTempo.GetInt(), 255u);  //Limit this one to 255, we save the real one as an extension below.
 	itHeader.sep = 128; // pan separation
 	// IT doesn't have a per-instrument Pitch Wheel Depth setting, so we just store the first non-zero PWD setting in the header.
 	for(INSTRUMENTINDEX ins = 1; ins < GetNumInstruments(); ins++)
 	{
 		if(Instruments[ins] != nullptr && Instruments[ins]->midiPWD != 0)
 		{
-			itHeader.pwd = (uint8)abs(Instruments[ins]->midiPWD);
+			itHeader.pwd = (uint8)mpt::abs(Instruments[ins]->midiPWD);
 			break;
 		}
 	}
@@ -1207,7 +1288,7 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 	memset(itHeader.chnpan, 0xA0, 64);
 	memset(itHeader.chnvol, 64, 64);
 
-	for (CHANNELINDEX ich = 0; ich < MIN(m_nChannels, 64); ich++) // Header only has room for settings for 64 chans...
+	for(CHANNELINDEX ich = 0; ich < std::min(m_nChannels, CHANNELINDEX(64)); ich++) // Header only has room for settings for 64 chans...
 	{
 		itHeader.chnpan[ich] = (uint8)(ChnSettings[ich].nPan >> 2);
 		if (ChnSettings[ich].dwFlags[CHN_SURROUND]) itHeader.chnpan[ich] = 100;
@@ -1249,14 +1330,14 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 	}
 
 	// Edit History. Just calculate the size of this extra block for now.
-	dwExtra += SaveITEditHistory(this, nullptr);
+	dwExtra += SaveITEditHistory(*this, nullptr);
 
 	// Comments
 	uint16 msglength = 0;
-	if(!songMessage.empty())
+	if(!m_songMessage.empty())
 	{
 		itHeader.special |= ITFileHeader::embedSongMessage;
-		itHeader.msglength = msglength = mpt::saturate_cast<uint16>(songMessage.length() + 1u);
+		itHeader.msglength = msglength = mpt::saturate_cast<uint16>(m_songMessage.length() + 1u);
 		itHeader.msgoffset = dwHdrPos + dwExtra + (itHeader.insnum + itHeader.smpnum + itHeader.patnum) * 4;
 	}
 
@@ -1267,12 +1348,21 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 	itHeader.ConvertEndianness();
 
 	Order.WriteAsByte(f, itHeader.ordnum);
-	if(itHeader.insnum) fwrite(&inspos[0], 4, itHeader.insnum, f);
-	if(itHeader.smpnum) fwrite(&smppos[0], 4, itHeader.smpnum, f);
-	if(itHeader.patnum) fwrite(&patpos[0], 4, itHeader.patnum, f);
+	for(uint16 i = 0; i < itHeader.insnum; ++i)
+	{
+		mpt::IO::WriteIntLE<uint32>(f, inspos[i]);
+	}
+	for(uint16 i = 0; i < itHeader.smpnum; ++i)
+	{
+		mpt::IO::WriteIntLE<uint32>(f, smppos[i]);
+	}
+	for(uint16 i = 0; i < itHeader.patnum; ++i)
+	{
+		mpt::IO::WriteIntLE<uint32>(f, patpos[i]);
+	}
 
 	// Writing edit history information
-	SaveITEditHistory(this, f);
+	SaveITEditHistory(*this, f);
 
 	// Writing midi cfg
 	if(itHeader.flags & ITFileHeader::reqEmbeddedMIDIConfig)
@@ -1286,8 +1376,7 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 		char magic[4];
 		memcpy(magic, "PNAM", 4);
 		fwrite(magic, 4, 1, f);
-		uint32 d = numNamedPats * MAX_PATTERNNAME;
-		fwrite(&d, 4, 1, f);
+		mpt::IO::WriteIntLE<uint32>(f, numNamedPats * MAX_PATTERNNAME);
 
 		for(PATTERNINDEX nPat = 0; nPat < numNamedPats; nPat++)
 		{
@@ -1304,9 +1393,9 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 		char magic[4];
 		memcpy(magic, "CNAM", 4);
 		fwrite(magic, 4, 1, f);
-		fwrite(&dwChnNamLen, 1, 4, f);
-		UINT nChnNames = dwChnNamLen / MAX_CHANNELNAME;
-		for(UINT inam = 0; inam < nChnNames; inam++)
+		mpt::IO::WriteIntLE<uint32>(f, dwChnNamLen);
+		uint32 nChnNames = dwChnNamLen / MAX_CHANNELNAME;
+		for(uint32 inam = 0; inam < nChnNames; inam++)
 		{
 			fwrite(ChnSettings[inam].szName, 1, MAX_CHANNELNAME, f);
 		}
@@ -1323,7 +1412,7 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 	if(itHeader.special & ITFileHeader::embedSongMessage)
 	{
 		dwPos += msglength;
-		fwrite(songMessage.c_str(), 1, msglength, f);
+		fwrite(m_songMessage.c_str(), 1, msglength, f);
 	}
 
 	// Writing instruments
@@ -1343,25 +1432,18 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 		}
 
 		// Writing instrument
-		inspos[nins - 1] = dwPos;
+		inspos[nins - 1] = static_cast<uint32>(dwPos);
 		dwPos += instSize;
 		iti.ConvertEndianness();
 		fwrite(&iti, 1, instSize, f);
-
-		//------------ rewbs.modularInstData
-		if (Instruments[nins] && !compatibilityExport)
-		{
-			dwPos += SaveModularInstrumentData(f, Instruments[nins]);
-		}
-		//------------ end rewbs.modularInstData
 	}
 
 	// Writing sample headers
 	ITSample itss;
 	MemsetZero(itss);
-	for(SAMPLEINDEX hsmp = 0; hsmp < itHeader.smpnum; hsmp++)
+	for(SAMPLEINDEX smp = 0; smp < itHeader.smpnum; smp++)
 	{
-		smppos[hsmp] = dwPos;
+		smppos[smp] = static_cast<uint32>(dwPos);
 		dwPos += sizeof(ITSample);
 		fwrite(&itss, 1, sizeof(ITSample), f);
 	}
@@ -1370,7 +1452,7 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 	bool bNeedsMptPatSave = false;
 	for(PATTERNINDEX pat = 0; pat < itHeader.patnum; pat++)
 	{
-		uint32 dwPatPos = dwPos;
+		uint32 dwPatPos = static_cast<uint32>(dwPos);
 		if (!Patterns[pat]) continue;
 
 		if(Patterns[pat].GetOverrideSignature())
@@ -1383,7 +1465,7 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 			continue;
 		}
 
-		patpos[pat] = dwPos;
+		patpos[pat] = static_cast<uint32>(dwPos);
 
 		// Write pattern header
 		ROWINDEX writeRows = mpt::saturate_cast<uint16>(Patterns[pat].GetNumRows());
@@ -1422,7 +1504,7 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 				uint8 vol = 0xFF;
 				uint8 note = m->note;
 				if (note != NOTE_NONE) b |= 1;
-				if (m->IsNote()) note--;
+				if (m->IsNote()) note -= NOTE_MIN;
 				if (note == NOTE_FADE && GetType() != MOD_TYPE_MPT) note = 0xF6;
 				if (m->instr) b |= 2;
 				if (m->volcmd != VOLCMD_NONE)
@@ -1519,7 +1601,7 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 					if (b != chnmask[ch])
 					{
 						chnmask[ch] = b;
-						buf[len++] = uint8((ch + 1) | 0x80);
+						buf[len++] = uint8((ch + 1) | IT_bitmask_patternChanEnabled_c);
 						buf[len++] = b;
 					} else
 					{
@@ -1550,47 +1632,90 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 		fseek(f, dwPatPos, SEEK_SET);
 		SwapBytesLE(patinfo[0]);
 		fwrite(patinfo, 8, 1, f);
-		fseek(f, dwPos, SEEK_SET);
+		fseek(f, static_cast<long>(dwPos), SEEK_SET);
 	}
 	// Writing Sample Data
-	for(SAMPLEINDEX nsmp = 1; nsmp <= itHeader.smpnum; nsmp++)
+	for(SAMPLEINDEX smp = 1; smp <= itHeader.smpnum; smp++)
 	{
 #ifdef MODPLUG_TRACKER
 		int type = GetType() == MOD_TYPE_IT ? 1 : 4;
 		if(compatibilityExport) type = 2;
-		bool compress = ((((Samples[nsmp].GetNumChannels() > 1) ? TrackerSettings::Instance().MiscITCompressionStereo : TrackerSettings::Instance().MiscITCompressionMono) & type) != 0);
+		bool compress = ((((Samples[smp].GetNumChannels() > 1) ? TrackerSettings::Instance().MiscITCompressionStereo : TrackerSettings::Instance().MiscITCompressionMono) & type) != 0);
 #else
 		bool compress = false;
 #endif // MODPLUG_TRACKER
 		// Old MPT, DUMB and probably other libraries will only consider the IT2.15 compression flag if the header version also indicates IT2.15.
 		// MilkyTracker <= 0.90.85 will only assume IT2.15 compression with cmwt == 0x215, ignoring the delta flag completely.
-		itss.ConvertToIT(Samples[nsmp], GetType(), compress, itHeader.cmwt >= 0x215);
+		itss.ConvertToIT(Samples[smp], GetType(), compress, itHeader.cmwt >= 0x215, GetType() == MOD_TYPE_MPT);
+		const bool isExternal = itss.cvt == ITSample::cvtExternalSample;
 
-		mpt::String::Write<mpt::String::nullTerminated>(itss.name, m_szNames[nsmp]);
+		mpt::String::Write<mpt::String::nullTerminated>(itss.name, m_szNames[smp]);
 
-		itss.samplepointer = dwPos;
-		itss.ConvertEndianness();
-		fseek(f, smppos[nsmp - 1], SEEK_SET);
-		fwrite(&itss, 1, sizeof(ITSample), f);
-		fseek(f, dwPos, SEEK_SET);
-		if ((Samples[nsmp].pSample) && (Samples[nsmp].nLength))
+		itss.samplepointer = static_cast<uint32>(dwPos);
+		if(dwPos > uint32_max)
 		{
-			dwPos += itss.GetSampleFormat().WriteSample(f, Samples[nsmp]);
+			// Sample position does not fit into sample pointer!
+			AddToLog(mpt::String::Print("Cannot save sample %1: File size exceeds 4 GB.", smp));
+			itss.samplepointer = 0;
+			itss.length = 0;
+		}
+		SmpLength smpLength = itss.length;	// Possibly truncated to 2^32 samples
+		itss.ConvertEndianness();
+		fseek(f, smppos[smp - 1], SEEK_SET);
+		fwrite(&itss, 1, sizeof(ITSample), f);
+		if(dwPos > uint32_max)
+		{
+			continue;
+		}
+		// TODO this actually wraps around at 2 GB, so we either need to use the 64-bit seek API or warn earlier!
+		fseek(f, static_cast<long>(dwPos), SEEK_SET);
+		if(!isExternal)
+		{
+			if(Samples[smp].nLength != smpLength)
+			{
+				// Sample length does not fit into IT header!
+				AddToLog(mpt::String::Print("Truncating sample %1: Length exceeds exceeds 4 gigasamples.", smp));
+			}
+			dwPos += itss.GetSampleFormat().WriteSample(f, Samples[smp], smpLength);
+		} else
+		{
+#ifdef MPT_EXTERNAL_SAMPLES
+			const std::string filenameU8 = GetSamplePath(smp).AbsolutePathToRelative(filename.GetPath()).ToUTF8();
+			const size_t strSize = mpt::saturate_cast<uint16>(filenameU8.size());
+			size_t intBytes = 0;
+			if(mpt::IO::WriteVarInt(f, strSize, &intBytes))
+			{
+				dwPos += intBytes + strSize;
+				mpt::IO::WriteRaw(f, &filenameU8[0], strSize);
+			}
+#endif // MPT_EXTERNAL_SAMPLES
 		}
 	}
 
 	//Save hacked-on extra info
 	if(!compatibilityExport)
 	{
-		SaveExtendedInstrumentProperties(itHeader.insnum, f);
+		if(GetNumInstruments())
+		{
+			SaveExtendedInstrumentProperties(itHeader.insnum, f);
+		}
 		SaveExtendedSongProperties(f);
 	}
 
 	// Updating offsets
 	fseek(f, dwHdrPos, SEEK_SET);
-	if(itHeader.insnum) fwrite(&inspos[0], 4, itHeader.insnum, f);
-	if(itHeader.smpnum) fwrite(&smppos[0], 4, itHeader.smpnum, f);
-	if(itHeader.patnum) fwrite(&patpos[0], 4, itHeader.patnum, f);
+	for(uint16 i = 0; i < itHeader.insnum; ++i)
+	{
+		mpt::IO::WriteIntLE<uint32>(f, inspos[i]);
+	}
+	for(uint16 i = 0; i < itHeader.smpnum; ++i)
+	{
+		mpt::IO::WriteIntLE<uint32>(f, smppos[i]);
+	}
+	for(uint16 i = 0; i < itHeader.patnum; ++i)
+	{
+		mpt::IO::WriteIntLE<uint32>(f, patpos[i]);
+	}
 
 	if(GetType() == MOD_TYPE_IT)
 	{
@@ -1602,51 +1727,36 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 	//BEGIN: MPT SPECIFIC:
 	//--------------------
 
+	bool success = true;
+
 	fseek(f, 0, SEEK_END);
-	fflush(f);
-#if MPT_COMPILER_MSVC
-	std::ofstream fout(f);
-#elif MPT_COMPILER_GCC
-	__gnu_cxx::stdio_sync_filebuf<char> fout_buf(f);
-	std::ostream fout(&fout_buf);
-#else
-	fclose(f);
-	f = nullptr;
-	// Using std::ofstream implies std::ios::out, which implies truncation when std::ios::app or std::ios::in is not also set. (At least, it does so for MSVC2010 and GNU libstdc++).
-	// std::ios::app is not suitable for us, because it is very well allowed for called functions to seek and write somewhere else than the end,
-	//  and std::ios::app implies writing goes always to the end, regardless of the output position.
-	// Using std::ios::in | std::ios::out | std::ios::ate prevents truncation and sets the file pointer to the end of the so-far saved file,
-	//  but it also allows reading, which does no harm but is not what we actually really want here.
-	// That's a very broken interface.
-	mpt::ofstream fout(filename, std::ios::binary | std::ios::ate | std::ios::in);
-#endif
+	{
+	mpt::FILE_ostream fout(f);
 
 	const uint32 MPTStartPos = (uint32)fout.tellp();
 	
 	// catch standard library truncating files
-	ALWAYS_ASSERT(MPTStartPos > 0);
+	MPT_ASSERT_ALWAYS(MPTStartPos > 0);
 
 	srlztn::SsbWrite ssb(fout);
 	ssb.BeginWrite("mptm", MptVersion::num);
 
 	if(GetTuneSpecificTunings().GetNumTunings() > 0)
-		ssb.WriteItem(GetTuneSpecificTunings(), "0", 1, &WriteTuningCollection);
+		ssb.WriteItem(GetTuneSpecificTunings(), "0", &WriteTuningCollection);
 	if(AreNonDefaultTuningsUsed(*this))
-		ssb.WriteItem(*this, "1", 1, &WriteTuningMap);
+		ssb.WriteItem(*this, "1", &WriteTuningMap);
 	if(Order.NeedsExtraDatafield())
-		ssb.WriteItem(Order, "2", 1, &WriteModSequenceOld);
+		ssb.WriteItem(Order, "2", &WriteModSequenceOld);
 	if(bNeedsMptPatSave)
-		ssb.WriteItem(Patterns, FileIdPatterns, strlen(FileIdPatterns), &WriteModPatterns);
-	ssb.WriteItem(Order, FileIdSequences, strlen(FileIdSequences), &WriteModSequences);
+		ssb.WriteItem(Patterns, FileIdPatterns, &WriteModPatterns);
+	ssb.WriteItem(Order, FileIdSequences, &WriteModSequences);
 
 	ssb.FinishWrite();
 
 	if(ssb.GetStatus() & srlztn::SNT_FAILURE)
 	{
-		AddToLog("Error occured in writing MPTM extensions.");
+		AddToLog(LogError, MPT_USTRING("Error occurred in writing MPTM extensions."));
 	}
-
-	bool success = true;
 
 	//Last 4 bytes should tell where the hack mpt things begin.
 	if(!fout.good())
@@ -1654,18 +1764,12 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 		fout.clear();
 		success = false;
 	}
-	fout.write(reinterpret_cast<const char*>(&MPTStartPos), sizeof(MPTStartPos));
+	mpt::IO::WriteIntLE<uint32>(fout, MPTStartPos);
 
-	fout.flush();
-#if MPT_COMPILER_MSVC
-	fout.close();
-#elif MPT_COMPILER_GCC
-	fflush(f);
+	fout.seekp(0, std::ios_base::end);
+	}
 	fclose(f);
 	f = nullptr;
-#else
-	fout.close();
-#endif
 
 	//END  : MPT SPECIFIC
 	//-------------------
@@ -1681,9 +1785,10 @@ bool CSoundFile::SaveIT(const mpt::PathString &filename, bool compatibilityExpor
 
 #ifndef MODPLUG_NO_FILESAVE
 
-UINT CSoundFile::SaveMixPlugins(FILE *f, bool bUpdate)
-//----------------------------------------------------
+uint32 CSoundFile::SaveMixPlugins(FILE *f, bool bUpdate)
+//------------------------------------------------------
 {
+#ifndef NO_PLUGINS
 	uint32 chinfo[MAX_BASECHANNELS];
 	char id[4];
 	uint32 nPluginSize;
@@ -1705,13 +1810,11 @@ UINT CSoundFile::SaveMixPlugins(FILE *f, bool bUpdate)
 				nPluginSize += plugin.nPluginDataSize;
 			}
 
-			// rewbs.modularPlugData
-			DWORD MPTxPlugDataSize = 4 + (sizeof(m_MixPlugins[i].fDryRatio)) +     //4 for ID and size of dryRatio
-									 4 + (sizeof(m_MixPlugins[i].defaultProgram)); //rewbs.plugDefaultProgram
-								// for each extra entity, add 4 for ID, plus size of entity, plus optionally 4 for size of entity.
+			uint32 MPTxPlugDataSize = 4 + sizeof(float32) +		// 4 for ID and size of dryRatio
+									 4 + sizeof(int32);			// Default Program
+								// for each extra entity, add 4 for ID, plus 4 for size of entity, plus size of entity
 
-			nPluginSize += MPTxPlugDataSize + 4; //+4 is for size itself: sizeof(DWORD) is 4
-			// rewbs.modularPlugData
+			nPluginSize += MPTxPlugDataSize + 4; //+4 is for size itself: sizeof(uint32) is 4
 			if(f)
 			{
 				// write plugin ID
@@ -1722,34 +1825,38 @@ UINT CSoundFile::SaveMixPlugins(FILE *f, bool bUpdate)
 				fwrite(id, 1, 4, f);
 
 				// write plugin size:
-				fwrite(&nPluginSize, 1, 4, f);
-				fwrite(&plugin.Info, 1, sizeof(SNDMIXPLUGININFO), f);
-				fwrite(&m_MixPlugins[i].nPluginDataSize, 1, 4, f);
+				mpt::IO::WriteIntLE<uint32>(f, nPluginSize);
+				SNDMIXPLUGININFO tmpPluginInfo = m_MixPlugins[i].Info;
+				tmpPluginInfo.ConvertEndianness();
+				fwrite(&tmpPluginInfo, 1, sizeof(SNDMIXPLUGININFO), f);
+				mpt::IO::WriteIntLE<uint32>(f, m_MixPlugins[i].nPluginDataSize);
 				if(m_MixPlugins[i].pPluginData)
 				{
 					fwrite(m_MixPlugins[i].pPluginData, 1, m_MixPlugins[i].nPluginDataSize, f);
 				}
 
-				fwrite(&MPTxPlugDataSize, 1, 4, f);
+				mpt::IO::WriteIntLE<uint32>(f, MPTxPlugDataSize);
 
-				//write ID for this xPlugData chunk:
+				// Dry/Wet ratio
 				memcpy(id, "DWRT", 4);
 				fwrite(id, 1, 4, f);
 				// DWRT chunk does not include a size, so better make sure we always write 4 bytes here.
-				STATIC_ASSERT(sizeof(float) == 4);
-				fwrite(&(m_MixPlugins[i].fDryRatio), 1, sizeof(float), f);
+				STATIC_ASSERT(sizeof(IEEE754binary32LE) == 4);
+				mpt::IO::Write(f, IEEE754binary32LE(m_MixPlugins[i].fDryRatio));
 
+				// Default program
 				memcpy(id, "PROG", 4);
 				fwrite(id, 1, 4, f);
 				// PROG chunk does not include a size, so better make sure we always write 4 bytes here.
 				STATIC_ASSERT(sizeof(m_MixPlugins[i].defaultProgram) == sizeof(int32));
-				fwrite(&(m_MixPlugins[i].defaultProgram), 1, sizeof(int32), f);
+				mpt::IO::WriteIntLE<int32>(f, m_MixPlugins[i].defaultProgram);
 
+				// Please, if you add any more chunks here, don't repeat history (see above) and *do* add a size field for your chunk, mmmkay?
 			}
 			nTotalSize += nPluginSize + 8;
 		}
 	}
-	for(CHANNELINDEX j = 0; j < m_nChannels; j++)
+	for(CHANNELINDEX j = 0; j < GetNumChannels(); j++)
 	{
 		if(j < MAX_BASECHANNELS)
 		{
@@ -1765,13 +1872,20 @@ UINT CSoundFile::SaveMixPlugins(FILE *f, bool bUpdate)
 		{
 			memcpy(id, "CHFX", 4);
 			fwrite(id, 1, 4, f);
-			nPluginSize = nChInfo * 4;
-			fwrite(&nPluginSize, 1, 4, f);
-			fwrite(chinfo, 1, nPluginSize, f);
+			mpt::IO::WriteIntLE<uint32>(f, nChInfo * 4);
+			for(uint32 i = 0; i < nChInfo; ++i)
+			{
+				mpt::IO::WriteIntLE<uint32>(f, chinfo[i]);
+			}
 		}
 		nTotalSize += nChInfo * 4 + 8;
 	}
 	return nTotalSize;
+#else
+	MPT_UNREFERENCED_PARAMETER(f);
+	MPT_UNREFERENCED_PARAMETER(bUpdate);
+	return 0;
+#endif // NO_PLUGINS
 }
 
 #endif // MODPLUG_NO_FILESAVE
@@ -1799,6 +1913,7 @@ void CSoundFile::LoadMixPlugins(FileReader &file)
 			{
 				ChnSettings[ch].nMixPlugin = (uint8)chunk.ReadUint32LE();
 			}
+#ifndef NO_PLUGINS
 		}
 		// Plugin Data FX00, ... FX99, F100, ... F255
 #define ISNUMERIC(x) (code[(x)] >= '0' && code[(x)] <= '9')
@@ -1810,61 +1925,12 @@ void CSoundFile::LoadMixPlugins(FileReader &file)
 
 			if(plug < MAX_MIXPLUGINS)
 			{
-				// MPT's standard plugin data. Size not specified in file.. grrr..
-				chunk.ReadConvertEndianness(m_MixPlugins[plug].Info);
-				mpt::String::SetNullTerminator(m_MixPlugins[plug].Info.szName);
-				mpt::String::SetNullTerminator(m_MixPlugins[plug].Info.szLibraryName);
-
-				//data for VST setchunk? size lies just after standard plugin data.
-				const uint32 pluginDataChunkSize = chunk.ReadUint32LE();
-				FileReader pluginDataChunk = chunk.ReadChunk(pluginDataChunkSize);
-
-				if(pluginDataChunk.IsValid())
-				{
-					m_MixPlugins[plug].nPluginDataSize = 0;
-					m_MixPlugins[plug].pPluginData = new (std::nothrow) char[pluginDataChunkSize];
-					if(m_MixPlugins[plug].pPluginData)
-					{
-						m_MixPlugins[plug].nPluginDataSize = pluginDataChunkSize;
-						memcpy(m_MixPlugins[plug].pPluginData, pluginDataChunk.GetRawData(), pluginDataChunkSize);
-					}
-				}
-
-				//rewbs.modularPlugData
-				FileReader modularData = chunk.ReadChunk(chunk.ReadUint32LE());
-
-				//if dwMPTExtra is positive and there are dwMPTExtra bytes left in nPluginSize, we have some more data!
-				if(modularData.IsValid())
-				{
-					while(modularData.CanRead(5))
-					{
-						// do we recognize this chunk?
-						modularData.ReadArray(code);
-						//rewbs.dryRatio
-						//TODO: turn this into a switch statement like for modular instrument data
-						if(!memcmp(code, "DWRT", 4))
-						{
-							m_MixPlugins[plug].fDryRatio = modularData.ReadFloatLE();
-						}
-						//end rewbs.dryRatio
-						//rewbs.plugDefaultProgram
-						else if(!memcmp(code, "PROG", 4))
-						{
-							m_MixPlugins[plug].defaultProgram = modularData.ReadUint32LE();
-						}
-						//end rewbs.plugDefaultProgram
-						//else if.. (add extra attempts to recognize chunks here)
-						else // otherwise move forward a byte.
-						{
-							// Why on earth would you use a modular chunk structure, but not store the size of chunks in the file?!
-							break;
-						}
-
-					}
-
-				}
-				//end rewbs.modularPlugData
+				ReadMixPluginChunk(chunk, m_MixPlugins[plug]);
 			}
+#endif // NO_PLUGINS
+		} else if(!memcmp(code, "MODU", 4))
+		{
+			m_madeWithTracker = "BeRoTracker";
 		} else if(!memcmp(code, "XTPM", 4))
 		{
 			// Read too far, chicken out...
@@ -1875,131 +1941,114 @@ void CSoundFile::LoadMixPlugins(FileReader &file)
 }
 
 
+#ifndef NO_PLUGINS
+void CSoundFile::ReadMixPluginChunk(FileReader &file, SNDMIXPLUGIN &plugin)
+//-------------------------------------------------------------------------
+{
+	// MPT's standard plugin data. Size not specified in file.. grrr..
+	file.ReadConvertEndianness(plugin.Info);
+	mpt::String::SetNullTerminator(plugin.Info.szName);
+	mpt::String::SetNullTerminator(plugin.Info.szLibraryName);
+	plugin.editorX = plugin.editorY = int32_min;
+
+	//data for VST setchunk? size lies just after standard plugin data.
+	const uint32 pluginDataChunkSize = file.ReadUint32LE();
+	FileReader pluginDataChunk = file.ReadChunk(pluginDataChunkSize);
+
+	if(pluginDataChunk.IsValid())
+	{
+		plugin.nPluginDataSize = 0;
+		plugin.pPluginData = new (std::nothrow) char[pluginDataChunkSize];
+		if(plugin.pPluginData)
+		{
+			plugin.nPluginDataSize = pluginDataChunkSize;
+			pluginDataChunk.ReadRaw(plugin.pPluginData, pluginDataChunkSize);
+		}
+	}
+
+	FileReader modularData = file.ReadChunk(file.ReadUint32LE());
+
+	//if dwMPTExtra is positive and there are dwMPTExtra bytes left in nPluginSize, we have some more data!
+	if(modularData.IsValid())
+	{
+		while(modularData.CanRead(5))
+		{
+			// do we recognize this chunk?
+			char code[4];
+			modularData.ReadArray(code);
+			uint32 dataSize = 0;
+			if(!memcmp(code, "DWRT", 4) || !memcmp(code, "PROG", 4))
+			{
+				// Legacy system with fixed size chunks
+				dataSize = 4;
+			} else
+			{
+				dataSize = modularData.ReadUint32LE();
+			}
+			FileReader dataChunk = modularData.ReadChunk(dataSize);
+
+			if(!memcmp(code, "DWRT", 4))
+			{
+				plugin.fDryRatio = dataChunk.ReadFloatLE();
+			} else if(!memcmp(code, "PROG", 4))
+			{
+				plugin.defaultProgram = dataChunk.ReadUint32LE();
+			} else if(!memcmp(code, "MCRO", 4))
+			{
+				// Read plugin-specific macros
+				//dataChunk.ReadStructPartial(plugin.macros, dataChunk.GetLength());
+			}
+		}
+	}
+}
+#endif // NO_PLUGINS
+
+
 #ifndef MODPLUG_NO_FILESAVE
-
-// Used only when saving IT, XM and MPTM.
-// ITI, ITP saves using Ericus' macros etc...
-// The reason is that ITs and XMs save [code][size][ins1.Value][ins2.Value]...
-// whereas ITP saves [code][size][ins1.Value][code][size][ins2.Value]...
-// too late to turn back....
-void CSoundFile::SaveExtendedInstrumentProperties(UINT nInstruments, FILE* f) const
-//---------------------------------------------------------------------------------
-{
-	uint32 code = MAGIC4BE('M','P','T','X');							// write extension header code
-	fwrite(&code, 1, sizeof(uint32), f);
-
-	if (nInstruments == 0)
-		return;
-
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('V','R','.','.'), sizeof(ModInstrument().nVolRampUp),  f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('M','i','P','.'), sizeof(ModInstrument().nMixPlug),    f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('M','C','.','.'), sizeof(ModInstrument().nMidiChannel),f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('M','P','.','.'), sizeof(ModInstrument().nMidiProgram),f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('M','B','.','.'), sizeof(ModInstrument().wMidiBank),   f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','.','.','.'), sizeof(ModInstrument().nPan),        f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('G','V','.','.'), sizeof(ModInstrument().nGlobalVol),  f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('F','O','.','.'), sizeof(ModInstrument().nFadeOut),    f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('R','.','.','.'), sizeof(ModInstrument().nResampling), f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('C','S','.','.'), sizeof(ModInstrument().nCutSwing),   f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('R','S','.','.'), sizeof(ModInstrument().nResSwing),   f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('F','M','.','.'), sizeof(ModInstrument().nFilterMode), f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','E','R','N'), sizeof(ModInstrument().PitchEnv.nReleaseNode ), f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('A','E','R','N'), sizeof(ModInstrument().PanEnv.nReleaseNode), f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('V','E','R','N'), sizeof(ModInstrument().VolEnv.nReleaseNode), f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','T','T','L'), sizeof(ModInstrument().wPitchToTempoLock),  f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','V','E','H'), sizeof(ModInstrument().nPluginVelocityHandling),  f, nInstruments);
-	WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','V','O','H'), sizeof(ModInstrument().nPluginVolumeHandling),  f, nInstruments);
-
-	if(!(GetType() & MOD_TYPE_XM))
-	{
-		// XM instrument headers already have support for this
-		WriteInstrumentPropertyForAllInstruments(MAGIC4BE('M','P','W','D'), sizeof(ModInstrument().midiPWD), f, nInstruments);
-	}
-
-	if(GetType() & MOD_TYPE_MPT)
-	{
-		uint32 maxNodes = 0;
-		for(INSTRUMENTINDEX nIns = 1; nIns <= m_nInstruments; nIns++) if(Instruments[nIns] != nullptr)
-		{
-			maxNodes = std::max(maxNodes, Instruments[nIns]->VolEnv.nNodes);
-			maxNodes = std::max(maxNodes, Instruments[nIns]->PanEnv.nNodes);
-			maxNodes = std::max(maxNodes, Instruments[nIns]->PitchEnv.nNodes);
-		}
-		// write full envelope information for MPTM files (more env points)
-		if(maxNodes > 25)
-		{
-			WriteInstrumentPropertyForAllInstruments(MAGIC4BE('V','E','.','.'), sizeof(ModInstrument().VolEnv.nNodes), f, nInstruments);
-			WriteInstrumentPropertyForAllInstruments(MAGIC4BE('V','P','[','.'), sizeof(ModInstrument().VolEnv.Ticks),  f, nInstruments);
-			WriteInstrumentPropertyForAllInstruments(MAGIC4BE('V','E','[','.'), sizeof(ModInstrument().VolEnv.Values), f, nInstruments);
-
-			WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','E','.','.'), sizeof(ModInstrument().PanEnv.nNodes), f, nInstruments);
-			WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','P','[','.'), sizeof(ModInstrument().PanEnv.Ticks),  f, nInstruments);
-			WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','E','[','.'), sizeof(ModInstrument().PanEnv.Values), f, nInstruments);
-
-			WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','i','E','.'), sizeof(ModInstrument().PitchEnv.nNodes), f, nInstruments);
-			WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','i','P','['), sizeof(ModInstrument().PitchEnv.Ticks),  f, nInstruments);
-			WriteInstrumentPropertyForAllInstruments(MAGIC4BE('P','i','E','['), sizeof(ModInstrument().PitchEnv.Values), f, nInstruments);
-		}
-	}
-
-	return;
-}
-
-void CSoundFile::WriteInstrumentPropertyForAllInstruments(uint32 code, int16 size, FILE* f, UINT nInstruments) const
-//------------------------------------------------------------------------------------------------------------------
-{
-	fwrite(&code, 1, sizeof(uint32), f);		//write code
-	fwrite(&size, 1, sizeof(int16), f);		//write size
-	for(UINT nins=1; nins<=nInstruments; nins++)	//for all instruments...
-	{
-		if (Instruments[nins])
-		{
-			WriteInstrumentHeaderStructOrField(Instruments[nins], f, code, size);
-		} else
-		{
-			ModInstrument emptyInstrument;
-			WriteInstrumentHeaderStructOrField(&emptyInstrument, f, code, size);
-		}
-	}
-}
 
 void CSoundFile::SaveExtendedSongProperties(FILE* f) const
 //--------------------------------------------------------
 {
-	//Extra song data - Yet Another Hack.
-	const uint32 code = SwapBytesReturnLE(MAGIC4BE('M','P','T','S'));
-	fwrite(&code, 1, sizeof(uint32), f);
+	const CModSpecifications &specs = GetModSpecifications();
+	// Extra song data - Yet Another Hack.
+	mpt::IO::WriteIntLE<uint32>(f, MAGIC4BE('M','P','T','S'));
 
-#define WRITEMODULARHEADER(c1, c2, c3, c4, fsize) \
+#define WRITEMODULARHEADER(code, fsize) \
 	{ \
-	const uint32 code = SwapBytesReturnLE(MAGIC4BE(c1, c2, c3, c4)); \
-	fwrite(&code, 1, sizeof(code), f); \
-	ASSERT(fsize <= uint16_max); \
-	const uint16 size = SwapBytesReturnLE(static_cast<uint16>(fsize)); \
-	fwrite(&size, 1, sizeof(size), f); \
+		mpt::IO::WriteIntLE<uint32>(f, code); \
+		MPT_ASSERT(Util::TypeCanHoldValue<uint16>(fsize)); \
+		const uint16 _size = fsize; \
+		mpt::IO::WriteIntLE<uint16>(f, _size); \
 	}
-#define WRITEMODULAR(c1, c2, c3, c4, field) \
+#define WRITEMODULAR(code, field) \
 	{ \
-		WRITEMODULARHEADER(c1, c2, c3, c4, sizeof(field)) \
-		fwrite(&(field), 1, sizeof(field), f); \
+		WRITEMODULARHEADER(code, sizeof(field)) \
+		mpt::IO::WriteIntLE(f, field); \
 	}
 
-	if(m_nDefaultTempo > 255)
+	if(m_nDefaultTempo.GetInt() > 255)
 	{
-		WRITEMODULAR('D','T','.','.', m_nDefaultTempo);
+		uint32 tempo = m_nDefaultTempo.GetInt();
+		WRITEMODULAR(MAGIC4BE('D','T','.','.'), tempo);
+	}
+	if(m_nDefaultTempo.GetFract() != 0 && specs.hasFractionalTempo)
+	{
+		uint32 tempo = m_nDefaultTempo.GetFract();
+		WRITEMODULAR(MAGIC4LE('D','T','F','R'), tempo);
 	}
 
-	WRITEMODULAR('R','P','B','.', m_nDefaultRowsPerBeat);
-	WRITEMODULAR('R','P','M','.', m_nDefaultRowsPerMeasure);
+	WRITEMODULAR(MAGIC4BE('R','P','B','.'), m_nDefaultRowsPerBeat);
+	WRITEMODULAR(MAGIC4BE('R','P','M','.'), m_nDefaultRowsPerMeasure);
 
 	if(GetType() != MOD_TYPE_XM)
 	{
-		WRITEMODULAR('C','.','.','.', m_nChannels);
+		WRITEMODULAR(MAGIC4BE('C','.','.','.'), m_nChannels);
 	}
 
-	if(TypeIsIT_MPT() && GetNumChannels() > 64)	//IT header has room only for 64 channels. Save the
-	{											//settings that do not fit to the header here as an extension.
-		WRITEMODULARHEADER('C','h','n','S', (GetNumChannels() - 64) * 2);
+	if(TypeIsIT_MPT() && GetNumChannels() > 64)
+	{
+		// IT header has only room for 64 channels. Save the settings that do not fit to the header here as an extension.
+		WRITEMODULARHEADER(MAGIC4BE('C','h','n','S'), (GetNumChannels() - 64) * 2);
 		for(CHANNELINDEX chn = 64; chn < GetNumChannels(); chn++)
 		{
 			uint8 panvol[2];
@@ -2012,49 +2061,107 @@ void CSoundFile::SaveExtendedSongProperties(FILE* f) const
 	}
 
 	{
-		WRITEMODULARHEADER('T','M','.','.', 1);
+		WRITEMODULARHEADER(MAGIC4BE('T','M','.','.'), 1);
 		uint8 mode = static_cast<uint8>(m_nTempoMode);
 		fwrite(&mode, sizeof(mode), 1, f);
 	}
 
-	WRITEMODULAR('P','M','M','.', m_nMixLevels);
+	const int32 tmpMixLevels = static_cast<int32>(m_nMixLevels);
+	WRITEMODULAR(MAGIC4BE('P','M','M','.'), tmpMixLevels);
 
 	if(m_dwCreatedWithVersion)
 	{
-		WRITEMODULAR('C','W','V','.', m_dwCreatedWithVersion);
+		WRITEMODULAR(MAGIC4BE('C','W','V','.'), m_dwCreatedWithVersion);
 	}
 
-	WRITEMODULAR('L','S','W','V', m_dwLastSavedWithVersion);
-	WRITEMODULAR('S','P','A','.', m_nSamplePreAmp);
-	WRITEMODULAR('V','S','T','V', m_nVSTiVolume);
+	WRITEMODULAR(MAGIC4BE('L','S','W','V'), MptVersion::num);
+	WRITEMODULAR(MAGIC4BE('S','P','A','.'), m_nSamplePreAmp);
+	WRITEMODULAR(MAGIC4BE('V','S','T','V'), m_nVSTiVolume);
 
 	if(GetType() == MOD_TYPE_XM && m_nDefaultGlobalVolume != MAX_GLOBAL_VOLUME)
 	{
-		WRITEMODULAR('D','G','V','.', m_nDefaultGlobalVolume);
+		WRITEMODULAR(MAGIC4BE('D','G','V','.'), m_nDefaultGlobalVolume);
 	}
 
-	if(GetType() != MOD_TYPE_XM && m_nRestartPos != 0)
+	if(GetType() != MOD_TYPE_XM && Order.GetRestartPos() != 0)
 	{
-		WRITEMODULAR('R','P','.','.', m_nRestartPos);
+		WRITEMODULAR(MAGIC4BE('R','P','.','.'), Order.GetRestartPos());
 	}
 
-	//Additional flags for XM/IT/MPTM
-	if(m_ModFlags)
+	if(m_nResampling != SRCMODE_DEFAULT && specs.hasDefaultResampling)
 	{
-		WRITEMODULAR('M','S','F','.', m_ModFlags);
+		WRITEMODULAR(MAGIC4LE('R','S','M','P'), static_cast<uint32>(m_nResampling));
+	}
+
+	// Sample cues
+	if(GetType() == MOD_TYPE_MPT)
+	{
+		for(SAMPLEINDEX smp = 1; smp <= GetNumSamples(); smp++)
+		{
+			const ModSample &sample = Samples[smp];
+			if(sample.nLength && sample.HasCustomCuePoints())
+			{
+				// Write one chunk for every sample.
+				// Rationale: chunks are limited to 65536 bytes, which can easily be reached
+				// with the amount of samples that OpenMPT supports.
+				WRITEMODULARHEADER(MAGIC4LE('C','U','E','S'), 2 + CountOf(sample.cues) * 4);
+				mpt::IO::WriteIntLE<uint16>(f, smp);
+				for(std::size_t i = 0; i < CountOf(sample.cues); i++)
+				{
+					mpt::IO::WriteIntLE<uint32>(f, sample.cues[i]);
+				}
+			}
+		}
+	}
+
+	// Tempo Swing Factors
+	if(!m_tempoSwing.empty())
+	{
+		mpt::ostringstream oStrm;
+		TempoSwing::Serialize(oStrm, m_tempoSwing);
+		std::string data = oStrm.str();
+		uint16 length = mpt::saturate_cast<uint16>(data.size());
+		WRITEMODULARHEADER(MAGIC4LE('S','W','N','G'), length);
+		mpt::IO::WriteRaw(f, &data[0], length);
+	}
+
+	// Playback compatibility flags
+	{
+		uint8 bits[(kMaxPlayBehaviours + 7) / 8u];
+		MemsetZero(bits);
+		size_t maxBit = 0;
+		for(size_t i = 0; i < kMaxPlayBehaviours; i++)
+		{
+			if(m_playBehaviour[i])
+			{
+				bits[i >> 3] |= 1 << (i & 0x07);
+				maxBit = i + 8;
+			}
+		}
+		uint16 numBytes = static_cast<uint16>(maxBit / 8u);
+		WRITEMODULARHEADER(MAGIC4BE('M','S','F','.'), numBytes);
+		mpt::IO::WriteRaw(f, bits, numBytes);
+	}
+
+	if(!m_songArtist.empty() && specs.hasArtistName)
+	{
+		std::string songArtistU8 = mpt::ToCharset(mpt::CharsetUTF8, m_songArtist);
+		uint16 length = mpt::saturate_cast<uint16>(songArtistU8.length());
+		WRITEMODULARHEADER(MAGIC4LE('A','U','T','H'), length);
+		mpt::IO::WriteRaw(f, songArtistU8.c_str(), length);
 	}
 
 #ifdef MODPLUG_TRACKER
-	//MIMA, MIDI mapping directives
+	// MIDI mapping directives
 	if(GetMIDIMapper().GetCount() > 0)
 	{
 		const size_t objectsize = GetMIDIMapper().GetSerializationSize();
-		if(objectsize > size_t(int16_max))
+		if(!Util::TypeCanHoldValue<uint16>(objectsize))
 		{
-			AddToLog("Datafield overflow with MIDI to plugparam mappings; data won't be written.");
+			AddToLog("Too many MIDI Mapping directives to save; data won't be written.");
 		} else
 		{
-			WRITEMODULARHEADER('M','I','M','A', static_cast<uint16>(objectsize));
+			WRITEMODULARHEADER(MAGIC4BE('M','I','M','A'), static_cast<uint16>(objectsize));
 			GetMIDIMapper().Serialize(f);
 		}
 	}
@@ -2068,42 +2175,6 @@ void CSoundFile::SaveExtendedSongProperties(FILE* f) const
 #endif // MODPLUG_NO_FILESAVE
 
 
-void CSoundFile::LoadExtendedInstrumentProperties(FileReader &file, bool *pInterpretMptMade)
-//------------------------------------------------------------------------------------------
-{
-	if(!file.ReadMagic("XTPM"))	// 'MPTX'
-	{
-		return;
-	}
-
-	// Found MPTX, interpret the file MPT made.
-	if(pInterpretMptMade != nullptr)
-		*pInterpretMptMade = true;
-
-	while(file.CanRead(6)) //Loop 'till beginning of end of file/mpt specific looking for inst. extensions
-	{
-		uint32 code = file.ReadUint32LE();
-
-		if(code == MAGIC4BE('M','P','T','S'))					//Reached song extensions, break out of this loop
-		{
-			file.SkipBack(4);
-			return;
-		}
-
-		// Read size of this property for *one* instrument
-		const uint16 size = file.ReadUint16LE();
-
-		for(INSTRUMENTINDEX i = 1; i <= GetNumInstruments(); i++)
-		{
-			if(Instruments[i])
-			{
-				ReadInstrumentExtensionField(Instruments[i], code, size, file);
-			}
-		}
-	}
-}
-
-
 template<typename T>
 void ReadField(FileReader &chunk, std::size_t size, T &field)
 //-----------------------------------------------------------
@@ -2112,25 +2183,17 @@ void ReadField(FileReader &chunk, std::size_t size, T &field)
 }
 
 
-template<typename Tenum, typename Tstore>
-void ReadFieldFlagSet(FileReader &chunk, std::size_t size, FlagSet<Tenum, Tstore> &field)
-//---------------------------------------------------------------------------------------
-{
-	field.SetRaw(chunk.ReadSizedIntLE<Tstore>(size));
-}
-
-
 template<typename T>
 void ReadFieldCast(FileReader &chunk, std::size_t size, T &field)
 //---------------------------------------------------------------
 {
-	STATIC_ASSERT(sizeof(T) <= sizeof(int));
-	field = static_cast<T>(chunk.ReadSizedIntLE<int>(size));
+	STATIC_ASSERT(sizeof(T) <= sizeof(int32));
+	field = static_cast<T>(chunk.ReadSizedIntLE<int32>(size));
 }
 
 
-void CSoundFile::LoadExtendedSongProperties(const MODTYPE modtype, FileReader &file, bool *pInterpretMptMade)
-//-----------------------------------------------------------------------------------------------------------
+void CSoundFile::LoadExtendedSongProperties(FileReader &file, bool *pInterpretMptMade)
+//------------------------------------------------------------------------------------
 {
 	if(!file.ReadMagic("STPM"))	// 'MPTS'
 	{
@@ -2142,14 +2205,19 @@ void CSoundFile::LoadExtendedSongProperties(const MODTYPE modtype, FileReader &f
 		*pInterpretMptMade = true;
 
 	// HACK: Reset mod flags to default values here, as they are not always written.
-	m_ModFlags.reset();
+	m_playBehaviour.reset();
 
 	while(file.CanRead(7))
 	{
 		const uint32 code = file.ReadUint32LE();
 		const uint16 size = file.ReadUint16LE();
 
-		if(!file.CanRead(size))
+		// Start of MPTM extensions, truncated field or non-ASCII ID
+		if(code == MAGIC4LE('2','2','8',4))
+		{
+			file.SkipBack(6);
+			break;
+		} else if(!file.CanRead(size) || (code & 0x80808080) || !(code & 0x60606060))
 		{
 			break;
 		}
@@ -2158,10 +2226,11 @@ void CSoundFile::LoadExtendedSongProperties(const MODTYPE modtype, FileReader &f
 
 		switch (code)					// interpret field code
 		{
-			case MAGIC4BE('D','T','.','.'): ReadField(chunk, size, m_nDefaultTempo); break;
+			case MAGIC4BE('D','T','.','.'): { uint32 tempo; ReadField(chunk, size, tempo); m_nDefaultTempo.Set(tempo, m_nDefaultTempo.GetFract()); break; }
+			case MAGIC4LE('D','T','F','R'): { uint32 tempoFract; ReadField(chunk, size, tempoFract); m_nDefaultTempo.Set(m_nDefaultTempo.GetInt(), tempoFract); break; }
 			case MAGIC4BE('R','P','B','.'): ReadField(chunk, size, m_nDefaultRowsPerBeat); break;
 			case MAGIC4BE('R','P','M','.'): ReadField(chunk, size, m_nDefaultRowsPerMeasure); break;
-			case MAGIC4BE('C','.','.','.'): if(modtype != MOD_TYPE_XM) ReadField(chunk, size, m_nChannels); break;
+			case MAGIC4BE('C','.','.','.'): if(GetType() != MOD_TYPE_XM && m_ContainerType != MOD_CONTAINERTYPE_MO3) { CHANNELINDEX chn = 0; ReadField(chunk, size, chn); m_nChannels = Clamp(chn, m_nChannels, MAX_BASECHANNELS); } break;
 			case MAGIC4BE('T','M','.','.'): ReadFieldCast(chunk, size, m_nTempoMode); break;
 			case MAGIC4BE('P','M','M','.'): ReadFieldCast(chunk, size, m_nMixLevels); break;
 			case MAGIC4BE('C','W','V','.'): ReadField(chunk, size, m_dwCreatedWithVersion); break;
@@ -2169,12 +2238,23 @@ void CSoundFile::LoadExtendedSongProperties(const MODTYPE modtype, FileReader &f
 			case MAGIC4BE('S','P','A','.'): ReadField(chunk, size, m_nSamplePreAmp); break;
 			case MAGIC4BE('V','S','T','V'): ReadField(chunk, size, m_nVSTiVolume); break;
 			case MAGIC4BE('D','G','V','.'): ReadField(chunk, size, m_nDefaultGlobalVolume); break;
-			case MAGIC4BE('R','P','.','.'): if(modtype != MOD_TYPE_XM) ReadField(chunk, size, m_nRestartPos); break;
-			case MAGIC4BE('M','S','F','.'): ReadFieldFlagSet(chunk, size, m_ModFlags); break;
+			case MAGIC4BE('R','P','.','.'): if(GetType() != MOD_TYPE_XM) { ORDERINDEX restartPos; ReadField(chunk, size, restartPos); Order.SetRestartPos(restartPos); } break;
+			case MAGIC4LE('R','S','M','P'):
+				ReadFieldCast(chunk, size, m_nResampling);
+				if(!IsKnownResamplingMode(m_nResampling)) m_nResampling = SRCMODE_DEFAULT;
+				break;
 #ifdef MODPLUG_TRACKER
 			case MAGIC4BE('M','I','M','A'): GetMIDIMapper().Deserialize(chunk); break;
 #endif
+			case MAGIC4LE('A','U','T','H'):
+				{
+					std::string artist;
+					chunk.ReadString<mpt::String::spacePadded>(artist, chunk.GetLength());
+					m_songArtist = mpt::ToUnicode(mpt::CharsetUTF8, artist);
+				}
+				break;
 			case MAGIC4BE('C','h','n','S'):
+				// Channel settings for channels 65+
 				if(size <= (MAX_BASECHANNELS - 64) * 2 && (size % 2u) == 0)
 				{
 					STATIC_ASSERT(CountOf(ChnSettings) >= 64);
@@ -2195,113 +2275,70 @@ void CSoundFile::LoadExtendedSongProperties(const MODTYPE modtype, FileReader &f
 						}
 					}
 				}
+				break;
 
-			break;
+			case MAGIC4LE('C','U','E','S'):
+				// Sample cues
+				if(size > 2)
+				{
+					SAMPLEINDEX smp = chunk.ReadUint16LE();
+					if(smp > 0 && smp <= GetNumSamples())
+					{
+						ModSample &sample = Samples[smp];
+						for(std::size_t i = 0; i < CountOf(sample.cues); i++)
+						{
+							sample.cues[i] = chunk.ReadUint32LE();
+						}
+					}
+				}
+				break;
+
+			case MAGIC4LE('S','W','N','G'):
+				// Tempo Swing Factors
+				if(size > 2)
+				{
+					mpt::istringstream iStrm(chunk.ReadRawDataAsString());
+					TempoSwing::Deserialize(iStrm, m_tempoSwing, chunk.GetLength());
+				}
+				break;
+
+			case MAGIC4BE('M','S','F','.'):
+				// Playback compatibility flags
+				{
+					size_t bit = 0;
+					m_playBehaviour.reset();
+					while(chunk.CanRead(1) && bit < m_playBehaviour.size())
+					{
+						uint8 b = chunk.ReadUint8();
+						for(uint8 i = 0; i < 8; i++, bit++)
+						{
+							if((b & (1 << i)) && bit < m_playBehaviour.size())
+							{
+								m_playBehaviour.set(bit);
+							}
+						}
+					}
+				}
+				break;
 		}
 
 	}
 
 	// Validate read values.
 	Limit(m_nDefaultTempo, GetModSpecifications().tempoMin, GetModSpecifications().tempoMax);
-	//m_nRowsPerBeat
-	//m_nRowsPerMeasure
-	Limit(m_nChannels, CHANNELINDEX(1), GetModSpecifications().channelsMax);
-	//m_nTempoMode
-	//m_nMixLevels
+	if(m_nDefaultRowsPerMeasure < m_nDefaultRowsPerBeat) m_nDefaultRowsPerMeasure = m_nDefaultRowsPerBeat;
+	if(m_nTempoMode >= tempoModeMax) m_nTempoMode = tempoModeClassic;
+	if(m_nMixLevels >= mixLevelsMax) m_nMixLevels = mixLevelsOriginal;
 	//m_dwCreatedWithVersion
 	//m_dwLastSavedWithVersion
 	//m_nSamplePreAmp
 	//m_nVSTiVolume
-	//m_nDefaultGlobalVolume);
+	//m_nDefaultGlobalVolume
+	LimitMax(m_nDefaultGlobalVolume, MAX_GLOBAL_VOLUME);
 	//m_nRestartPos
 	//m_ModFlags
-
+	if(!m_tempoSwing.empty()) m_tempoSwing.resize(m_nDefaultRowsPerBeat);
 }
 
 
-#ifndef MODPLUG_NO_FILESAVE
-
-size_t CSoundFile::SaveModularInstrumentData(FILE *f, const ModInstrument *pIns) const
-//------------------------------------------------------------------------------------
-{
-	// As the only stuff that is actually written here is the plugin ID,
-	// we can actually chicken out if there's no plugin.
-	if(!pIns->nMixPlug)
-	{
-		return 0;
-	}
-
-	uint32 modularInstSize = 0;
-	uint32 id = MAGIC4BE('I','N','S','M');
-	SwapBytesLE(id);
-	fwrite(&id, 1, sizeof(id), f);				// mark this as an instrument with modular extensions
-	long sizePos = ftell(f);									// we will want to write the modular data's total size here
-	fwrite(&modularInstSize, 1, sizeof(modularInstSize), f);	// write a DUMMY size, just to move file pointer by a long
-
-	// Write chunks
-	{	//VST Slot chunk:
-		id = MAGIC4BE('P','L','U','G');
-		SwapBytesLE(id);
-		fwrite(&id, 1, sizeof(uint32), f);
-		fwrite(&(pIns->nMixPlug), 1, sizeof(uint8), f);
-		modularInstSize += sizeof(uint32) + sizeof(uint8);
-	}
-	//How to save your own modular instrument chunk:
-/*	{
-		ID='MYID';
-		fwrite(&ID, 1, sizeof(int), f);
-		instModularDataSize+=sizeof(int);
-
-		//You can save your chunk size somwhere here if you need variable chunk size.
-		fwrite(myData, 1, myDataSize, f);
-		instModularDataSize+=myDataSize;
-	}
-*/
-	//write modular data's total size
-	long curPos = ftell(f);			// remember current pos
-	fseek(f, sizePos, SEEK_SET);	// go back to  sizePos
-	SwapBytesLE(modularInstSize);
-	fwrite(&modularInstSize, 1, sizeof(modularInstSize), f);	// write data
-	fseek(f, curPos, SEEK_SET);		// go back to where we were.
-
-	// Compute the size that we just wasted.
-	return sizeof(id) + sizeof(modularInstSize) + modularInstSize;
-}
-
-#endif // MODPLUG_NO_FILESAVE
-
-
-size_t CSoundFile::LoadModularInstrumentData(FileReader &file, ModInstrument &ins)
-//--------------------------------------------------------------------------------
-{
-	// find end of standard header
-
-	//If the next piece of data is 'INSM' we have modular extensions to our instrument...
-	if(!file.ReadMagic("MSNI"))
-	{
-		return 0;
-	}
-	//...the next piece of data must be the total size of the modular data
-	FileReader modularData = file.ReadChunk(file.ReadUint32LE());
-
-	// Handle chunks
-	while(modularData.AreBytesLeft())
-	{
-		const uint32 chunkID = modularData.ReadUint32LE();
-
-		switch (chunkID)
-		{
-		case MAGIC4BE('P','L','U','G'):
-			// Chunks don't tell us their length - stupid!
-			ins.nMixPlug = modularData.ReadUint8();
-			break;
-
-		default:
-			// move forward one byte and try to recognize again.
-			modularData.Skip(1);
-
-		}
-	}
-
-	return 8 + modularData.GetLength();
-}
+OPENMPT_NAMESPACE_END

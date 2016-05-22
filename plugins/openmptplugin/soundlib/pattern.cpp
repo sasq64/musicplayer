@@ -15,6 +15,10 @@
 #include "../common/version.h"
 #include "ITTools.h"
 #include "Sndfile.h"
+#include "mod_specifications.h"
+
+
+OPENMPT_NAMESPACE_BEGIN
 
 
 CSoundFile& CPattern::GetSoundFile() { return m_rPatternContainer.GetSoundFile(); }
@@ -66,17 +70,23 @@ bool CPattern::SetSignature(const ROWINDEX rowsPerBeat, const ROWINDEX rowsPerMe
 
 
 // Add or remove rows from the pattern.
-bool CPattern::Resize(const ROWINDEX newRowCount)
-//-----------------------------------------------
+bool CPattern::Resize(const ROWINDEX newRowCount, bool enforceFormatLimits)
+//-------------------------------------------------------------------------
 {
 	CSoundFile &sndFile = GetSoundFile();
-	const CModSpecifications& specs = sndFile.GetModSpecifications();
 	ModCommand *newPattern;
+
+	if(enforceFormatLimits)
+	{
+		const CModSpecifications& specs = sndFile.GetModSpecifications();
+		if(newRowCount > specs.patternRowsMax || newRowCount < specs.patternRowsMin) return false;
+	} else
+	{
+		if(newRowCount > MAX_PATTERN_ROWS || newRowCount < 1) return false;
+	}
 
 	if(m_ModCommands == nullptr
 		|| newRowCount == m_Rows
-		|| newRowCount > specs.patternRowsMax
-		|| newRowCount < specs.patternRowsMin
 		|| (newPattern = AllocatePattern(newRowCount, GetNumChannels())) == nullptr)
 	{
 		return false;
@@ -134,6 +144,8 @@ void CPattern::Deallocate()
 	m_PatternName.clear();
 }
 
+
+#ifdef MODPLUG_TRACKER
 
 bool CPattern::Expand()
 //---------------------
@@ -210,6 +222,9 @@ bool CPattern::Shrink()
 }
 
 
+#endif // MODPLUG_TRACKER
+
+
 bool CPattern::SetName(const std::string &newName)
 //------------------------------------------------
 {
@@ -249,33 +264,33 @@ bool CPattern::WriteEffect(EffectWriter &settings)
 {
 	// First, reject invalid parameters.
 	if(!m_ModCommands
-		|| settings.row >= GetNumRows()
-		|| (settings.channel >= GetNumChannels() && settings.channel != CHANNELINDEX_INVALID))
+		|| settings.m_row >= GetNumRows()
+		|| (settings.m_channel >= GetNumChannels() && settings.m_channel != CHANNELINDEX_INVALID))
 	{
 		return false;
 	}
 
-	CHANNELINDEX scanChnMin = settings.channel, scanChnMax = settings.channel;
+	CHANNELINDEX scanChnMin = settings.m_channel, scanChnMax = settings.m_channel;
 
 	// Scan all channels
-	if(settings.channel == CHANNELINDEX_INVALID)
+	if(settings.m_channel == CHANNELINDEX_INVALID)
 	{
 		scanChnMin = 0;
 		scanChnMax = GetNumChannels() - 1;
 	}
 
-	ModCommand * const baseCommand = GetpModCommand(settings.row, scanChnMin);
+	ModCommand * const baseCommand = GetpModCommand(settings.m_row, scanChnMin);
 	ModCommand *m;
 
 	// Scan channel(s) for same effect type - if an effect of the same type is already present, exit.
-	if(!settings.allowMultiple)
+	if(!settings.m_allowMultiple)
 	{
 		m = baseCommand;
 		for(CHANNELINDEX i = scanChnMin; i <= scanChnMax; i++, m++)
 		{
-			if(!settings.isVolEffect && m->command == settings.command)
+			if(!settings.m_isVolEffect && m->command == settings.m_command)
 				return true;
-			if(settings.isVolEffect && m->volcmd == settings.command)
+			if(settings.m_isVolEffect && m->volcmd == settings.m_command)
 				return true;
 		}
 	}
@@ -284,27 +299,27 @@ bool CPattern::WriteEffect(EffectWriter &settings)
 	m = baseCommand;
 	for(CHANNELINDEX i = scanChnMin; i <= scanChnMax; i++, m++)
 	{
-		if(!settings.isVolEffect && m->command == CMD_NONE)
+		if(!settings.m_isVolEffect && m->command == CMD_NONE)
 		{
-			m->command = settings.command;
-			m->param = settings.param;
+			m->command = settings.m_command;
+			m->param = settings.m_param;
 			return true;
 		}
-		if(settings.isVolEffect && m->volcmd == VOLCMD_NONE)
+		if(settings.m_isVolEffect && m->volcmd == VOLCMD_NONE)
 		{
-			m->volcmd = settings.command;
-			m->vol = settings.param;
+			m->volcmd = settings.m_command;
+			m->vol = settings.m_param;
 			return true;
 		}
 	}
 
 	// Ok, apparently there's no space. If we haven't tried already, try to map it to the volume column or effect column instead.
-	if(settings.retry)
+	if(settings.m_retry)
 	{
-		const bool isS3M = (GetSoundFile().GetType() & MOD_TYPE_S3M) != 0;
+		const bool isS3M = (GetSoundFile().GetType() & MOD_TYPE_S3M);
 
 		// Move some effects that also work in the volume column, so there's place for our new effect.
-		if(!settings.isVolEffect)
+		if(!settings.m_isVolEffect)
 		{
 			m = baseCommand;
 			for(CHANNELINDEX i = scanChnMin; i <= scanChnMax; i++, m++)
@@ -314,18 +329,18 @@ bool CPattern::WriteEffect(EffectWriter &settings)
 				case CMD_VOLUME:
 					m->volcmd = VOLCMD_VOLUME;
 					m->vol = m->param;
-					m->command = settings.command;
-					m->param = settings.param;
+					m->command = settings.m_command;
+					m->param = settings.m_param;
 					return true;
 
 				case CMD_PANNING8:
-					if(isS3M && settings.param > 0x80)
+					if(isS3M && settings.m_param > 0x80)
 					{
 						break;
 					}
 
 					m->volcmd = VOLCMD_PANNING;
-					m->command = settings.command;
+					m->command = settings.m_command;
 
 					if(isS3M)
 					{
@@ -335,18 +350,18 @@ bool CPattern::WriteEffect(EffectWriter &settings)
 						m->vol = (m->param >> 2) + 1;
 					}
 
-					m->param = settings.param;
+					m->param = settings.m_param;
 					return true;
 				}
 			}
 		}
 
 		// Let's try it again by writing into the "other" effect column.
-		uint8 newCommand = CMD_NONE, newParam = settings.param;
-		if(settings.isVolEffect)
+		uint8 newCommand = CMD_NONE, newParam = settings.m_param;
+		if(settings.m_isVolEffect)
 		{
 			// Convert volume effect to normal effect
-			switch(settings.command)
+			switch(settings.m_command)
 			{
 			case VOLCMD_PANNING:
 				newCommand = CMD_PANNING8;
@@ -355,7 +370,7 @@ bool CPattern::WriteEffect(EffectWriter &settings)
 					newParam <<= 1;
 				} else
 				{
-					newParam = MIN(settings.param << 2, 0xFF);
+					newParam = MIN(settings.m_param << 2, 0xFF);
 				}
 				break;
 			case VOLCMD_VOLUME:
@@ -365,10 +380,10 @@ bool CPattern::WriteEffect(EffectWriter &settings)
 		} else
 		{
 			// Convert normal effect to volume effect
-			if(settings.command == CMD_PANNING8 && isS3M)
+			if(settings.m_command == CMD_PANNING8 && isS3M)
 			{
 				// This needs some manual fixing.
-				if(settings.param <= 0x80)
+				if(settings.m_param <= 0x80)
 				{
 					// Can't have surround in volume column, only normal panning
 					newCommand = VOLCMD_PANNING;
@@ -376,7 +391,7 @@ bool CPattern::WriteEffect(EffectWriter &settings)
 				}
 			} else
 			{
-				newCommand = settings.command;
+				newCommand = settings.m_command;
 				if(!ModCommand::ConvertVolEffect(newCommand, newParam, true))
 				{
 					// No Success :(
@@ -387,10 +402,10 @@ bool CPattern::WriteEffect(EffectWriter &settings)
 
 		if(newCommand != CMD_NONE)
 		{
-			settings.command = newCommand;
-			settings.param = newParam;
-			settings.retry = false;
-			settings.isVolEffect = !settings.isVolEffect;
+			settings.m_command = newCommand;
+			settings.m_param = newParam;
+			settings.m_retry = false;
+			settings.m_isVolEffect = !settings.m_isVolEffect;
 			if(WriteEffect(settings))
 			{
 				return true;
@@ -399,15 +414,15 @@ bool CPattern::WriteEffect(EffectWriter &settings)
 	}
 
 	// Try in the next row if possible (this may also happen if we already retried)
-	if(settings.retryMode == EffectWriter::rmTryNextRow && settings.row + 1 < GetNumRows())
+	if(settings.m_retryMode == EffectWriter::rmTryNextRow && settings.m_row + 1 < GetNumRows())
 	{
-		settings.row++;
-		settings.retry = true;
+		settings.m_row++;
+		settings.m_retry = true;
 		return WriteEffect(settings);
-	} else if(settings.retryMode == EffectWriter::rmTryPreviousRow && settings.row > 0)
+	} else if(settings.m_retryMode == EffectWriter::rmTryPreviousRow && settings.m_row > 0)
 	{
-		settings.row--;
-		settings.retry = true;
+		settings.m_row--;
+		settings.m_retry = true;
 		return WriteEffect(settings);
 	}
 
@@ -483,12 +498,16 @@ void WriteModPattern(std::ostream& oStrm, const CPattern& pat)
 {
 	srlztn::SsbWrite ssb(oStrm);
 	ssb.BeginWrite(FileIdPattern, MptVersion::num);
-	ssb.WriteItem(pat, "data", strlen("data"), &WriteData);
+	ssb.WriteItem(pat, "data", &WriteData);
 	// pattern time signature
 	if(pat.GetOverrideSignature())
 	{
 		ssb.WriteItem<uint32>(pat.GetRowsPerBeat(), "RPB.");
 		ssb.WriteItem<uint32>(pat.GetRowsPerMeasure(), "RPM.");
+	}
+	if(pat.HasTempoSwing())
+	{
+		ssb.WriteItem<TempoSwing>(pat.GetTempoSwing(), "SWNG", TempoSwing::Serialize);
 	}
 	ssb.FinishWrite();
 }
@@ -501,12 +520,16 @@ void ReadModPattern(std::istream& iStrm, CPattern& pat, const size_t)
 	ssb.BeginRead(FileIdPattern, MptVersion::num);
 	if ((ssb.GetStatus() & srlztn::SNT_FAILURE) != 0)
 		return;
-	ssb.ReadItem(pat, "data", strlen("data"), &ReadData);
+	ssb.ReadItem(pat, "data", &ReadData);
 	// pattern time signature
 	uint32 nRPB = 0, nRPM = 0;
 	ssb.ReadItem<uint32>(nRPB, "RPB.");
 	ssb.ReadItem<uint32>(nRPM, "RPM.");
 	pat.SetSignature(nRPB, nRPM);
+	TempoSwing swing;
+	ssb.ReadItem<TempoSwing>(swing, "SWNG", TempoSwing::Deserialize);
+	if(!swing.empty()) swing.resize(nRPB);
+	pat.SetTempoSwing(swing);
 }
 
 
@@ -529,8 +552,6 @@ static uint8 CreateDiffMask(const ModCommand &chnMC, const ModCommand &newMC)
 	return mask;
 }
 
-using srlztn::Binarywrite;
-using srlztn::Binaryread;
 
 // Writes pattern data. Adapted from SaveIT.
 void WriteData(std::ostream& oStrm, const CPattern& pat)
@@ -557,21 +578,21 @@ void WriteData(std::ostream& oStrm, const CPattern& pat)
 			if(diffmask != 0)
 				chval |= IT_bitmask_patternChanEnabled_c;
 
-			Binarywrite<uint8>(oStrm, chval);
+			mpt::IO::WriteIntLE<uint8>(oStrm, chval);
 
 			if(diffmask)
 			{
 				lastChnMC[c] = m;
-				Binarywrite<uint8>(oStrm, diffmask);
-				if(diffmask & noteBit) Binarywrite<uint8>(oStrm, m.note);
-				if(diffmask & instrBit) Binarywrite<uint8>(oStrm, m.instr);
-				if(diffmask & volcmdBit) Binarywrite<uint8>(oStrm, m.volcmd);
-				if(diffmask & volBit) Binarywrite<uint8>(oStrm, m.vol);
-				if(diffmask & commandBit) Binarywrite<uint8>(oStrm, m.command);
-				if(diffmask & effectParamBit) Binarywrite<uint8>(oStrm, m.param);
+				mpt::IO::WriteIntLE<uint8>(oStrm, diffmask);
+				if(diffmask & noteBit) mpt::IO::WriteIntLE<uint8>(oStrm, m.note);
+				if(diffmask & instrBit) mpt::IO::WriteIntLE<uint8>(oStrm, m.instr);
+				if(diffmask & volcmdBit) mpt::IO::WriteIntLE<uint8>(oStrm, m.volcmd);
+				if(diffmask & volBit) mpt::IO::WriteIntLE<uint8>(oStrm, m.vol);
+				if(diffmask & commandBit) mpt::IO::WriteIntLE<uint8>(oStrm, m.command);
+				if(diffmask & effectParamBit) mpt::IO::WriteIntLE<uint8>(oStrm, m.param);
 			}
 		}
-		Binarywrite<uint8>(oStrm, 0); // Write end of row marker.
+		mpt::IO::WriteIntLE<uint8>(oStrm, 0); // Write end of row marker.
 	}
 }
 
@@ -579,7 +600,7 @@ void WriteData(std::ostream& oStrm, const CPattern& pat)
 #define READITEM(itembit,id)		\
 if(diffmask & itembit)				\
 {									\
-	Binaryread<uint8>(iStrm, temp);	\
+	mpt::IO::ReadIntLE<uint8>(iStrm, temp);	\
 	if(ch < chns)					\
 		lastChnMC[ch].id = temp;	\
 }									\
@@ -602,7 +623,7 @@ void ReadData(std::istream& iStrm, CPattern& pat, const size_t)
 	while(row < rows && iStrm.good())
 	{
 		uint8 t = 0;
-		Binaryread<uint8>(iStrm, t);
+		mpt::IO::ReadIntLE<uint8>(iStrm, t);
 		if(t == 0)
 		{
 			row++;
@@ -615,10 +636,10 @@ void ReadData(std::istream& iStrm, CPattern& pat, const size_t)
 
 		uint8 diffmask = 0;
 		if((t & IT_bitmask_patternChanEnabled_c) != 0)
-			Binaryread<uint8>(iStrm, diffmask);
+			mpt::IO::ReadIntLE<uint8>(iStrm, diffmask);
 		uint8 temp = 0;
 
-		ModCommand dummy;
+		ModCommand dummy = ModCommand::Empty();
 		ModCommand& m = (ch < chns) ? *pat.GetpModCommand(row, ch) : dummy;
 
 		READITEM(noteBit, note);
@@ -631,10 +652,13 @@ void ReadData(std::istream& iStrm, CPattern& pat, const size_t)
 		{
 			//Ignore additional data.
 			uint8 temp;
-			Binaryread<uint8>(iStrm, temp);
+			mpt::IO::ReadIntLE<uint8>(iStrm, temp);
 			iStrm.ignore(temp);
 		}
 	}
 }
 
 #undef READITEM
+
+
+OPENMPT_NAMESPACE_END

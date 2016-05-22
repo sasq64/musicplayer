@@ -10,10 +10,54 @@
 #include "stdafx.h"
 #include "mptPathString.h"
 
+#include "misc_util.h"
 
-#if defined(MPT_WITH_PATHSTRING)
+#if MPT_OS_WINDOWS
+#include <windows.h>
+#endif
 
-#if defined(MODPLUG_TRACKER)
+
+OPENMPT_NAMESPACE_BEGIN
+
+
+#if MPT_OS_WINDOWS
+
+namespace mpt
+{
+
+
+RawPathString PathString::AsNativePrefixed() const
+//------------------------------------------------
+{
+	if(path.length() <= MAX_PATH || path.substr(0, 4) == L"\\\\?\\")
+	{
+		// Path is short enough or already in prefixed form
+		return path;
+	}
+	const RawPathString absPath = mpt::GetAbsolutePath(path).AsNative();
+	if(absPath.substr(0, 2) == L"\\\\")
+	{
+		// Path is a network share: \\server\foo.bar -> \\?\UNC\server\foo.bar
+		return L"\\\\?\\UNC" + absPath.substr(1);
+	} else
+	{
+		// Regular file: C:\foo.bar -> \\?\C:\foo.bar
+		return L"\\\\?\\" + absPath;
+	}
+}
+
+
+int PathString::CompareNoCase(const PathString & a, const PathString & b)
+//-----------------------------------------------------------------------
+{
+	return lstrcmpiW(a.ToWide().c_str(), b.ToWide().c_str());
+}
+
+} // namespace mpt
+
+#endif // MPT_OS_WINDOWS
+
+#if defined(MODPLUG_TRACKER) && MPT_OS_WINDOWS
 
 namespace mpt
 {
@@ -124,7 +168,7 @@ PathString PathString::RelativePathToAbsolute(const PathString &relativeTo) cons
 	{
 		return result;
 	}
-	if(AsNative().length() >= 2 && AsNative().substr(0, 1) == L"\\" && AsNative().substr(0, 2) != L"\\\\")
+	if(AsNative().length() >= 2 && AsNative().at(0) == L'\\' && AsNative().at(1) != L'\\')
 	{
 		// Path is on the same drive as OpenMPT ("\Somepath\" => "C:\Somepath\"), but ignore network paths starting with "\\"
 		result = mpt::PathString::FromNative(relativeTo.AsNative().substr(0, 2));
@@ -139,7 +183,7 @@ PathString PathString::RelativePathToAbsolute(const PathString &relativeTo) cons
 }
 
 
-#if defined(WIN32)
+#if MPT_OS_WINDOWS
 #if defined(_MFC_VER)
 
 mpt::PathString PathString::TunnelOutofCString(const CString &path)
@@ -152,7 +196,7 @@ mpt::PathString PathString::TunnelOutofCString(const CString &path)
 		// that filenames we get from MFC are always encoded in our hacked UTF8-in-CString encoding.
 		// Instead, we use a rough heuristic: if the string is parseable as UTF8, we assume it is.
 		// This fails for CP_ACP strings, that are also valid UTF8. That's the trade-off here.
-		if(mpt::To(mpt::CharsetUTF8, mpt::ToWide(mpt::CharsetUTF8, path.GetString())) == path.GetString())
+		if(mpt::IsUTF8(path.GetString()))
 		{
 			// utf8
 			return mpt::PathString::FromUTF8(path.GetString());
@@ -175,41 +219,71 @@ CString PathString::TunnelIntoCString(const mpt::PathString &path)
 	#endif
 }
 
-#endif
-#endif
+#endif // MFC
+#endif // MPT_OS_WINDOWS
 
 } // namespace mpt
 
-#endif
+#endif // MODPLUG_TRACKER && MPT_OS_WINDOWS
 
 
-FILE * mpt_fopen(const mpt::PathString &filename, const char *mode)
-//-----------------------------------------------------------------
+namespace mpt
 {
-	#if defined(WIN32)
-		#if defined(MPT_WITH_CHARSET_LOCALE)
-			return _wfopen(filename.AsNative().c_str(), mode ? mpt::ToWide(mpt::CharsetLocale, mode).c_str() : nullptr);
-		#else
-			return _wfopen(filename.AsNative().c_str(), mode ? mpt::ToWide(mpt::CharsetUTF8, mode).c_str() : nullptr);
-		#endif
-	#else // !WIN32
-		return fopen(filename.AsNative().c_str(), mode);
-	#endif // WIN32
+
+#if MPT_OS_WINDOWS
+
+mpt::PathString GetAbsolutePath(const mpt::PathString &path)
+//----------------------------------------------------------
+{
+	DWORD size = GetFullPathNameW(path.AsNative().c_str(), 0, nullptr, nullptr);
+	if(size == 0)
+	{
+		return path;
+	}
+	std::vector<WCHAR> fullPathName(size, L'\0');
+	if(GetFullPathNameW(path.AsNative().c_str(), size, &fullPathName[0], nullptr) == 0)
+	{
+		return path;
+	}
+	return mpt::PathString::FromNative(&fullPathName[0]);
 }
 
-FILE * mpt_fopen(const mpt::PathString &filename, const wchar_t *mode)
-//--------------------------------------------------------------------
+#endif // MPT_OS_WINDOWS
+
+#if defined(MPT_ENABLE_TEMPFILE)
+#if MPT_OS_WINDOWS
+
+mpt::PathString GetTempDirectory()
+//--------------------------------
 {
-	#if defined(WIN32)
-		return _wfopen(filename.AsNative().c_str(), mode);
-	#else // !WIN32
-		#if defined(MPT_WITH_CHARSET_LOCALE)
-			return fopen(filename.AsNative().c_str(), mode ? mpt::ToLocale(mode).c_str() : nullptr);
-		#else
-			return fopen(filename.AsNative().c_str(), mode ? mpt::To(mpt::CharsetUTF8, mode).c_str() : nullptr);
-		#endif
-	#endif // WIN32
+	DWORD size = GetTempPathW(0, nullptr);
+	if(size)
+	{
+		std::vector<WCHAR> tempPath(size + 1);
+		if(GetTempPathW(size + 1, &tempPath[0]))
+		{
+			return mpt::PathString::FromNative(&tempPath[0]);
+		}
+	}
+	// use app directory as fallback
+	return mpt::GetAppPath();
 }
+
+mpt::PathString CreateTempFileName(const mpt::PathString &fileNamePrefix, const mpt::PathString &fileNameExtension)
+//-----------------------------------------------------------------------------------------------------------------
+{
+	mpt::PathString filename = mpt::GetTempDirectory();
+	filename += (!fileNamePrefix.empty() ? fileNamePrefix + MPT_PATHSTRING("_") : mpt::PathString());
+	filename += mpt::PathString::FromUnicode(Util::UUIDToString(Util::CreateLocalUUID()));
+	filename += (!fileNameExtension.empty() ? MPT_PATHSTRING(".") + fileNameExtension : mpt::PathString());
+	return filename;
+}
+
+#endif // MPT_OS_WINDOWS
+#endif // MPT_ENABLE_TEMPFILE
+
+} // namespace mpt
+
 
 
 #if defined(MODPLUG_TRACKER)
@@ -224,6 +298,7 @@ static inline char SanitizeFilenameChar(char c)
 		c == '?'  ||
 		c == '<'  ||
 		c == '>'  ||
+		c == '|'  ||
 		c == '*')
 	{
 		c = '_';
@@ -241,6 +316,7 @@ static inline wchar_t SanitizeFilenameChar(wchar_t c)
 		c == L'?'  ||
 		c == L'<'  ||
 		c == L'>'  ||
+		c == L'|'  ||
 		c == L'*')
 	{
 		c = L'_';
@@ -299,13 +375,138 @@ void SanitizeFilename(std::wstring &str)
 void SanitizeFilename(CString &str)
 //---------------------------------
 {
-	std::basic_string<TCHAR> tmp = str;
-	SanitizeFilename(tmp);
-	str = tmp.c_str();
+	for(int i = 0; i < str.GetLength(); i++)
+	{
+		str.SetAt(i, SanitizeFilenameChar(str.GetAt(i)));
+	}
 }
-#endif
+#endif // MFC
 
 #endif // MODPLUG_TRACKER
 
-#endif // MPT_WITH_PATHSTRING
 
+#if defined(MODPLUG_TRACKER)
+
+
+mpt::PathString FileType::AsFilterString(FlagSet<FileTypeFormat> format) const
+//----------------------------------------------------------------------------
+{
+	mpt::PathString filter;
+	if(GetShortName().empty() || GetExtensions().empty())
+	{
+		return filter;
+	}
+	if(!GetDescription().empty())
+	{
+		filter += mpt::PathString::FromUnicode(GetDescription());
+	} else
+	{
+		filter += mpt::PathString::FromUnicode(GetShortName());
+	}
+	const std::vector<mpt::PathString> extensions = GetExtensions();
+	if(format[FileTypeFormatShowExtensions])
+	{
+		filter += MPT_PATHSTRING(" (");
+		bool first = true;
+		for(std::vector<mpt::PathString>::const_iterator it = extensions.begin(); it != extensions.end(); ++it)
+		{
+			if(first)
+			{
+				first = false;
+			} else
+			{
+				filter += MPT_PATHSTRING(",");
+			}
+			filter += MPT_PATHSTRING("*.");
+			filter += (*it);
+		}
+		filter += MPT_PATHSTRING(")");
+	}
+	filter += MPT_PATHSTRING("|");
+	{
+		bool first = true;
+		for(std::vector<mpt::PathString>::const_iterator it = extensions.begin(); it != extensions.end(); ++it)
+		{
+			if(first)
+			{
+				first = false;
+			} else
+			{
+				filter += MPT_PATHSTRING(";");
+			}
+			filter += MPT_PATHSTRING("*.");
+			filter += (*it);
+		}
+	}
+	filter += MPT_PATHSTRING("|");
+	return filter;
+}
+
+
+mpt::PathString FileType::AsFilterOnlyString() const
+//--------------------------------------------------
+{
+	mpt::PathString filter;
+	const std::vector<mpt::PathString> extensions = GetExtensions();
+	{
+		bool first = true;
+		for(std::vector<mpt::PathString>::const_iterator it = extensions.begin(); it != extensions.end(); ++it)
+		{
+			if(first)
+			{
+				first = false;
+			} else
+			{
+				filter += MPT_PATHSTRING(";");
+			}
+			filter += MPT_PATHSTRING("*.");
+			filter += (*it);
+		}
+	}
+	return filter;
+}
+
+
+mpt::PathString ToFilterString(const FileType &fileType, FlagSet<FileTypeFormat> format)
+//--------------------------------------------------------------------------------------
+{
+	return fileType.AsFilterString(format);
+}
+
+
+mpt::PathString ToFilterString(const std::vector<FileType> &fileTypes, FlagSet<FileTypeFormat> format)
+//----------------------------------------------------------------------------------------------------
+{
+	mpt::PathString filter;
+	for(std::vector<FileType>::const_iterator it = fileTypes.begin(); it != fileTypes.end(); ++it)
+	{
+		filter += it->AsFilterString(format);
+	}
+	return filter;
+}
+
+
+mpt::PathString ToFilterOnlyString(const FileType &fileType, bool prependSemicolonWhenNotEmpty)
+//---------------------------------------------------------------------------------------------
+{
+	mpt::PathString filter = fileType.AsFilterOnlyString();
+	return filter.empty() ? filter : (prependSemicolonWhenNotEmpty ? MPT_PATHSTRING(";") : MPT_PATHSTRING("")) + filter;
+}
+
+
+mpt::PathString ToFilterOnlyString(const std::vector<FileType> &fileTypes, bool prependSemicolonWhenNotEmpty)
+//-----------------------------------------------------------------------------------------------------------
+{
+	mpt::PathString filter;
+	for(std::vector<FileType>::const_iterator it = fileTypes.begin(); it != fileTypes.end(); ++it)
+	{
+		filter += it->AsFilterOnlyString();
+	}
+	return filter.empty() ? filter : (prependSemicolonWhenNotEmpty ? MPT_PATHSTRING(";") : MPT_PATHSTRING("")) + filter;
+}
+
+
+#endif // MODPLUG_TRACKER
+
+
+OPENMPT_NAMESPACE_END

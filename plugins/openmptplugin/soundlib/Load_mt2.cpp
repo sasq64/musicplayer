@@ -2,7 +2,7 @@
  * Load_mt2.cpp
  * ------------
  * Purpose: MT2 (MadTracker 2) module loader
- * Notes  : Plugins are currently not imported. Better rewrite this crap.
+ * Notes  : A couple of things are not handled properly or not at all, such as internal effects and automation envelopes
  * Authors: Olivier Lapicque
  *          OpenMPT Devs
  * The OpenMPT source code is released under the BSD license. Read LICENSE for more details.
@@ -11,669 +11,1215 @@
 
 #include "stdafx.h"
 #include "Loaders.h"
+#ifdef MPT_EXTERNAL_SAMPLES
+// For loading external samples
+#include "../common/mptPathString.h"
+#endif // MPT_EXTERNAL_SAMPLES
+#ifndef NO_VST
+#include "../mptrack/Vstplug.h"
+#endif // NO_VST
 
-//#define MT2DEBUG
+OPENMPT_NAMESPACE_BEGIN
 
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
 
-typedef struct PACKED _MT2FILEHEADER
+struct PACKED MT2FileHeader
 {
-	DWORD dwMT20;	// 0x3032544D "MT20"
-	DWORD dwSpecial;
-	WORD wVersion;
-	char szTrackerName[32];	// "MadTracker 2.0"
-	char szSongName[64];
-	WORD nOrders;
-	WORD wRestart;
-	WORD wPatterns;
-	WORD wChannels;
-	WORD wSamplesPerTick;
-	BYTE bTicksPerLine;
-	BYTE bLinesPerBeat;
-	DWORD fulFlags; // b0=packed patterns
-	WORD wInstruments;
-	WORD wSamples;
-	BYTE Orders[256];
-} MT2FILEHEADER;
+	enum MT2HeaderFlags
+	{
+		packedPatterns		= 0x01,
+		automation			= 0x02,
+		drumsAutomation		= 0x08,
+		masterAutomation	= 0x10,
+	};
 
-STATIC_ASSERT(sizeof(MT2FILEHEADER) == 382);
+	char   signature[4];	// "MT20"
+	uint32 userID;
+	uint16 version;
+	char   trackerName[32];	// "MadTracker 2.0"
+	char   songName[64];
+	uint16 numOrders;
+	uint16 restartPos;
+	uint16 numPatterns;
+	uint16 numChannels;
+	uint16 samplesPerTick;
+	uint8  ticksPerLine;
+	uint8  linesPerBeat;
+	uint32 flags;			// See HeaderFlags
+	uint16 numInstruments;
+	uint16 numSamples;
+	uint8  Orders[256];
 
-typedef struct PACKED _MT2PATTERN
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		SwapBytesLE(userID);
+		SwapBytesLE(version);
+		SwapBytesLE(numOrders);
+		SwapBytesLE(restartPos);
+		SwapBytesLE(numPatterns);
+		SwapBytesLE(numChannels);
+		SwapBytesLE(samplesPerTick);
+		SwapBytesLE(numInstruments);
+		SwapBytesLE(numSamples);
+	}
+};
+
+STATIC_ASSERT(sizeof(MT2FileHeader) == 382);
+
+
+struct PACKED MT2DrumsData
 {
-	WORD wLines;
-	DWORD wDataLen;
-} MT2PATTERN;
+	uint16 numDrumPatterns;
+	uint16 DrumSamples[8];
+	uint8  DrumPatternOrder[256];
 
-STATIC_ASSERT(sizeof(MT2PATTERN) == 6);
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		SwapBytesLE(numDrumPatterns);
+		for(size_t i = 0; i < CountOf(DrumSamples); i++)
+		{
+			SwapBytesLE(DrumSamples[i]);
+		}
+	}
+};
 
-typedef struct PACKED _MT2COMMAND
+STATIC_ASSERT(sizeof(MT2DrumsData) == 274);
+
+
+struct PACKED MT2TrackSettings
 {
-	BYTE note;	// 0=nothing, 97=note off
-	BYTE instr;
-	BYTE vol;
-	BYTE pan;
-	BYTE fxcmd;
-	BYTE fxparam1;
-	BYTE fxparam2;
-} MT2COMMAND;
+	uint16 volume;
+	uint8  trackfx;		// Built-in effect type is used
+	uint8  output;
+	uint16 fxID;
+	uint16 trackEffectParam[64][8];
 
-STATIC_ASSERT(sizeof(MT2COMMAND) == 7);
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		SwapBytesLE(volume);
+		SwapBytesLE(fxID);
+		for(size_t i = 0; i < CountOf(trackEffectParam); i++)
+		{
+			for(size_t j = 0; j < CountOf(trackEffectParam[0]); j++)
+			{
+				SwapBytesLE(trackEffectParam[i][j]);
+			}
+		}
+	}
+};
 
-typedef struct PACKED _MT2DRUMSDATA
+STATIC_ASSERT(sizeof(MT2TrackSettings) == 1030);
+
+
+struct PACKED MT2Command
 {
-	WORD wDrumPatterns;
-	WORD wDrumSamples[8];
-	BYTE DrumPatternOrder[256];
-} MT2DRUMSDATA;
+	uint8 note;	// 0=nothing, 97=note off
+	uint8 instr;
+	uint8 vol;
+	uint8 pan;
+	uint8 fxcmd;
+	uint8 fxparam1;
+	uint8 fxparam2;
+};
 
-STATIC_ASSERT(sizeof(MT2DRUMSDATA) == 274);
+STATIC_ASSERT(sizeof(MT2Command) == 7);
 
-typedef struct PACKED _MT2AUTOMATION
+
+struct PACKED MT2EnvPoint
 {
-	DWORD dwFlags;
-	DWORD dwEffectId;
-	DWORD nEnvPoints;
-} MT2AUTOMATION;
+	uint16 x;
+	uint16 y;
 
-STATIC_ASSERT(sizeof(MT2AUTOMATION) == 12);
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		SwapBytesLE(x);
+		SwapBytesLE(y);
+	}
+};
 
-typedef struct PACKED _MT2INSTRUMENT
+STATIC_ASSERT(sizeof(MT2EnvPoint) == 4);
+
+
+struct PACKED MT2Instrument
 {
-	char szName[32];
-	DWORD dwDataLen;
-	WORD wSamples;
-	BYTE GroupsMapping[96];
-	BYTE bVibType;
-	BYTE bVibSweep;
-	BYTE bVibDepth;
-	BYTE bVibRate;
-	WORD wFadeOut;
-	WORD wNNA;
-	WORD wInstrFlags;
-	WORD wEnvFlags1;
-	WORD wEnvFlags2;
-} MT2INSTRUMENT;
+	enum EnvTypes
+	{
+		VolumeEnv	= 1,
+		PanningEnv	= 2,
+		PitchEnv	= 4,
+		FilterEnv	= 8,
+	};
 
-STATIC_ASSERT(sizeof(MT2INSTRUMENT) == 148);
+	uint16 numSamples;
+	uint8  groupMap[96];
+	uint8  vibtype, vibsweep, vibdepth, vibrate;
+	uint16 fadeout;
+	uint16 nna;
 
-typedef struct PACKED _MT2ENVELOPE
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		SwapBytesLE(numSamples);
+		SwapBytesLE(fadeout);
+		SwapBytesLE(nna);
+	}
+};
+
+STATIC_ASSERT(sizeof(MT2Instrument) == 106);
+
+
+struct PACKED MT2IEnvelope
 {
-	BYTE nFlags;
-	BYTE nPoints;
-	BYTE nSustainPos;
-	BYTE nLoopStart;
-	BYTE nLoopEnd;
-	BYTE bReserved[3];
-	BYTE EnvData[64];
-} MT2ENVELOPE;
+	uint8 flags;
+	uint8 numPoints;
+	uint8 sustainPos;
+	uint8 loopStart;
+	uint8 loopEnd;
+	uint8 reserved[3];
+	MT2EnvPoint points[16];
 
-STATIC_ASSERT(sizeof(MT2ENVELOPE) == 72);
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		for(size_t i = 0; i < CountOf(points); i++)
+		{
+			points[i].ConvertEndianness();
+		}
+	}
+};
 
-typedef struct PACKED _MT2SYNTH
+STATIC_ASSERT(sizeof(MT2IEnvelope) == 72);
+
+
+// Note: The order of these fields differs a bit in MTIOModule_MT2.cpp - maybe just typos, I'm not sure.
+// This struct follows the save format of MadTracker 2.6.1.
+struct PACKED MT2InstrSynth
 {
-	BYTE nSynthId;
-	BYTE nFxId;
-	WORD wCutOff;
-	BYTE nResonance;
-	BYTE nAttack;
-	BYTE nDecay;
-	BYTE bReserved[25];
-} MT2SYNTH;
+	uint8  synthID;
+	uint8  effectID;	// 0 = Lowpass filter, 1 = Highpass filter
+	uint16 cutoff;		// 100...11000 Hz
+	uint8  resonance;	// 0...128
+	uint8  attack;		// 0...128
+	uint8  decay;		// 0...128
+	uint8  midiChannel;	// 0...15
+	int8   device;		// VST slot (positive) or MIDI device (negative)
+	int8   unknown1;	// Missing in MTIOModule_MT2.cpp
+	uint8  volume;		// 0...255
+	int8   finetune;	// -96...96
+	int8   transpose;	// -48...48
+	uint8  unknown2;	// Seems to be equal to instrument number.
+	uint8  unknown3;
+	uint8  midiProgram;
+	uint8  reserved[16];
 
-STATIC_ASSERT(sizeof(MT2SYNTH) == 32);
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		SwapBytesLE(cutoff);
+	}
+};
 
-typedef struct PACKED _MT2SAMPLE
+STATIC_ASSERT(sizeof(MT2InstrSynth) == 32);
+
+
+struct PACKED MT2Sample
 {
-	char szName[32];
-	DWORD dwDataLen;
-	DWORD dwLength;
-	DWORD dwFrequency;
-	BYTE nQuality;
-	BYTE nChannels;
-	BYTE nFlags;	// 8 = no interpolation
-	BYTE nLoop;
-	DWORD dwLoopStart;
-	DWORD dwLoopEnd;
-	WORD wVolume;
-	BYTE nPan;
-	BYTE nBaseNote;
-	WORD wSamplesPerBeat;
-} MT2SAMPLE;
+	uint32 length;
+	uint32 frequency;
+	uint8  depth;
+	uint8  channels;
+	uint8  flags;
+	uint8  loopType;
+	uint32 loopStart;
+	uint32 loopEnd;
+	uint16 volume;
+	int8   panning;
+	int8   note;
+	int16  spb;
 
-STATIC_ASSERT(sizeof(MT2SAMPLE) == 62);
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		SwapBytesLE(length);
+		SwapBytesLE(frequency);
+		SwapBytesLE(loopStart);
+		SwapBytesLE(loopEnd);
+		SwapBytesLE(volume);
+		SwapBytesLE(spb);
+	}
+};
 
-typedef struct PACKED _MT2GROUP
+STATIC_ASSERT(sizeof(MT2Sample) == 26);
+
+
+struct PACKED MT2Group
 {
-	uint8 nSmpNo;
-	uint8 nVolume;	// 0-128
-	int8  nFinePitch;
-	int8  Reserved[5];
-} MT2GROUP;
+	uint8 sample;
+	uint8 vol;		// 0...128
+	int8  pitch;	// -128...127
+	uint8 reserved[5];
 
-STATIC_ASSERT(sizeof(MT2GROUP) == 8);
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		SwapBytesLE(pitch);
+	}
+};
+
+STATIC_ASSERT(sizeof(MT2Group) == 8);
+
+
+struct PACKED MT2VST
+{
+	char   dll[64];
+	char   programName[28];
+	uint32 fxID;
+	uint32 fxVersion;
+	uint32 programNr;
+	uint8  useChunks;
+	uint8  track;
+	int8   pan;				// Not imported - could use pan mix mode for D/W ratio, but this is not implemented for instrument plugins!
+	char   reserved[17];
+	uint32 n;
+
+	// Convert all multi-byte numeric values to current platform's endianness or vice versa.
+	void ConvertEndianness()
+	{
+		SwapBytesLE(fxID);
+		SwapBytesLE(fxVersion);
+		SwapBytesLE(programNr);
+	}
+};
+
+STATIC_ASSERT(sizeof(MT2VST) == 128);
 
 #ifdef NEEDS_PRAGMA_PACK
 #pragma pack(pop)
 #endif
 
 
-static void ConvertMT2Command(CSoundFile *that, ModCommand *m, MT2COMMAND *p)
+static bool ConvertMT2Command(CSoundFile *that, ModCommand &m, MT2Command &p)
 //---------------------------------------------------------------------------
 {
+	bool hasLegacyTempo = false;
+
 	// Note
-	m->note = NOTE_NONE;
-	if (p->note) m->note = (p->note > 96) ? 0xFF : p->note+12;
+	m.note = NOTE_NONE;
+	if(p.note) m.note = (p.note > 96) ? NOTE_KEYOFF : (p.note + NOTE_MIN + 11);
 	// Instrument
-	m->instr = p->instr;
+	m.instr = p.instr;
 	// Volume Column
-	if ((p->vol >= 0x10) && (p->vol <= 0x90))
+	if(p.vol >= 0x10 && p.vol <= 0x90)
 	{
-		m->volcmd = VOLCMD_VOLUME;
-		m->vol = (p->vol - 0x10) >> 1;
-	} else
-	if ((p->vol >= 0xA0) && (p->vol <= 0xAF))
+		m.volcmd = VOLCMD_VOLUME;
+		m.vol = (p.vol - 0x10) / 2;
+	} else if(p.vol >= 0xA0 && p.vol <= 0xAF)
 	{
-		m->volcmd = VOLCMD_VOLSLIDEDOWN;
-		m->vol = (p->vol & 0x0f);
-	} else
-	if ((p->vol >= 0xB0) && (p->vol <= 0xBF))
+		m.volcmd = VOLCMD_VOLSLIDEDOWN;
+		m.vol = (p.vol & 0x0F);
+	} else if(p.vol >= 0xB0 && p.vol <= 0xBF)
 	{
-		m->volcmd = VOLCMD_VOLSLIDEUP;
-		m->vol = (p->vol & 0x0f);
-	} else
-	if ((p->vol >= 0xC0) && (p->vol <= 0xCF))
+		m.volcmd = VOLCMD_VOLSLIDEUP;
+		m.vol = (p.vol & 0x0F);
+	} else if(p.vol >= 0xC0 && p.vol <= 0xCF)
+		{
+		m.volcmd = VOLCMD_FINEVOLDOWN;
+		m.vol = (p.vol & 0x0F);
+	} else if(p.vol >= 0xD0 && p.vol <= 0xDF)
 	{
-		m->volcmd = VOLCMD_FINEVOLDOWN;
-		m->vol = (p->vol & 0x0f);
-	} else
-	if ((p->vol >= 0xD0) && (p->vol <= 0xDF))
-	{
-		m->volcmd = VOLCMD_FINEVOLUP;
-		m->vol = (p->vol & 0x0f);
-	} else
-	{
-		m->volcmd = 0;
-		m->vol = 0;
+		m.volcmd = VOLCMD_FINEVOLUP;
+		m.vol = (p.vol & 0x0F);
 	}
+
 	// Effects
-	m->command = 0;
-	m->param = 0;
-	if ((p->fxcmd) || (p->fxparam1) || (p->fxparam2))
+	if(p.fxcmd || p.fxparam1 || p.fxparam2)
 	{
-		if (!p->fxcmd)
+		switch(p.fxcmd)
 		{
-			m->command = p->fxparam2;
-			m->param = p->fxparam1;
-			that->ConvertModCommand(*m);
+		case 0x00:	// FastTracker effect
+			m.command = p.fxparam2;
+			m.param = p.fxparam1;
+			CSoundFile::ConvertModCommand(m);
 #ifdef MODPLUG_TRACKER
-			m->Convert(MOD_TYPE_XM, MOD_TYPE_IT);
+			m.Convert(MOD_TYPE_XM, MOD_TYPE_IT, *that);
+#else
+			MPT_UNREFERENCED_PARAMETER(that);
 #endif // MODPLUG_TRACKER
-		} else
-		{
-			// TODO: MT2 Effects
+			if(p.fxparam2 == 0x0F)
+				hasLegacyTempo = true;
+			break;
+
+		case 0x01:	// Portamento up (on every tick)
+			m.command = CMD_PORTAMENTOUP;
+			m.param = mpt::saturate_cast<ModCommand::PARAM>((p.fxparam2 << 4) | (p.fxparam1 >> 4));
+			break;
+
+		case 0x02:	// Portamento down (on every tick)
+			m.command = CMD_PORTAMENTODOWN;
+			m.param = mpt::saturate_cast<ModCommand::PARAM>((p.fxparam2 << 4) | (p.fxparam1 >> 4));
+			break;
+
+		case 0x03:	// Tone Portamento (on every tick)
+			m.command = CMD_TONEPORTAMENTO;
+			m.param = mpt::saturate_cast<ModCommand::PARAM>((p.fxparam2 << 4) | (p.fxparam1 >> 4));
+			break;
+
+		case 0x04:	// Vibrato
+			m.command = CMD_VIBRATO;
+			m.param = (p.fxparam2 & 0xF0) | (p.fxparam1 >> 4);
+			break;
+
+		case 0x08:	// Panning + Polarity (we can only import panning for now)
+			if(p.fxparam1)
+			{
+				m.command = CMD_PANNING8;
+				m.param = p.fxparam1;
+			} else if(p.fxparam2 == 1 || p.fxparam2 == 2)
+			{
+				// Invert left or right channel
+				m.command = CMD_S3MCMDEX;
+				m.param = 0x91;
+			}
+			break;
+
+		case 0x0C:	// Set volume (0x80 = 100%)
+			m.command = CMD_VOLUME;
+			m.param = p.fxparam2 / 2;
+			break;
+
+		case 0x0F:	// Set tempo, LPB and ticks (we can only import tempo for now)
+			if(p.fxparam2 != 0)
+			{
+				m.command = CMD_TEMPO;
+				m.param = p.fxparam2;
+			} else
+			{
+				m.command = CMD_SPEED;
+				m.param = (p.fxparam1 & 0x0F);
+			}
+			break;
+
+		case 0x10:	// Impulse Tracker effect
+			m.command = p.fxparam2;
+			m.param = p.fxparam1;
+			CSoundFile::S3MConvert(m, true);
+			if(m.command == CMD_TEMPO || m.command == CMD_SPEED)
+				hasLegacyTempo = true;
+			break;
+
+		case 0x1D:	// Gapper (like IT Tremor with old FX, i.e. 1D 00 XY = ontime X + 1 ticks, offtime Y + 1 ticks)
+			m.command = CMD_TREMOR;
+			m.param = p.fxparam1;
+			break;
+
+		case 0x20:	// Cutoff + Resonance (we can only import cutoff for now)
+			m.command = CMD_MIDI;
+			m.param = p.fxparam2 >> 1;
+			break;
+				
+		case 0x22:	// Cutoff + Resonance + Attack + Decay (we can only import cutoff for now)
+			m.command = CMD_MIDI;
+			m.param = (p.fxparam2 & 0xF0) >> 1;
+			break;
+
+		case 0x24:	// Reverse
+			m.command = CMD_S3MCMDEX;
+			m.param = 0x9F;
+			break;
+
+		case 0x80:	// Track volume
+			m.command = CMD_CHANNELVOLUME;
+			m.param = p.fxparam2 / 4u;
+			break;
+
+		case 0x9D:	// Offset + delay
+			m.volcmd = CMD_OFFSET;
+			m.vol = p.fxparam2 >> 3;
+			m.command = CMD_S3MCMDEX;
+			m.param = 0xD0 | std::min(p.fxparam1, uint8(0x0F));
+			break;
+
+		case 0xCC:	// MIDI CC
+			//m.command = CMD_MIDI;
+			break;
+
+			// TODO: More MT2 Effects
 		}
+	}
+
+	if(p.pan)
+	{
+		if(m.command == CMD_NONE)
+		{
+			m.command = CMD_PANNING8;
+			m.param = p.pan;
+		} else if(m.volcmd == VOLCMD_NONE)
+		{
+			m.volcmd = VOLCMD_PANNING;
+			m.vol = p.pan / 4;
+		}
+	}
+
+	return hasLegacyTempo;
+}
+
+
+// This doesn't really do anything but skipping the envelope chunk at the moment.
+static void ReadMT2Automation(uint16 version, FileReader &file)
+//-------------------------------------------------------------
+{
+	uint32 flags;
+	uint32 trkfxid;
+	if(version >= 0x203)
+	{
+		flags = file.ReadUint32LE();
+		trkfxid = file.ReadUint32LE();
+	} else
+	{
+		flags = file.ReadUint16LE();
+		trkfxid = file.ReadUint16LE();
+	}
+	MPT_UNREFERENCED_PARAMETER(trkfxid);
+	while(flags != 0)
+	{
+		if(flags & 1)
+		{
+			file.Skip(4 + sizeof(MT2EnvPoint) * 64);
+		}
+		flags >>= 1;
 	}
 }
 
 
-bool CSoundFile::ReadMT2(const uint8 *lpStream, DWORD dwMemLength, ModLoadingFlags loadFlags)
-//------------------------------------------------------------------------------------------
+bool CSoundFile::ReadMT2(FileReader &file, ModLoadingFlags loadFlags)
+//-------------------------------------------------------------------
 {
-	MT2FILEHEADER *pfh = (MT2FILEHEADER *)lpStream;
-	DWORD dwMemPos, dwDrumDataPos, dwExtraDataPos;
-	UINT nDrumDataLen, nExtraDataLen;
-	MT2DRUMSDATA *pdd;
-	MT2INSTRUMENT *InstrMap[255];
-	MT2SAMPLE *SampleMap[256];
-
-	if ((!lpStream) || (dwMemLength < sizeof(MT2FILEHEADER))
-	 || (pfh->dwMT20 != 0x3032544D)
-	 || (pfh->wVersion < 0x0200) || (pfh->wVersion >= 0x0300)
-	 || (pfh->wChannels < 1) || (pfh->wChannels > MAX_BASECHANNELS))
+	file.Rewind();
+	MT2FileHeader fileHeader;
+	if(!file.ReadConvertEndianness(fileHeader)
+		|| memcmp(fileHeader.signature, "MT20", 4)
+		|| fileHeader.version < 0x200 || fileHeader.version >= 0x300
+		|| fileHeader.numChannels < 1 || fileHeader.numChannels > 64
+		|| fileHeader.numOrders > 256
+		|| fileHeader.numInstruments >= MAX_INSTRUMENTS
+		|| fileHeader.numSamples >= MAX_SAMPLES)
 	{
 		return false;
 	} else if(loadFlags == onlyVerifyHeader)
 	{
 		return true;
 	}
-	pdd = NULL;
 
-	InitializeGlobals();
+	InitializeGlobals(MOD_TYPE_MT2);
 	InitializeChannels();
-	mpt::String::Read<mpt::String::maybeNullTerminated>(madeWithTracker, pfh->szTrackerName);
-	m_nType = MOD_TYPE_MT2;
-	m_nChannels = pfh->wChannels;
-	m_nRestartPos = pfh->wRestart;
-	m_nDefaultSpeed = pfh->bTicksPerLine;
-	m_nDefaultTempo = 125;
-	m_SongFlags = (SONG_LINEARSLIDES | SONG_ITCOMPATGXX | SONG_EXFILTERRANGE);
-	m_nDefaultRowsPerBeat = pfh->bLinesPerBeat;
+	mpt::String::Read<mpt::String::maybeNullTerminated>(m_madeWithTracker, fileHeader.trackerName);
+	mpt::String::Read<mpt::String::maybeNullTerminated>(m_songName, fileHeader.songName);
+	m_nChannels = fileHeader.numChannels;
+	Order.SetRestartPos(fileHeader.restartPos);
+	m_nDefaultSpeed = fileHeader.ticksPerLine;
+	if(!m_nDefaultSpeed) m_nDefaultSpeed = 6;
+	m_nDefaultTempo.Set(125);
+	m_SongFlags = SONG_LINEARSLIDES | SONG_ITCOMPATGXX | SONG_EXFILTERRANGE;
+	m_nInstruments = fileHeader.numInstruments;
+	m_nSamples = fileHeader.numSamples;
+	m_nDefaultRowsPerBeat = fileHeader.linesPerBeat;
+	if(!m_nDefaultRowsPerBeat) m_nDefaultRowsPerBeat = 4;
 	m_nDefaultRowsPerMeasure = m_nDefaultRowsPerBeat * 4;
-	if ((pfh->wSamplesPerTick > 100) && (pfh->wSamplesPerTick < 5000))
+	m_nVSTiVolume = 48;
+	m_nSamplePreAmp = 48 * 2;	// Double pre-amp because we will halve the volume of all non-drum instruments, because the volume of drum samples can exceed that of normal samples
+
+	if(fileHeader.samplesPerTick > 100 && fileHeader.samplesPerTick < 5000)
 	{
-		m_nDefaultTempo = 110250 / pfh->wSamplesPerTick;
+		m_nDefaultTempo.SetRaw(Util::muldivr(110250, TEMPO::fractFact, fileHeader.samplesPerTick));
+		//m_nDefaultTempo = 44100 * 60 / (m_nDefaultSpeed * m_nDefaultRowsPerBeat * fileHeader.samplesPerTick);
 	}
-	Order.resize(pfh->nOrders, Order.GetInvalidPatIndex());
-	for (UINT iOrd=0; iOrd < pfh->nOrders; iOrd++)
+	Order.ReadFromArray(fileHeader.Orders, fileHeader.numOrders);
+
+	FileReader drumData = file.ReadChunk(file.ReadUint16LE());
+	FileReader extraData = file.ReadChunk(file.ReadUint32LE());
+
+	const CHANNELINDEX channelsWithoutDrums = m_nChannels;
+	const bool hasDrumChannels = drumData.CanRead(sizeof(MT2DrumsData));
+	STATIC_ASSERT(MAX_BASECHANNELS >= 64 + 8);
+	if(hasDrumChannels)
 	{
-		Order[iOrd] = (PATTERNINDEX)pfh->Orders[iOrd];
+		m_nChannels += 8;
 	}
 
-	mpt::String::Read<mpt::String::maybeNullTerminated>(songName, pfh->szSongName);
+	bool hasLegacyTempo = false;
 
-	dwMemPos = sizeof(MT2FILEHEADER);
-	nDrumDataLen = *(WORD *)(lpStream + dwMemPos);
-	dwDrumDataPos = dwMemPos + 2;
-	if (nDrumDataLen >= 2) pdd = (MT2DRUMSDATA *)(lpStream+dwDrumDataPos);
-	dwMemPos += 2 + nDrumDataLen;
-#ifdef MT2DEBUG
-	Log("MT2 v%03X: \"%s\" (flags=%04X)\n", pfh->wVersion, songName.c_str(), pfh->fulFlags);
-	Log("%d Channels, %d Patterns, %d Instruments, %d Samples\n", pfh->wChannels, pfh->wPatterns, pfh->wInstruments, pfh->wSamples);
-	Log("Drum Data: %d bytes @%04X\n", nDrumDataLen, dwDrumDataPos);
-#endif
-	if (dwMemPos >= dwMemLength-12) return true;
-	if (!*(DWORD *)(lpStream+dwMemPos)) dwMemPos += 4;
-	if (!*(DWORD *)(lpStream+dwMemPos)) dwMemPos += 4;
-	nExtraDataLen = *(DWORD *)(lpStream+dwMemPos);
-	dwExtraDataPos = dwMemPos + 4;
-	dwMemPos += 4;
-#ifdef MT2DEBUG
-	Log("Extra Data: %d bytes @%04X\n", nExtraDataLen, dwExtraDataPos);
-#endif
-	if (dwMemPos + nExtraDataLen >= dwMemLength) return true;
-	while (dwMemPos+8 < dwExtraDataPos + nExtraDataLen)
+	// Read patterns
+	for(PATTERNINDEX pat = 0; pat < fileHeader.numPatterns; pat++)
 	{
-		DWORD dwId = *(DWORD *)(lpStream+dwMemPos);
-		DWORD dwLen = *(DWORD *)(lpStream+dwMemPos+4);
-		dwMemPos += 8;
-		if (dwMemPos + dwLen > dwMemLength) return true;
-#ifdef MT2DEBUG
-		char s[5];
-		memcpy(s, &dwId, 4);
-		s[4] = 0;
-		Log("pos=0x%04X: %s: %d bytes\n", dwMemPos-8, s, dwLen);
-#endif
-		switch(dwId)
+		ROWINDEX numRows = file.ReadUint16LE();
+		FileReader chunk = file.ReadChunk((file.ReadUint32LE() + 1) & ~1);
+
+		LimitMax(numRows, MAX_PATTERN_ROWS);
+		if(!numRows
+			|| !(loadFlags & loadPatternData)
+			|| !Patterns.Insert(pat, numRows))
 		{
-		// MSG
-		case MAGIC4LE('M','S','G','\0'):
-			if (dwLen > 3)
+			continue;
+		}
+
+		if(fileHeader.flags & MT2FileHeader::packedPatterns)
+		{
+			ROWINDEX row = 0;
+			CHANNELINDEX chn = 0;
+			while(chunk.CanRead(1))
 			{
-				DWORD nTxtLen = dwLen;
-				if (nTxtLen > 32000) nTxtLen = 32000;
-				songMessage.Read(lpStream + dwMemPos + 1, nTxtLen - 1, SongMessage::leCRLF);
-			}
-			break;
-		case MAGIC4LE('T','R','K','S'):
-			if (dwLen >= 2)
-			{
-				m_nSamplePreAmp = LittleEndianW(*(uint16 *)(lpStream+dwMemPos)) >> 9;
-				dwMemPos += 2;
-			}
-			for(CHANNELINDEX c = 0; c < GetNumChannels(); c++)
-			{
-				ChnSettings[c].Reset();
-				if(dwMemPos + 1030 < dwMemLength)
+				MT2Command cmd;
+
+				uint8 infobyte = chunk.ReadUint8();
+				uint8 repeatCount = 0;
+				if(infobyte == 0xFF)
 				{
-					ChnSettings[c].nVolume = LittleEndianW(*(uint16 *)(lpStream+dwMemPos)) >> 9;
-					LimitMax(ChnSettings[c].nVolume, uint16(64));
-					dwMemPos += 1030;
+					repeatCount = chunk.ReadUint8();
+					infobyte = chunk.ReadUint8();
+				}
+				if(infobyte & 0x7F)
+				{
+					ModCommand *m = Patterns[pat].GetpModCommand(row, chn);
+					MemsetZero(cmd);
+					if(infobyte & 0x01) cmd.note = chunk.ReadUint8();
+					if(infobyte & 0x02) cmd.instr = chunk.ReadUint8();
+					if(infobyte & 0x04) cmd.vol = chunk.ReadUint8();
+					if(infobyte & 0x08) cmd.pan = chunk.ReadUint8();
+					if(infobyte & 0x10) cmd.fxcmd = chunk.ReadUint8();
+					if(infobyte & 0x20) cmd.fxparam1 = chunk.ReadUint8();
+					if(infobyte & 0x40) cmd.fxparam2 = chunk.ReadUint8();
+					hasLegacyTempo |= ConvertMT2Command(this, *m, cmd);
+					const ModCommand &orig = *m;
+					const ROWINDEX fillRows = std::min((uint32)repeatCount, (uint32)numRows - (row + 1));
+					for(ROWINDEX r = 0; r < fillRows; r++)
+					{
+						m += GetNumChannels();
+						*m = orig;
+					}
+				}
+				row += repeatCount + 1;
+				while(row >= numRows) { row -= numRows; chn++; }
+				if(chn >= channelsWithoutDrums) break;
+			}
+		} else
+		{
+			for(ROWINDEX row = 0; row < numRows; row++)
+			{
+				ModCommand *m = Patterns[pat].GetRow(row);
+				for(CHANNELINDEX chn = 0; chn < channelsWithoutDrums; chn++, m++)
+				{
+					MT2Command cmd;
+					chunk.ReadStruct(cmd);
+					hasLegacyTempo |= ConvertMT2Command(this, *m, cmd);
+				}
+			}
+		}
+	}
+
+	// Read extra data
+	uint32 numVST = 0;
+	std::vector<int8> trackRouting(GetNumChannels(), 0);
+	while(extraData.CanRead(8))
+	{
+		uint32 id = extraData.ReadUint32LE();
+		FileReader chunk = extraData.ReadChunk(extraData.ReadUint32LE());
+
+		switch(id)
+		{
+		case MAGIC4LE('B','P','M','+'):
+			if(!hasLegacyTempo)
+			{
+				m_nTempoMode = tempoModeModern;
+				double d = chunk.ReadDoubleLE();
+				if(d != 0.0)
+				{
+					m_nDefaultTempo = TEMPO(44100.0 * 60.0 / (m_nDefaultSpeed * m_nDefaultRowsPerBeat * d));
 				}
 			}
 			break;
-		// SUM -> author name (or "Unregistered")
-		// TMAP
-		}
-		dwMemPos += dwLen;
-	}
-	// Load Patterns
-	dwMemPos = dwExtraDataPos + nExtraDataLen;
-	for (PATTERNINDEX iPat=0; iPat < pfh->wPatterns; iPat++) if (dwMemPos < dwMemLength - 6)
-	{
-		MT2PATTERN *pmp = (MT2PATTERN *)(lpStream+dwMemPos);
-		UINT wDataLen = (pmp->wDataLen + 1) & ~1;
-		dwMemPos += 6;
-		if (dwMemPos + wDataLen > dwMemLength) break;
-		UINT nLines = pmp->wLines;
-		if ((iPat < MAX_PATTERNS) && (nLines > 0) && (nLines <= MAX_PATTERN_ROWS) && (loadFlags & loadPatternData))
-		{
-	#ifdef MT2DEBUG
-			Log("Pattern #%d @%04X: %d lines, %d bytes\n", iPat, dwMemPos-6, nLines, pmp->wDataLen);
-	#endif
-			Patterns.Insert(iPat, nLines);
-			if (!Patterns[iPat]) return true;
-			ModCommand *m = Patterns[iPat];
-			UINT len = wDataLen;
-			if (pfh->fulFlags & 1) // Packed Patterns
+
+		case MAGIC4LE('T','F','X','M'):
+			break;
+
+		case MAGIC4LE('T','R','K','O'):
+			break;
+
+		case MAGIC4LE('T','R','K','S'):
+			m_nSamplePreAmp = chunk.ReadUint16LE() / 256u;	// 131072 is 0dB... I think (that's how MTIOModule_MT2.cpp reads)
+			m_nVSTiVolume = m_nSamplePreAmp / 2u;
+			for(CHANNELINDEX c = 0; c < GetNumChannels(); c++)
 			{
-				BYTE *p = (BYTE *)(lpStream+dwMemPos);
-				UINT pos = 0, row=0, ch=0;
-				while (pos < len)
+				MT2TrackSettings trackSettings;
+				if(chunk.ReadConvertEndianness(trackSettings))
 				{
-					MT2COMMAND cmd;
-					UINT infobyte = p[pos++];
-					UINT rptcount = 0;
-					if (infobyte == 0xff)
+					ChnSettings[c].nVolume = trackSettings.volume >> 10;	// 32768 is 0dB
+					trackRouting[c] = trackSettings.output;
+					LimitMax(ChnSettings[c].nVolume, uint16(64));
+				}
+			}
+			break;
+
+		case MAGIC4LE('T','R','K','L'):
+			for(CHANNELINDEX i = 0; i < m_nChannels && chunk.CanRead(1); i++)
+			{
+				std::string name;
+				chunk.ReadNullString(name);
+				mpt::String::Read<mpt::String::spacePadded>(ChnSettings[i].szName, name.c_str(), name.length());
+			}
+			break;
+
+		case MAGIC4LE('P','A','T','N'):
+			for(PATTERNINDEX i = 0; i < fileHeader.numPatterns && chunk.CanRead(1) && Patterns.IsValidIndex(i); i++)
+			{
+				std::string name;
+				chunk.ReadNullString(name);
+				Patterns[i].SetName(name);
+			}
+			break;
+
+		case MAGIC4LE('M','S','G','\0'):
+			chunk.Skip(1);	// Show message on startup
+			m_songMessage.Read(chunk, chunk.BytesLeft(), SongMessage::leCRLF);
+			break;
+
+		case MAGIC4LE('P','I','C','T'):
+			break;
+
+		case MAGIC4LE('S','U','M','\0'):
+			{
+				uint8 summaryMask[6];
+				chunk.ReadArray(summaryMask);
+				std::string artist;
+				chunk.ReadNullString(artist);
+				if(artist != "Unregistered")
+				{
+					m_songArtist = mpt::ToUnicode(mpt::CharsetWindows1252, artist);
+				}
+			}
+			break;
+
+		case MAGIC4LE('T','M','A','P'):
+			break;
+		case MAGIC4LE('M','I','D','I'):
+			break;
+		case MAGIC4LE('T','R','E','Q'):
+			break;
+
+		case MAGIC4LE('V','S','T','2'):
+			numVST = chunk.ReadUint32LE();
+#ifndef NO_VST
+			if(!(loadFlags & loadPluginData))
+			{
+				break;
+			}
+			for(uint32 i = 0; i < std::min(numVST, uint32(MAX_MIXPLUGINS)); i++)
+			{
+				MT2VST vstHeader;
+				if(chunk.ReadConvertEndianness(vstHeader))
+				{
+					chunk.Skip(64);	// Seems to always contain values 0-15 as uint32? Maybe some MIDI routing info?
+
+					SNDMIXPLUGIN &mixPlug = m_MixPlugins[i];
+					mixPlug.Destroy();
+					mpt::String::Read<mpt::String::maybeNullTerminated>(mixPlug.Info.szLibraryName, vstHeader.dll);
+					mpt::String::Read<mpt::String::maybeNullTerminated>(mixPlug.Info.szName, vstHeader.programName);
+					const size_t len = strlen(mixPlug.Info.szLibraryName);
+					if(len > 4 && mixPlug.Info.szLibraryName[len - 4] == '.')
 					{
-						rptcount = p[pos++];
-						infobyte = p[pos++];
-				#if 0
-						Log("(%d.%d) FF(%02X).%02X\n", row, ch, rptcount, infobyte);
+						// Remove ".dll" from library name
+						mixPlug.Info.szLibraryName[len - 4] = '\0';
+					}
+					mixPlug.Info.dwPluginId1 = kEffectMagic;
+					mixPlug.Info.dwPluginId2 = vstHeader.fxID;
+					if(vstHeader.track >= m_nChannels)
+					{
+						mixPlug.SetMasterEffect(true);
 					} else
 					{
-						Log("(%d.%d) %02X\n", row, ch, infobyte);
-				#endif
+						if(!ChnSettings[vstHeader.track].nMixPlugin)
+						{
+							ChnSettings[vstHeader.track].nMixPlugin = static_cast<PLUGINDEX>(i + 1);
+						} else
+						{
+							// Channel already has plugin assignment - chain the plugins
+							PLUGINDEX outPlug = ChnSettings[vstHeader.track].nMixPlugin - 1;
+							while(true)
+							{
+								if(m_MixPlugins[outPlug].GetOutputPlugin() == PLUGINDEX_INVALID)
+								{
+									m_MixPlugins[outPlug].SetOutputPlugin(static_cast<PLUGINDEX>(i));
+									break;
+								}
+								outPlug = m_MixPlugins[outPlug].GetOutputPlugin();
+							}
+						}
 					}
-					if (infobyte & 0x7f)
+
+					// Read plugin settings
+					if(vstHeader.useChunks)
 					{
-						UINT patpos = row*m_nChannels+ch;
-						cmd.note = cmd.instr = cmd.vol = cmd.pan = cmd.fxcmd = cmd.fxparam1 = cmd.fxparam2 = 0;
-						if (infobyte & 1) cmd.note = p[pos++];
-						if (infobyte & 2) cmd.instr = p[pos++];
-						if (infobyte & 4) cmd.vol = p[pos++];
-						if (infobyte & 8) cmd.pan = p[pos++];
-						if (infobyte & 16) cmd.fxcmd = p[pos++];
-						if (infobyte & 32) cmd.fxparam1 = p[pos++];
-						if (infobyte & 64) cmd.fxparam2 = p[pos++];
-					#ifdef MT2DEBUG
-						if (cmd.fxcmd)
+						// MT2 only ever calls effGetChunk for programs, and OpenMPT uses the defaultProgram value to determine
+						// whether it should use effSetChunk for programs or banks...
+						mixPlug.defaultProgram = -1;
+						LimitMax(vstHeader.n, Util::MaxValueOfType(mixPlug.nPluginDataSize) - 4);
+						mixPlug.nPluginDataSize = vstHeader.n + 4;
+					} else
+					{
+						mixPlug.defaultProgram = vstHeader.programNr;
+						LimitMax(vstHeader.n, (Util::MaxValueOfType(mixPlug.nPluginDataSize) / 4u) - 1);
+						mixPlug.nPluginDataSize = vstHeader.n * 4 + 4;
+					}
+					mixPlug.pPluginData = new (std::nothrow) char[mixPlug.nPluginDataSize];
+					if(mixPlug.pPluginData != nullptr)
+					{
+						if(vstHeader.useChunks)
 						{
-							Log("(%d.%d) MT2 FX=%02X.%02X.%02X\n", row, ch, cmd.fxcmd, cmd.fxparam1, cmd.fxparam2);
-						}
-					#endif
-						ConvertMT2Command(this, &m[patpos], &cmd);
-						const ModCommand &orig = m[patpos];
-						const ROWINDEX fillRows = std::min(rptcount, nLines - (row + 1));
-						for(ROWINDEX r = 0; r < fillRows; r++)
+							memcpy(mixPlug.pPluginData, "fEvN", 4);	// 'NvEf' plugin data type
+							chunk.ReadRaw(mixPlug.pPluginData + 4, vstHeader.n);
+						} else
 						{
-							patpos += GetNumChannels();
-							m[patpos] = orig;
+							float32 *f = reinterpret_cast<float32 *>(mixPlug.pPluginData);
+							*(f++) = 0;	// Plugin data type
+							for(uint32 param = 0; param < vstHeader.n; param++, f++)
+							{
+								*f = chunk.ReadFloatLE();
+							}
 						}
 					}
-					row += rptcount+1;
-					while (row >= nLines) { row-=nLines; ch++; }
-					if (ch >= m_nChannels) break;
+				} else
+				{
+					break;
+				}
+			}
+#endif // NO_VST
+			break;
+		}
+	}
+
+#ifndef NO_PLUGINS
+	// Now that we have both the track settings and plugins, establish the track routing by applying the same plugins to the source track as to the target track:
+	for(CHANNELINDEX c = 0; c < GetNumChannels(); c++)
+	{
+		int8 outTrack = trackRouting[c];
+		if(outTrack > c && outTrack < GetNumChannels() && ChnSettings[outTrack].nMixPlugin != 0)
+		{
+			if(ChnSettings[c].nMixPlugin == 0)
+			{
+				ChnSettings[c].nMixPlugin = ChnSettings[outTrack].nMixPlugin;
+			} else
+			{
+				PLUGINDEX outPlug = ChnSettings[c].nMixPlugin - 1;
+				while(true)
+				{
+					if(m_MixPlugins[outPlug].GetOutputPlugin() == PLUGINDEX_INVALID)
+					{
+						m_MixPlugins[outPlug].SetOutputPlugin(ChnSettings[outTrack].nMixPlugin - 1);
+						break;
+					}
+					outPlug = m_MixPlugins[outPlug].GetOutputPlugin();
+				}
+			}
+		}
+	}
+#endif // NO_PLUGINS
+
+	// Read drum channels
+	INSTRUMENTINDEX drumMap[8] = { 0 };
+	uint16 drumSample[8] = { 0 };
+	if(hasDrumChannels)
+	{
+		MT2DrumsData drumHeader;
+		drumData.ReadConvertEndianness(drumHeader);
+
+		// Allocate some instruments to handle the drum samples
+		for(INSTRUMENTINDEX i = 0; i < 8; i++)
+		{
+			drumMap[i] = GetNextFreeInstrument(m_nInstruments + 1);
+			drumSample[i] = drumHeader.DrumSamples[i];
+			if(drumMap[i] != INSTRUMENTINDEX_INVALID)
+			{
+				m_nInstruments = drumMap[i];
+				ModInstrument *mptIns = AllocateInstrument(drumMap[i], drumHeader.DrumSamples[i] + 1);
+				if(mptIns != nullptr)
+				{
+					strcpy(mptIns->name, "Drum #x");
+					mptIns->name[6] = '1' + char(i);
 				}
 			} else
 			{
-				MT2COMMAND *p = (MT2COMMAND *)(lpStream+dwMemPos);
-				UINT n = 0;
-				while ((len > sizeof(MT2COMMAND)) && (n < m_nChannels*nLines))
-				{
-					ConvertMT2Command(this, m, p);
-					len -= sizeof(MT2COMMAND);
-					n++;
-					p++;
-					m++;
-				}
+				drumMap[i] = 0;
 			}
 		}
-		dwMemPos += wDataLen;
-	}
-	// Skip Drum Patterns
-	if (pdd)
-	{
-	#ifdef MT2DEBUG
-		Log("%d Drum Patterns at offset 0x%08X\n", pdd->wDrumPatterns, dwMemPos);
-	#endif
-		for (UINT iDrm=0; iDrm<pdd->wDrumPatterns; iDrm++)
-		{
-			if (dwMemPos > dwMemLength-2) return true;
-			UINT nLines = *(WORD *)(lpStream+dwMemPos);
-		#ifdef MT2DEBUG
-			if (nLines != 64) Log("Drum Pattern %d: %d Lines @%04X\n", iDrm, nLines, dwMemPos);
-		#endif
-			dwMemPos += 2 + nLines * 32;
-		}
-	}
-	// Automation
-	if (pfh->fulFlags & 2)
-	{
-	#ifdef MT2DEBUG
-		Log("Automation at offset 0x%08X\n", dwMemPos);
-	#endif
-		UINT nAutoCount = m_nChannels;
-		if (pfh->fulFlags & 0x10) nAutoCount++; // Master Automation
-		if ((pfh->fulFlags & 0x08) && (pdd)) nAutoCount += 8; // Drums Automation
-		nAutoCount *= pfh->wPatterns;
-		for (UINT iAuto=0; iAuto<nAutoCount; iAuto++)
-		{
-			if (dwMemPos+12 >= dwMemLength) return true;
-			MT2AUTOMATION *pma = (MT2AUTOMATION *)(lpStream+dwMemPos);
-			dwMemPos += (pfh->wVersion <= 0x201) ? 4 : 8;
-			for (UINT iEnv=0; iEnv<14; iEnv++)
-			{
-				if (pma->dwFlags & (1 << iEnv))
-				{
-				#ifdef MT2DEBUG
-					UINT nPoints = *(DWORD *)(lpStream+dwMemPos);
-					Log("  Env[%d/%d] %04X @%04X: %d points\n", iAuto, nAutoCount, 1 << iEnv, dwMemPos-8, nPoints);
-				#endif
-					dwMemPos += 260;
-				}
-			}
-		}
-	}
-	// Load Instruments
-#ifdef MT2DEBUG
-	Log("Loading instruments at offset 0x%08X\n", dwMemPos);
-#endif
-	MemsetZero(InstrMap);
-	m_nInstruments = (pfh->wInstruments < MAX_INSTRUMENTS) ? pfh->wInstruments : MAX_INSTRUMENTS-1;
-	for(INSTRUMENTINDEX iIns = 1; iIns <= 255; iIns++)
-	{
-		if (dwMemPos+36 > dwMemLength) return true;
-		MT2INSTRUMENT *pmi = (MT2INSTRUMENT *)(lpStream+dwMemPos);
-		ModInstrument *pIns = NULL;
-		if (iIns <= m_nInstruments)
-		{
-			pIns = AllocateInstrument(iIns);
-			if(pIns != nullptr)
-			{
-				mpt::String::Read<mpt::String::maybeNullTerminated>(pIns->name, pmi->szName);
-			}
-		}
-	#ifdef MT2DEBUG
-		if (iIns <= pfh->wInstruments) Log("  Instrument #%d at offset %04X: %d bytes\n", iIns, dwMemPos, pmi->dwDataLen);
-	#endif
-		if (((int)pmi->dwDataLen > 0) && (dwMemPos <= dwMemLength - 40) && (pmi->dwDataLen <= dwMemLength - (dwMemPos + 40)))
-		{
-			InstrMap[iIns-1] = pmi;
-			if (pIns)
-			{
-				pIns->nFadeOut = pmi->wFadeOut;
-				pIns->nNNA = pmi->wNNA & 3;
-				pIns->nDCT = (pmi->wNNA>>8) & 3;
-				pIns->nDNA = (pmi->wNNA>>12) & 3;
-				MT2ENVELOPE *pehdr[4];
-				WORD *pedata[4];
 
-				if (pfh->wVersion <= 0x201)
+		// Get all the drum pattern chunks
+		std::vector<FileReader> patternChunks(drumHeader.numDrumPatterns);
+		for(uint32 pat = 0; pat < drumHeader.numDrumPatterns; pat++)
+		{
+			uint16 numRows = file.ReadUint16LE();
+			patternChunks[pat] = file.ReadChunk(numRows * 32);
+		}
+
+		std::vector<PATTERNINDEX> patMapping(fileHeader.numPatterns, PATTERNINDEX_INVALID);
+		for(uint32 ord = 0; ord < fileHeader.numOrders; ord++)
+		{
+			if(drumHeader.DrumPatternOrder[ord] >= drumHeader.numDrumPatterns || Order[ord] >= fileHeader.numPatterns)
+				continue;
+
+			// Figure out where to write this drum pattern
+			PATTERNINDEX writePat = Order[ord];
+			if(patMapping[writePat] == PATTERNINDEX_INVALID)
+			{
+				patMapping[writePat] = drumHeader.DrumPatternOrder[ord];
+			} else if(patMapping[writePat] != drumHeader.DrumPatternOrder[ord])
+			{
+				// Damn, this pattern has previously used a different drum pattern. Duplicate it...
+				PATTERNINDEX newPat = Patterns.Duplicate(writePat);
+				if(newPat != PATTERNINDEX_INVALID)
 				{
-					DWORD dwEnvPos = dwMemPos + sizeof(MT2INSTRUMENT) - 4;
-					pehdr[0] = (MT2ENVELOPE *)(lpStream+dwEnvPos);
-					pehdr[1] = (MT2ENVELOPE *)(lpStream+dwEnvPos+8);
-					pehdr[2] = pehdr[3] = NULL;
-					pedata[0] = (WORD *)(lpStream+dwEnvPos+16);
-					pedata[1] = (WORD *)(lpStream+dwEnvPos+16+64);
-					pedata[2] = pedata[3] = NULL;
-				} else
+					writePat = newPat;
+					Order[ord] = writePat;
+				}
+			}
+			if(!Patterns.IsValidPat(writePat))
+				continue;
+
+			FileReader &chunk = patternChunks[drumHeader.DrumPatternOrder[ord]];
+			chunk.Rewind();
+			const ROWINDEX numRows = static_cast<ROWINDEX>(chunk.GetLength() / 32u);
+			for(ROWINDEX row = 0; row < Patterns[writePat].GetNumRows(); row++)
+			{
+				ModCommand *m = Patterns[writePat].GetpModCommand(row, m_nChannels - 8);
+				for(CHANNELINDEX chn = 0; chn < 8; chn++, m++)
 				{
-					DWORD dwEnvPos = dwMemPos + sizeof(MT2INSTRUMENT);
-					for (UINT i=0; i<4; i++)
+					*m = ModCommand::Empty();
+					if(row >= numRows)
+						continue;
+
+					uint8 drums[4];
+					chunk.ReadArray(drums);
+					if(drums[0] & 0x80)
 					{
-						if (pmi->wEnvFlags1 & (1<<i))
+						m->note = NOTE_MIDDLEC;
+						m->instr = static_cast<ModCommand::INSTR>(drumMap[chn]);
+						uint8 delay = drums[0] & 0x1F;
+						if(delay)
 						{
-							pehdr[i] = (MT2ENVELOPE *)(lpStream+dwEnvPos);
-							pedata[i] = (WORD *)pehdr[i]->EnvData;
-							dwEnvPos += sizeof(MT2ENVELOPE);
-						} else
+							LimitMax(delay, uint8(0x0F));
+							m->command = CMD_S3MCMDEX;
+							m->param = 0xD0 | delay;
+						}
+						m->volcmd = VOLCMD_VOLUME;
+						// Volume is 0...255, but 128 is equivalent to v64 - we compensate this by halving the global volume of all non-drum instruments
+						m->vol = static_cast<ModCommand::VOL>((static_cast<uint16>(drums[1]) + 3) / 4u);
+					}
+				}
+			}
+		}
+	}
+
+	// Read automation envelopes
+	if(fileHeader.flags & MT2FileHeader::automation)
+	{
+		for(uint32 pat = 0; pat < fileHeader.numPatterns; pat++)
+		{
+			const uint32 numEnvelopes = ((fileHeader.flags & MT2FileHeader::drumsAutomation) ? m_nChannels : channelsWithoutDrums)
+				+ numVST
+				+ ((fileHeader.flags & MT2FileHeader::masterAutomation) ? 1 : 0);
+			for(uint32 env = 0; env < numEnvelopes && file.CanRead(4); env++)
+			{
+				// TODO
+				ReadMT2Automation(fileHeader.version, file);
+			}
+		}
+	}
+
+	// Read instruments
+	std::vector<FileReader> instrChunks(255);
+	for(INSTRUMENTINDEX i = 0; i < 255; i++)
+	{
+		char instrName[32];
+		file.ReadArray(instrName);
+		uint32 dataLength = file.ReadUint32LE();
+		if(dataLength == 32) dataLength += 108 + sizeof(MT2IEnvelope) * 4;
+		if(fileHeader.version > 0x0201 && dataLength) dataLength += 4;
+
+		FileReader instrChunk = instrChunks[i] = file.ReadChunk(dataLength);
+
+		ModInstrument *mptIns = nullptr;
+		if(i < fileHeader.numInstruments)
+		{
+			// Default sample assignment if there is no data chunk? Fixes e.g. instrument 33 in Destiny - Dream Alone.mt2
+			mptIns = AllocateInstrument(i + 1, i + 1);
+		}
+		if(mptIns == nullptr)
+			continue;
+
+		mpt::String::Read<mpt::String::maybeNullTerminated>(mptIns->name, instrName);
+
+		if(!dataLength)
+			continue;
+
+		MT2Instrument insHeader;
+		instrChunk.ReadConvertEndianness(insHeader);
+		uint16 flags = 0;
+		if(fileHeader.version >= 0x0201) flags = instrChunk.ReadUint16LE();
+		uint32 envMask = MT2Instrument::VolumeEnv | MT2Instrument::PanningEnv;
+		if(fileHeader.version >= 0x0202) envMask = instrChunk.ReadUint32LE();
+
+		mptIns->nFadeOut = insHeader.fadeout;
+		const uint8 NNA[4] = { NNA_NOTECUT, NNA_CONTINUE, NNA_NOTEOFF, NNA_NOTEFADE };
+		const uint8 DCT[4] = { DCT_NONE, DCT_NOTE, DCT_SAMPLE, DCT_INSTRUMENT };
+		const uint8 DNA[4] = { DNA_NOTECUT, DNA_NOTEFADE /* actually continue, but IT doesn't have that */, DNA_NOTEOFF, DNA_NOTEFADE };
+		mptIns->nNNA = NNA[insHeader.nna & 3];
+		mptIns->nDCT = DCT[(insHeader.nna >> 8) & 3];
+		mptIns->nDNA = DNA[(insHeader.nna >> 12) & 3];
+
+		// Load envelopes
+		for(uint32 env = 0; env < 4; env++)
+		{
+			if(envMask & 1)
+			{
+				MT2IEnvelope mt2Env;
+				instrChunk.ReadConvertEndianness(mt2Env);
+
+				const EnvelopeType envType[4] = { ENV_VOLUME, ENV_PANNING, ENV_PITCH, ENV_PITCH };
+				InstrumentEnvelope &mptEnv = mptIns->GetEnvelope(envType[env]);
+
+				mptEnv.dwFlags.set(ENV_FILTER, (env == 3) && (mt2Env.flags & 1) != 0);
+				mptEnv.dwFlags.set(ENV_ENABLED, (mt2Env.flags & 1) != 0);
+				mptEnv.dwFlags.set(ENV_SUSTAIN, (mt2Env.flags & 2) != 0);
+				mptEnv.dwFlags.set(ENV_LOOP, (mt2Env.flags & 4) != 0);
+				mptEnv.nNodes = mt2Env.numPoints;
+				LimitMax(mptEnv.nNodes, 16u);
+				mptEnv.nSustainStart = mptEnv.nSustainEnd = mt2Env.sustainPos;
+				mptEnv.nLoopStart = mt2Env.loopStart;
+				mptEnv.nLoopEnd = mt2Env.loopEnd;
+
+				for(uint32 i = 0; i < mptEnv.nNodes; i++)
+				{
+					mptEnv.Ticks[i] = mt2Env.points[i].x;
+					mptEnv.Values[i] = static_cast<uint8>(Clamp(mt2Env.points[i].y, uint16(0), uint16(64)));
+				}
+			}
+			envMask >>= 1;
+		}
+		if(!mptIns->VolEnv.dwFlags[ENV_ENABLED] && mptIns->nNNA != NNA_NOTEFADE)
+		{
+			mptIns->nFadeOut = int16_max;
+		}
+
+		mptIns->SetCutoff(0x7F, true);
+		mptIns->SetResonance(0, true);
+
+		if(flags)
+		{
+			MT2InstrSynth synthData;
+			instrChunk.ReadConvertEndianness(synthData);
+
+			// Translate frequency back to extended IT cutoff factor
+			float cutoff = 28.8539f * std::log(0.00764451f * synthData.cutoff);
+			Limit(cutoff, 0.0f, 127.0f);
+			if(flags & 2)
+			{
+				mptIns->SetCutoff(Util::Round<uint8>(cutoff), true);
+				mptIns->SetResonance(synthData.resonance, true);
+			}
+			mptIns->nFilterMode = synthData.effectID == 1 ? FLTMODE_HIGHPASS : FLTMODE_LOWPASS;
+			if(flags & 4)
+			{
+				// VSTi / MIDI synth enabled
+				mptIns->nMidiChannel = synthData.midiChannel + 1;
+				mptIns->nMixPlug = static_cast<PLUGINDEX>(synthData.device + 1);
+				if(synthData.device < 0)
+				{
+					// TODO: This is a MIDI device - maybe use MIDI I/O plugin to emulate those?
+					mptIns->nMidiProgram = synthData.midiProgram + 1;	// MT2 only seems to use this for MIDI devices, not VSTis!
+				}
+				if(synthData.transpose)
+				{
+					for(uint32 i = 0; i < CountOf(mptIns->NoteMap); i++)
+					{
+						int note = NOTE_MIN + i + synthData.transpose;
+						Limit(note, NOTE_MIN, NOTE_MAX);
+						mptIns->NoteMap[i] = static_cast<uint8>(note);
+					}
+				}
+				// Instruments with plugin assignments never play samples at the same time!
+				mptIns->AssignSample(0);
+			}
+		}
+	}
+
+	// Read sample headers
+	std::bitset<256> sampleNoInterpolation;
+	std::bitset<256> sampleSynchronized;
+	for(SAMPLEINDEX i = 0; i < 256; i++)
+	{
+		char sampleName[32];
+		file.ReadArray(sampleName);
+		uint32 dataLength = file.ReadUint32LE();
+
+		FileReader sampleChunk = file.ReadChunk(dataLength);
+
+		if(i < fileHeader.numSamples)
+		{
+			mpt::String::Read<mpt::String::maybeNullTerminated>(m_szNames[i + 1], sampleName);
+		}
+
+		if(dataLength && i < fileHeader.numSamples)
+		{
+			ModSample &mptSmp = Samples[i + 1];
+			mptSmp.Initialize(MOD_TYPE_IT);
+			MT2Sample sampleHeader;
+			sampleChunk.ReadConvertEndianness(sampleHeader);
+
+			mptSmp.nLength = sampleHeader.length;
+			mptSmp.nC5Speed = sampleHeader.frequency;
+			if(sampleHeader.depth > 1) { mptSmp.uFlags.set(CHN_16BIT); mptSmp.nLength /= 2u; }
+			if(sampleHeader.channels > 1) { mptSmp.uFlags.set(CHN_STEREO); mptSmp.nLength /= 2u; }
+			if(sampleHeader.loopType == 1) mptSmp.uFlags.set(CHN_LOOP);
+			else if(sampleHeader.loopType == 2) mptSmp.uFlags.set(CHN_LOOP | CHN_PINGPONGLOOP);
+			mptSmp.nLoopStart = sampleHeader.loopStart;
+			mptSmp.nLoopEnd = sampleHeader.loopEnd;
+			mptSmp.nVolume = sampleHeader.volume >> 7;
+			if(sampleHeader.panning == -128)
+				mptSmp.uFlags.set(CHN_SURROUND);
+			else
+				mptSmp.nPan = sampleHeader.panning + 128;
+			mptSmp.uFlags.set(CHN_PANNING);
+			mptSmp.RelativeTone = sampleHeader.note;
+
+			if(sampleHeader.flags & 2)
+			{
+				// Sample is synchronized to beat
+				// The synchronization part is not supported in OpenMPT, but synchronized samples also always play at the same pitch as C-5, which we CAN do!
+				sampleSynchronized[i] = true;
+				//mptSmp.nC5Speed = Util::muldiv(mptSmp.nC5Speed, sampleHeader.spb, 22050);
+			}
+			if(sampleHeader.flags & 5)
+			{
+				// External sample
+				mptSmp.uFlags.set(SMP_KEEPONDISK);
+			}
+			if(sampleHeader.flags & 8)
+			{
+				sampleNoInterpolation[i] = true;
+				for(INSTRUMENTINDEX drum = 0; drum < 8; drum++)
+				{
+					if(drumSample[drum] == i && Instruments[drumMap[drum]] != nullptr)
+					{
+						Instruments[drumMap[drum]]->nResampling = SRCMODE_NEAREST;
+					}
+				}
+			}
+		}
+	}
+
+	// Read sample groups
+	for(INSTRUMENTINDEX ins = 0; ins < 255; ins++)
+	{
+		ModInstrument *mptIns = Instruments[ins + 1];
+
+		// Instruments with plugin assignments never play samples at the same time!
+		if(mptIns == nullptr || mptIns->nMixPlug != 0)
+			continue;
+
+		if(instrChunks[ins].GetLength())
+		{
+			FileReader &chunk = instrChunks[ins];
+			MT2Instrument insHeader;
+			chunk.Rewind();
+			chunk.ReadConvertEndianness(insHeader);
+
+			std::vector<MT2Group> groups(insHeader.numSamples);
+			for(uint32 grp = 0; grp < insHeader.numSamples; grp++)
+			{
+				file.ReadConvertEndianness(groups[grp]);
+			}
+
+			mptIns->nGlobalVol = 32;	// Compensate for extended dynamic range of drum instruments
+			for(uint32 note = 0; note < 96; note++)
+			{
+				if(insHeader.groupMap[note] < insHeader.numSamples)
+				{
+					const MT2Group &group = groups[insHeader.groupMap[note]];
+					SAMPLEINDEX sample = group.sample + 1;
+					mptIns->Keyboard[note + 11 + NOTE_MIN] = sample;
+					if(sample > 0 && sample <= m_nSamples)
+					{
+						ModSample &mptSmp = Samples[sample];
+						mptSmp.nVibType = insHeader.vibtype;
+						mptSmp.nVibSweep = insHeader.vibsweep;
+						mptSmp.nVibDepth = insHeader.vibdepth;
+						mptSmp.nVibRate = insHeader.vibrate;
+						mptSmp.nGlobalVol = uint16(group.vol) * 2;
+						mptSmp.nFineTune = group.pitch;
+						if(sampleNoInterpolation[sample - 1])
 						{
-							pehdr[i] = NULL;
-							pedata[i] = NULL;
+							mptIns->nResampling = SRCMODE_NEAREST;
+						}
+						if(sampleSynchronized[sample - 1])
+						{
+							mptIns->NoteMap[note + 11 + NOTE_MIN] = NOTE_MIDDLEC;
 						}
 					}
-				}
-				// Load envelopes
-				for (UINT iEnv=0; iEnv<4; iEnv++) if (pehdr[iEnv])
-				{
-					MT2ENVELOPE *pme = pehdr[iEnv];
-					InstrumentEnvelope *pEnv;
-				#ifdef MT2DEBUG
-					Log("  Env %d.%d @%04X: %d points\n", iIns, iEnv, (UINT)(((BYTE *)pme)-lpStream), pme->nPoints);
-				#endif
-
-					switch(iEnv)
-					{
-					case 0: // Volume Envelope
-						pEnv = &pIns->VolEnv;
-						break;
-					case 1: // Panning Envelope
-						pEnv = &pIns->PanEnv;
-						break;
-					default: // Pitch/Filter envelope
-						pEnv = &pIns->PitchEnv;
-						pIns->PitchEnv.dwFlags.set(ENV_FILTER, (pme->nFlags & 1) && iEnv == 3);
-					}
-
-					pEnv->dwFlags.set(ENV_ENABLED, (pme->nFlags & 1) != 0);
-					pEnv->dwFlags.set(ENV_SUSTAIN, (pme->nFlags & 2) != 0);
-					pEnv->dwFlags.set(ENV_LOOP, (pme->nFlags & 4) != 0);
-					pEnv->nNodes = (pme->nPoints > 16) ? 16 : pme->nPoints;
-					pEnv->nSustainStart = pEnv->nSustainEnd = pme->nSustainPos;
-					pEnv->nLoopStart = pme->nLoopStart;
-					pEnv->nLoopEnd = pme->nLoopEnd;
-
-					// Envelope data
-					if (pedata[iEnv])
-					{
-						WORD *psrc = pedata[iEnv];
-						for (UINT i=0; i<16; i++)
-						{
-							pEnv->Ticks[i] = psrc[i*2];
-							pEnv->Values[i] = (BYTE)psrc[i*2+1];
-						}
-					}
+					// TODO: volume, finetune for duplicated samples
 				}
 			}
-			dwMemPos += pmi->dwDataLen + 36;
-			if (pfh->wVersion > 0x201) dwMemPos += 4; // ?
-		} else
-		{
-			dwMemPos += 36;
 		}
 	}
-#ifdef MT2DEBUG
-	Log("Loading samples at offset 0x%08X\n", dwMemPos);
-#endif
-	memset(SampleMap, 0, sizeof(SampleMap));
-	m_nSamples = (pfh->wSamples < MAX_SAMPLES) ? pfh->wSamples : MAX_SAMPLES-1;
-	for (UINT iSmp=1; iSmp<=256; iSmp++)
-	{
-		if (dwMemPos+36 > dwMemLength) return true;
-		MT2SAMPLE *pms = (MT2SAMPLE *)(lpStream+dwMemPos);
-	#ifdef MT2DEBUG
-		if (iSmp <= m_nSamples) Log("  Sample #%d at offset %04X: %d bytes\n", iSmp, dwMemPos, pms->dwDataLen);
-	#endif
-		if (iSmp < MAX_SAMPLES)
-		{
-			mpt::String::Read<mpt::String::maybeNullTerminated>(m_szNames[iSmp], pms->szName);
-		}
-		if (pms->dwDataLen > 0)
-		{
-			SampleMap[iSmp-1] = pms;
-			if (iSmp < MAX_SAMPLES)
-			{
-				ModSample *psmp = &Samples[iSmp];
-				psmp->Initialize(MOD_TYPE_XM);
-				psmp->nGlobalVol = 64;
-				psmp->nVolume = (pms->wVolume >> 7);
-				psmp->nPan = (pms->nPan == 0x80) ? 128 : (pms->nPan^0x80);
-				psmp->nLength = pms->dwLength;
-				psmp->nC5Speed = pms->dwFrequency;
-				psmp->nLoopStart = pms->dwLoopStart;
-				psmp->nLoopEnd = pms->dwLoopEnd;
-				if (pms->nQuality == 2) { psmp->uFlags |= CHN_16BIT; psmp->nLength >>= 1; }
-				if (pms->nChannels == 2) { psmp->nLength >>= 1; }
-				if (pms->nLoop == 1) psmp->uFlags |= CHN_LOOP;
-				if (pms->nLoop == 2) psmp->uFlags |= CHN_LOOP|CHN_PINGPONGLOOP;
-			}
-			dwMemPos += pms->dwDataLen + 36;
-		} else
-		{
-			dwMemPos += 36;
-		}
-	}
-#ifdef MT2DEBUG
-	Log("Loading groups at offset 0x%08X\n", dwMemPos);
-#endif
-	for (UINT iMap=0; iMap<255; iMap++) if (InstrMap[iMap])
-	{
-		if (dwMemPos+8 > dwMemLength) return true;
-		MT2INSTRUMENT *pmi = InstrMap[iMap];
-		ModInstrument *pIns = NULL;
-		if (iMap<m_nInstruments) pIns = Instruments[iMap+1];
-		for (UINT iGrp=0; iGrp<pmi->wSamples; iGrp++)
-		{
-			if (pIns)
-			{
-				MT2GROUP *pmg = (MT2GROUP *)(lpStream+dwMemPos);
-				for (UINT i=0; i<96; i++)
-				{
-					if (pmi->GroupsMapping[i] == iGrp)
-					{
-						UINT nSmp = pmg->nSmpNo+1;
-						pIns->Keyboard[i + 12] = (SAMPLEINDEX)nSmp;
-						if (nSmp <= m_nSamples && SampleMap[nSmp - 1] != nullptr)
-						{
-							Samples[nSmp].nVibType = pmi->bVibType;
-							Samples[nSmp].nVibSweep = pmi->bVibSweep;
-							Samples[nSmp].nVibDepth = pmi->bVibDepth;
-							Samples[nSmp].nVibRate = pmi->bVibRate;
-							Samples[nSmp].nC5Speed = Util::Round<uint32>(SampleMap[nSmp - 1]->dwFrequency * pow(2, -(SampleMap[nSmp - 1]->nBaseNote - 49 - (pmg->nFinePitch / 128.0f)) / 12.0f));
-						}
-					}
-				}
-			}
-			dwMemPos += 8;
-		}
-	}
-#ifdef MT2DEBUG
-	Log("Loading sample data at offset 0x%08X\n", dwMemPos);
-#endif
+
 	if(!(loadFlags & loadSampleData))
-	{
 		return true;
-	}
-	for (UINT iData=0; iData<256; iData++) if ((iData < m_nSamples) && (SampleMap[iData]))
-	{
-		MT2SAMPLE *pms = SampleMap[iData];
-		ModSample &sample = Samples[iData+1];
-		if(!(pms->nFlags & 5))
-		{
-			if(sample.nLength > 0)
-			{
-			#ifdef MT2DEBUG
-				Log("  Reading sample #%d at offset 0x%04X (len=%d)\n", iData+1, dwMemPos, psmp->nLength);
-			#endif
 
-				FileReader chunk(lpStream + dwMemPos, dwMemLength - dwMemPos);
-				dwMemPos += SampleIO(
-					(sample.uFlags & CHN_16BIT) ? SampleIO::_16bit : SampleIO::_8bit,
-					(pms->nChannels == 2) ? SampleIO::stereoSplit : SampleIO::mono,
-					SampleIO::littleEndian,
-					SampleIO::MT2)
-					.ReadSample(sample, chunk);
-			}
-		} else
-		if (dwMemPos+4 < dwMemLength)
+	// Read sample data
+	for(SAMPLEINDEX i = 0; i < m_nSamples; i++)
+	{
+		ModSample &mptSmp = Samples[i + 1];
+		const uint32 freq = Util::Round<uint32>(mptSmp.nC5Speed * std::pow(2.0, -(mptSmp.RelativeTone - 49 - (mptSmp.nFineTune / 128.0)) / 12.0));
+
+		if(!mptSmp.uFlags[SMP_KEEPONDISK])
 		{
-			UINT nNameLen = *(DWORD *)(lpStream+dwMemPos);
-			dwMemPos += nNameLen + 16;
+			SampleIO(
+				mptSmp.uFlags[CHN_16BIT] ? SampleIO::_16bit : SampleIO::_8bit,
+				mptSmp.uFlags[CHN_STEREO] ? SampleIO::stereoSplit : SampleIO::mono,
+				SampleIO::littleEndian,
+				SampleIO::MT2)
+				.ReadSample(mptSmp, file);
+		} else
+		{
+			// External sample
+			const uint32 filenameSize = file.ReadUint32LE();
+			file.Skip(12); // Reserved
+			std::string filename;
+			file.ReadString<mpt::String::maybeNullTerminated>(filename, filenameSize);
+			mpt::String::Copy(mptSmp.filename, filename);
+
+#ifdef MPT_EXTERNAL_SAMPLES
+			if(filename.length() >= 2
+				&& filename.at(0) != '\\'	// Relative path on same drive
+				&& filename.at(1) != ':')	// Absolute path
+			{
+				// Relative path in same folder or sub folder
+				filename = ".\\" + filename;
+			}
+			SetSamplePath(i + 1, mpt::PathString::FromLocaleSilent(filename));
+#else
+			AddToLog(LogWarning, mpt::String::Print(MPT_USTRING("Loading external sample %1 ('%2') failed: External samples are not supported."), i, mpt::ToUnicode(GetCharsetLocaleOrModule(), filename)));
+#endif // MPT_EXTERNAL_SAMPLES
 		}
-		if (dwMemPos+4 >= dwMemLength) break;
+		mptSmp.nC5Speed = freq;
+		mptSmp.nFineTune = 0;
+		mptSmp.RelativeTone = 0;
 	}
+
 	return true;
 }
+
+OPENMPT_NAMESPACE_END

@@ -12,6 +12,8 @@
 #include "Sndfile.h"
 #include "ModChannel.h"
 
+OPENMPT_NAMESPACE_BEGIN
+
 void ModChannel::Reset(ResetFlags resetMask, const CSoundFile &sndFile, CHANNELINDEX sourceChannel)
 //-------------------------------------------------------------------------------------------------
 {
@@ -27,8 +29,9 @@ void ModChannel::Reset(ResetFlags resetMask, const CSoundFile &sndFile, CHANNELI
 		nPatternLoop = 0;
 		nFadeOutVol = 0;
 		dwFlags.set(CHN_KEYOFF | CHN_NOTEFADE);
+		dwOldFlags.reset();
 		//IT compatibility 15. Retrigger
-		if(sndFile.IsCompatibleMode(TRK_IMPULSETRACKER))
+		if(sndFile.m_playBehaviour[kITRetrigger])
 		{
 			nRetrigParam = 1;
 			nRetrigCount = 0;
@@ -36,6 +39,7 @@ void ModChannel::Reset(ResetFlags resetMask, const CSoundFile &sndFile, CHANNELI
 		nTremorCount = 0;
 		nEFxSpeed = 0;
 		proTrackerOffset = 0;
+		lastZxxParam = 0xFF;
 		isFirstTick = false;
 	}
 
@@ -89,3 +93,19 @@ void ModChannel::Reset(ResetFlags resetMask, const CSoundFile &sndFile, CHANNELI
 
 	}
 }
+
+
+void ModChannel::Stop()
+//---------------------
+{
+	nPeriod = 0;
+	nInc = 0;
+	nPos = nPosLo = 0;
+	nLeftVU = nRightVU = 0;
+	nVolume = 0;
+	pCurrentSample = nullptr;
+	nInc = 0;
+}
+
+
+OPENMPT_NAMESPACE_END

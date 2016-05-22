@@ -10,18 +10,22 @@
 
 #pragma once
 
-#include "Snd_defs.h"
 #include <vector>
-#include "ModSample.h"
-#include "FileReader.h"
+#include <iosfwd>
+#include "Snd_defs.h"
+#include "../common/FileReader.h"
 
+
+OPENMPT_NAMESPACE_BEGIN
+
+struct ModSample;
 
 //=================
 class ITCompression
 //=================
 {
 public:
-	ITCompression(const ModSample &sample, bool it215, FILE *f);
+	ITCompression(const ModSample &sample, bool it215, std::ostream *f);
 	size_t GetCompressedSize() const { return packedTotalLength; }
 
 	static const size_t bufferSize = 2 + 0xFFFF;	// Our output buffer can't be longer than this.
@@ -30,7 +34,7 @@ public:
 protected:
 	std::vector<int> bwt;			// Bit width table
 	uint8 *packedData;				// Compressed data for current sample block
-	FILE *file;						// File to which compressed data will be written (can be nullptr if you only want to find out the sample size)
+	std::ostream *file;				// File to which compressed data will be written (can be nullptr if you only want to find out the sample size)
 	void *sampleData;				// Pre-processed sample data for currently compressed sample block
 	const ModSample &mptSample;		// Sample that is being processed
 	size_t packedLength;			// Size of currently compressed sample block
@@ -73,7 +77,9 @@ public:
 	ITDecompression(FileReader &file, ModSample &sample, bool it215);
 
 protected:
-	FileReader chunk;			// Currnetly processed block
+	FileReader chunk;			// Currently processed block
+	FileReader::PinnedRawDataView chunkView;	// view into Currently processed block
+
 	ModSample &mptSample;		// Sample that is being processed
 
 	SmpLength writtenSamples;	// Number of samples so far written on this channel
@@ -89,10 +95,13 @@ protected:
 	bool is215;		// Use IT2.15 compression (double deltas)
 
 	template<typename Properties>
-	void Uncompress(void *target);
+	void Uncompress(typename Properties::sample_t *target);
 	static void ChangeWidth(int &curWidth, int width);
 	int ReadBits(int width);
 
 	template<typename Properties>
-	void Write(int v, int topbit, void *target);
+	void Write(int v, int topbit, typename Properties::sample_t *target);
 };
+
+
+OPENMPT_NAMESPACE_END

@@ -12,30 +12,25 @@
 #include "stdafx.h"
 #include "Sndfile.h"
 #include "Tables.h"
+#include "../common/misc_util.h"
+
+
+OPENMPT_NAMESPACE_BEGIN
+
 
 // AWE32: cutoff = reg[0-255] * 31.25 + 100 -> [100Hz-8060Hz]
 // EMU10K1 docs: cutoff = reg[0-127]*62+100
 
-#define _USE_MATH_DEFINES
-#include <math.h>
-#ifndef M_PI
-#define M_PI 3.1415926535897932385
-#endif
 
-
-DWORD CSoundFile::CutOffToFrequency(UINT nCutOff, int flt_modifier) const
-//-----------------------------------------------------------------------
+uint32 CSoundFile::CutOffToFrequency(uint32 nCutOff, int flt_modifier) const
+//--------------------------------------------------------------------------
 {
-	float Fc;
-	ASSERT(nCutOff < 128);
-	if(m_SongFlags[SONG_EXFILTERRANGE])
-		Fc = 110.0f * pow(2.0f, 0.25f + ((float)(nCutOff * (flt_modifier + 256))) / (20.0f * 512.0f));
-	else
-		Fc = 110.0f * pow(2.0f, 0.25f + ((float)(nCutOff * (flt_modifier + 256))) / (24.0f * 512.0f));
-	LONG freq = (LONG)Fc;
+	MPT_ASSERT(nCutOff < 128);
+	float Fc = 110.0f * std::pow(2.0f, 0.25f + ((float)(nCutOff * (flt_modifier + 256))) / (m_SongFlags[SONG_EXFILTERRANGE] ? 20.0f * 512.0f : 24.0f * 512.0f));
+	int freq = static_cast<int>(Fc);
 	Limit(freq, 120, 20000);
-	if (freq * 2 > (LONG)m_MixerSettings.gdwMixingFreq) freq = m_MixerSettings.gdwMixingFreq >> 1;
-	return (DWORD)freq;
+	if (freq * 2 > (int)m_MixerSettings.gdwMixingFreq) freq = m_MixerSettings.gdwMixingFreq / 2;
+	return static_cast<uint32>(freq);
 }
 
 
@@ -49,7 +44,7 @@ void CSoundFile::SetupChannelFilter(ModChannel *pChn, bool bReset, int flt_modif
 	Limit(cutoff, 0, 127);
 	Limit(resonance, 0, 127);
 
-	if(!GetModFlag(MSF_OLDVOLSWING))
+	if(!m_playBehaviour[kMPTOldSwingBehaviour])
 	{
 		pChn->nCutOff = (uint8)cutoff;
 		pChn->nCutSwing = 0;
@@ -63,9 +58,9 @@ void CSoundFile::SetupChannelFilter(ModChannel *pChn, bool bReset, int flt_modif
 	const int computedCutoff = cutoff * (flt_modifier + 256) / 256;
 
 	// Filtering is only ever done in IT if either cutoff is not full or if resonance is set.
-	if(IsCompatibleMode(TRK_IMPULSETRACKER) && resonance == 0 && computedCutoff >= 254)
+	if(m_playBehaviour[kITFilterBehaviour] && resonance == 0 && computedCutoff >= 254)
 	{
-		if(pChn->rowCommand.IsNote() && !pChn->dwFlags[CHN_PORTAMENTO] && !pChn->nMasterChn && m_SongFlags[SONG_FIRSTTICK])
+		if(pChn->rowCommand.IsNote() && !pChn->rowCommand.IsPortamento() && !pChn->nMasterChn && m_SongFlags[SONG_FIRSTTICK])
 		{
 			// Z7F next to a note disables the filter, however in other cases this should not happen.
 			// Test cases: filter-reset.it, filter-reset-carry.it, filter-nna.it
@@ -76,7 +71,7 @@ void CSoundFile::SetupChannelFilter(ModChannel *pChn, bool bReset, int flt_modif
 
 	pChn->dwFlags.set(CHN_FILTER);
 
-	if(UseITFilterMode())
+	if(m_playBehaviour[kITFilterBehaviour] && !m_SongFlags[SONG_EXFILTERRANGE])
 	{
 		const float freqParameterMultiplier = 128.0f / (24.0f * 256.0f);
 
@@ -143,3 +138,6 @@ void CSoundFile::SetupChannelFilter(ModChannel *pChn, bool bReset, int flt_modif
 	}
 
 }
+
+
+OPENMPT_NAMESPACE_END

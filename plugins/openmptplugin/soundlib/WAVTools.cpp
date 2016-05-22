@@ -11,6 +11,12 @@
 #include "stdafx.h"
 #include "Loaders.h"
 #include "WAVTools.h"
+#ifndef MODPLUG_NO_FILESAVE
+#include "../common/mptFileIO.h"
+#endif
+
+
+OPENMPT_NAMESPACE_BEGIN
 
 
 ///////////////////////////////////////////////////////////
@@ -126,6 +132,9 @@ void WAVReader::FindMetadataChunks(ChunkReader::ChunkList<RIFFChunk> &chunks)
 	// Read sample loop points
 	smplChunk = chunks.GetChunk(RIFFChunk::idsmpl);
 
+	// Read sample cues
+	cueChunk = chunks.GetChunk(RIFFChunk::idcue_);
+
 	// Read text chunks
 	ChunkReader listChunk = chunks.GetChunk(RIFFChunk::idLIST);
 	if(listChunk.ReadMagic("INFO"))
@@ -175,6 +184,19 @@ void WAVReader::ApplySampleSettings(ModSample &sample, char (&sampleName)[MAX_SA
 		sample.SanitizeLoops();
 	}
 
+	// Read cue points
+	if(cueChunk.IsValid())
+	{
+		uint32 numPoints = cueChunk.ReadUint32LE();
+		LimitMax(numPoints, CountOf(sample.cues));
+		for(uint32 i = 0; i < numPoints; i++)
+		{
+			WAVCuePoint cuePoint;
+			cueChunk.ReadConvertEndianness(cuePoint);
+			sample.cues[i] = cuePoint.position;
+		}
+	}
+
 	// Read MPT extra info
 	WAVExtraChunk mptInfo;
 	xtraChunk.Rewind();
@@ -201,8 +223,8 @@ void WAVReader::ApplySampleSettings(ModSample &sample, char (&sampleName)[MAX_SA
 
 
 // Apply WAV loop information to a mod sample.
-void WAVSampleLoop::ApplyToSample(SmpLength &start, SmpLength &end, SmpLength sampleLength, FlagSet<ChannelFlags, uint16> &flags, ChannelFlags enableFlag, ChannelFlags bidiFlag, bool mptLoopFix) const
-//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void WAVSampleLoop::ApplyToSample(SmpLength &start, SmpLength &end, SmpLength sampleLength, SampleFlags &flags, ChannelFlags enableFlag, ChannelFlags bidiFlag, bool mptLoopFix) const
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 {
 	if(loopEnd == 0)
 	{
@@ -251,29 +273,9 @@ void WAVSampleLoop::ConvertToWAV(SmpLength start, SmpLength end, bool bidi)
 // WAV Writing
 
 
-// Output to file: Initialize with filename.
-WAVWriter::WAVWriter(const mpt::PathString &filename) : f(nullptr), fileOwned(false), s(nullptr), memory(nullptr), memSize(0)
-//---------------------------------------------------------------------------------------------------------------------------
-{
-	f = mpt_fopen(filename, "w+b");
-	fileOwned = true;
-	Init();
-}
-
-
-// Output to file: Initialize with FILE*.
-WAVWriter::WAVWriter(FILE *file) : f(nullptr), fileOwned(false), s(nullptr), memory(nullptr), memSize(0)
-//------------------------------------------------------------------------------------------------------
-{
-	f = file;
-	fileOwned = false;
-	Init();
-}
-
-
 // Output to stream: Initialize with std::ostream*.
-WAVWriter::WAVWriter(std::ostream *stream) : f(nullptr), fileOwned(false), s(nullptr), memory(nullptr), memSize(0)
-//----------------------------------------------------------------------------------------------------------------
+WAVWriter::WAVWriter(std::ostream *stream) : s(nullptr), memory(nullptr), memSize(0)
+//----------------------------------------------------------------------------------
 {
 	s = stream;
 	Init();
@@ -281,8 +283,8 @@ WAVWriter::WAVWriter(std::ostream *stream) : f(nullptr), fileOwned(false), s(nul
 
 
 // Output to clipboard: Initialize with pointer to memory and size of reserved memory.
-WAVWriter::WAVWriter(void *mem, size_t size) : f(nullptr), fileOwned(false), s(nullptr), memory(static_cast<uint8 *>(mem)), memSize(size)
-//---------------------------------------------------------------------------------------------------------------------------------------
+WAVWriter::WAVWriter(void *mem, size_t size) : s(nullptr), memory(static_cast<uint8 *>(mem)), memSize(size)
+//----------------------------------------------------------------------------------------------------------
 {
 	Init();
 }
@@ -323,21 +325,6 @@ size_t WAVWriter::Finalize()
 	Seek(0);
 	Write(fileHeader);
 
-	if(f != nullptr)
-	{
-#ifdef _DEBUG
-		fseek(f, 0, SEEK_END);
-		size_t realSize = static_cast<size_t>(ftell(f));
-		ASSERT(totalSize == realSize);
-#endif
-		if(fileOwned)
-		{
-			fclose(f);
-			fileOwned = false;
-		}
-	}
-
-	f = nullptr;
 	s = nullptr;
 	memory = nullptr;
 
@@ -391,10 +378,7 @@ void WAVWriter::Seek(size_t pos)
 	position = pos;
 	totalSize = std::max(totalSize, position);
 
-	if(f != nullptr)
-	{
-		fseek(f, position, SEEK_SET);
-	} else if(s != nullptr)
+	if(s != nullptr)
 	{
 		s->seekp(position);
 	}
@@ -405,10 +389,7 @@ void WAVWriter::Seek(size_t pos)
 void WAVWriter::Write(const void *data, size_t numBytes)
 //------------------------------------------------------
 {
-	if(f != nullptr)
-	{
-		fwrite(data, numBytes, 1, f);
-	} else if(s != nullptr)
+	if(s != nullptr)
 	{
 		s->write(static_cast<const char*>(data), numBytes);
 	} else if(memory != nullptr)
@@ -419,7 +400,7 @@ void WAVWriter::Write(const void *data, size_t numBytes)
 		} else
 		{
 			// Should never happen - did we calculate a wrong memory size?
-			ASSERT(false);
+			MPT_ASSERT_NOTREACHED();
 		}
 	}
 	position += numBytes;
@@ -501,10 +482,10 @@ void WAVWriter::WriteMetatags(const FileTags &tags)
 
 
 // Write a single tag into a open idLIST chunk
-void WAVWriter::WriteTag(RIFFChunk::id_type id, const std::wstring &wideText)
-//---------------------------------------------------------------------------
+void WAVWriter::WriteTag(RIFFChunk::id_type id, const mpt::ustring &utext)
+//------------------------------------------------------------------------
 {
-	std::string text = mpt::To(mpt::CharsetWindows1252, wideText);
+	std::string text = mpt::ToCharset(mpt::CharsetWindows1252, utext);
 	if(!text.empty())
 	{
 		const size_t length = text.length() + 1;
@@ -572,6 +553,25 @@ void WAVWriter::WriteLoopInformation(const ModSample &sample)
 }
 
 
+// Write a sample's cue points to the file.
+void WAVWriter::WriteCueInformation(const ModSample &sample)
+//----------------------------------------------------------
+{
+	StartChunk(RIFFChunk::idcue_);
+	{
+		const uint32 numPoints = SwapBytesLE_(static_cast<uint32>(CountOf(sample.cues)));
+		Write(numPoints);
+	}
+	for(uint32 i = 0; i < CountOf(sample.cues); i++)
+	{
+		WAVCuePoint cuePoint;
+		cuePoint.ConvertToWAV(i, sample.cues[i]);
+		cuePoint.ConvertEndianness();
+		Write(cuePoint);
+	}
+}
+
+
 // Write MPT's sample information chunk to the file.
 void WAVWriter::WriteExtraInformation(const ModSample &sample, MODTYPE modType, const char *sampleName)
 //-----------------------------------------------------------------------------------------------------
@@ -597,3 +597,6 @@ void WAVWriter::WriteExtraInformation(const ModSample &sample, MODTYPE modType, 
 }
 
 #endif // MODPLUG_NO_FILESAVE
+
+
+OPENMPT_NAMESPACE_END
