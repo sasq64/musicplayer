@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.4)
 project(cpp-mods.musicplayer.openmptplugin)
 
 
-file(GLOB SOUNDLIB_FILES soundLib/*.cpp)
+file(GLOB SOUNDLIB_FILES soundlib/*.cpp)
 file(GLOB MPT_FILES common/mpt*.cpp)
 
 set(SOURCE_FILES
