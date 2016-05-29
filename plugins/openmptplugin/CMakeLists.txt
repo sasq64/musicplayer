@@ -16,6 +16,7 @@ set(SOURCE_FILES
 	common/serialization_utils.cpp
 	common/typedefs.cpp
 	common/version.cpp
+	common/ComponentManager.cpp
 	libopenmpt/libopenmpt_c.cpp
 	libopenmpt/libopenmpt_cxx.cpp
 	libopenmpt/libopenmpt_impl.cpp
