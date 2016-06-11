@@ -8,6 +8,7 @@
 
 #include <coreutils/utils.h>
 #include <coreutils/file.h>
+#include <coreutils/settings.h>
 #include <set>
 #include <unordered_map>
 
@@ -49,6 +50,10 @@ public:
 			openmpt_module_set_render_param(mod, OPENMPT_MODULE_RENDER_INTERPOLATIONFILTER_LENGTH, 1);
 		else
 			openmpt_module_set_render_param(mod, OPENMPT_MODULE_RENDER_INTERPOLATIONFILTER_LENGTH, 0);
+
+		auto& Settings = utils::Settings::getGroup("openmpt");
+		double separation = Settings.get<double>("separation", 100.0);
+		openmpt_module_set_render_param(mod, OPENMPT_MODULE_RENDER_STEREOSEPARATION_PERCENT, separation);
 
 		auto p = utils::split(string(type_long), " / ");
 		if(p.size() > 1)

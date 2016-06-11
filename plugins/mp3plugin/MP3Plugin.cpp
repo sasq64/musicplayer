@@ -115,7 +115,7 @@ public:
 			if(v2 && v2->title) {
 
 				string msg;
-				for(int i=0; i<v2->comments; i++) {
+				for(int i=0; i<(int)v2->comments; i++) {
 					if(msg.length())
 						msg = msg + " ";
 					msg = msg + v2->comment_list[i].text.p;
@@ -150,7 +150,7 @@ public:
 		lock_guard<mutex> {m};
 		if(!opened) {
 			if(mpg123_open_feed(mp3) != MPG123_OK)
-				throw player_exception("Could open MP3");
+				throw player_exception("Could not open MP3");
 			opened = true;
 		}
 		if(!source) {
@@ -241,7 +241,7 @@ public:
 				bitRate = r;
 			else
 				bitRate = r * 0.25 + bitRate * 0.75;
-			LOGD("Bitrate %f %d kbit (%d) %d", r, bitRate, totalSize, totalSeconds);
+			//LOGD("Bitrate %f %d kbit (%d) %d", r, bitRate, totalSize, totalSeconds);
 			setMeta("bitrate", (int)bitRate);
 		}
 
@@ -257,7 +257,9 @@ public:
 		return done/2;
 	}
 
-	virtual bool seekTo(int song, int seconds) override {
+#define UNUSED __attribute__((unused))
+	
+	virtual bool seekTo(UNUSED int song, UNUSED int seconds) override {
 		return false;
 	}
 
