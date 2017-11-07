@@ -19,10 +19,20 @@ public:
 
 	void readLengths();
 	void readSTIL();
-	std::vector<uint16_t> findLengths(uint32_t key);
+	std::vector<uint16_t> findLengths(uint64_t key);
 
 //private:
-	static std::vector<uint8_t> mainHash;
+	struct __attribute__((packed)) LengthEntry {
+		LengthEntry() {}
+		LengthEntry(uint64_t h, uint16_t l) : hash(h), length(l) {}
+		uint64_t hash;
+		uint16_t length;
+		//bool operator>(const LengthEntry& other) { return hash > other.hash; }
+		bool operator<(const LengthEntry& other) const { return hash < other.hash; }
+		bool operator<(uint64_t other) const { return hash < other; }
+	};
+
+	static std::vector<LengthEntry> mainHash;
 	static std::vector<uint16_t> extraLengths;	
 
 	std::string dataDir;

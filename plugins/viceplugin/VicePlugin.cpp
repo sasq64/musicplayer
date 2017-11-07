@@ -48,7 +48,7 @@ static bool videomode_is_forced = false;
 static int sid = 3;//SID_MODEL_DEFAULT;// SID_MODEL_8580;
 static bool sid_is_forced = true;
 
- template <typename T> const T get(const vector<uint8_t> &v, int offset) {}
+template <typename T> const T get(const vector<uint8_t> &v, int offset) {}
 
 template <> const uint16_t get(const vector<uint8_t> &v, int offset) {
 	return (v[offset] <<8) | v[offset+1];
@@ -56,6 +56,10 @@ template <> const uint16_t get(const vector<uint8_t> &v, int offset) {
 
 template <> const uint32_t get(const vector<uint8_t> &v, int offset) {
 	return (v[offset] <<24) | (v[offset+1]<<16) | (v[offset+2] <<8) | v[offset+3];
+}
+
+template <> const uint64_t get(const vector<uint8_t> &v, int offset) {
+	return ((uint64_t)get<uint32_t>(v, offset)<<32) | get<uint32_t>(v, offset+4);
 }
 
 enum {
@@ -173,7 +177,7 @@ public:
 		File f { sidFile };
 		auto data = f.readAll();
 		auto md5 = calculateMD5(data);
-		uint32_t key = get<uint32_t>(md5, 0);
+		auto key = get<uint64_t>(md5, 0);
 		LOGD("MD5: [%02x] %08x", md5, key);
 		songLengths = plugin.findLengths(key);
 
@@ -451,28 +455,6 @@ void VicePlugin::readSTIL() {
 	}
 }
 
-void VicePlugin::readLengths() {
-
-	File f = File(dataDir + "/data/songlengths.dat");
-
-	if(f.exists()) {
-		auto data = f.readAll();
-
-		auto len = get<uint32_t>(data, 0);
-		LOGD("Found %d songs in songlengths.dat", len);
-
-		mainHash.resize(6*len);
-		memcpy(&mainHash[0], &data[4], 6*len);
-
-		auto offs = 4 + 6*len;
-		auto elen = (data.size() - offs) / 2;
-
-		extraLengths.resize(elen*2);
-		for(int i=0; i<(int)elen; i++)
-			extraLengths[i] = get<uint16_t>(data, offs+i*2);
-	}
-}
-
 VicePlugin::~VicePlugin() {
 	LOGD("VicePlugin destroy\n");
 	machine_shutdown();
@@ -496,41 +478,73 @@ ChipPlayer *VicePlugin::fromFile(const std::string &fileName) {
 	}
 }
 
-vector<uint8_t> VicePlugin::mainHash;
+constexpr uint16_t a2h(char c) {
+	return c <= '9' ? c - '0' : (tolower(c) - 'a' + 10);
+}
+
+vector<VicePlugin::LengthEntry> VicePlugin::mainHash;
 vector<uint16_t> VicePlugin::extraLengths;
 unordered_map<string, VicePlugin::STILSong> VicePlugin::stilSongs;
 
-vector<uint16_t> VicePlugin::findLengths(uint32_t key) {
+template <typename T> T from_hex(const std::string &s) {
+	T t = 0;
+	auto *ptr = s.c_str();
+	while(*ptr) {
+		t = (t<<4) | a2h(*ptr++);
+	}
+	return t;
+}
+
+void VicePlugin::readLengths() {
+
+	File fp{"data/Songlengths.txt"};
+	string secs, mins;
+	vector<uint16_t> lengths;
+	for(const auto &l : fp.getLines()) {
+		//puts(l.c_str());
+		if(l[0] != ';' && l[0] != '[') {
+			auto key = from_hex<uint64_t>(l.substr(0,16));
+			//printf("\nHASH %llx\n", key);
+			lengths.clear();
+			for(const auto &sl : split(l.substr(33), " ")) {
+				tie(mins,secs) = splitn<2>(sl, ":");
+				lengths.push_back(stol(mins)*60 + stol(secs));
+			}
+			int ll = 0;
+			if(lengths.size() > 1) {
+				ll = extraLengths.size() | 0x8000;
+				extraLengths.insert(extraLengths.end(), lengths.begin(), lengths.end());
+				extraLengths.back() |= 0x8000;
+			} else {
+				ll = lengths[0];
+			}
+
+			LengthEntry le(key, ll);
+
+			mainHash.insert(upper_bound(mainHash.begin(), mainHash.end(), le), le);
+
+		}
+	}
+
+}
+
+vector<uint16_t> VicePlugin::findLengths(uint64_t key) {
 
 	vector<uint16_t> songLengths;
 
-	int first = 0;
-	int upto = mainHash.size() / 6;
-	while (first < upto) {
-		int mid = (first + upto) / 2;  // Compute mid point.
-
-		uint32_t hash = get<uint32_t>(mainHash, mid*6);
-
-		if (key < hash) {
-			upto = mid;     // repeat search in bottom half.
-		} else if (key > hash) {
-			first = mid + 1;  // Repeat search in top half.
-		} else {
-			uint16_t len = get<uint16_t>(mainHash, mid*6+4);
-			LOGD("LEN: %x", len);
-			if((len & 0x8000) != 0) {
-				len &= 0x7fff;
-				int xl = 0;
-				while((xl & 0x8000) == 0) {
-					xl = extraLengths[len++];
-					songLengths.push_back(xl & 0x7fff);
-				}				
-			} else {
-				LOGD("SINGLE LEN: %02d:%02d", len/60, len%60);
-				songLengths.push_back(len);
-			}
-			break;
-		}
+	auto it = lower_bound(mainHash.begin(), mainHash.end(), key);
+	if(it != mainHash.end()) {
+		uint16_t len = it->length;
+		LOGD("%llx %llx LEN: %x", key, it->hash, len);
+		if((len & 0x8000) != 0) {
+			len &= 0x7fff;
+			int xl = 0;
+			while((xl & 0x8000) == 0) {
+				xl = extraLengths[len++];
+				songLengths.push_back(xl & 0x7fff);
+			}				
+		} else
+			songLengths.push_back(len);
 	}
 	return songLengths;
 }
