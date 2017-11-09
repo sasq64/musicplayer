@@ -1356,7 +1356,7 @@ void soundMix()
 
 //int began_seek = 1;
 
-extern "C" double decode_pos_ms;
+extern "C" int decode_pos_ms;
 extern "C" int seek_needed;
 
 extern "C" void end_of_track(void);
