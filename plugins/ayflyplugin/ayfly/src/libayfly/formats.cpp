@@ -90,7 +90,7 @@ CayflyString ay_sys_getstr(const unsigned char *str, unsigned long length)
     memset(str_new, 0, length + 1);
     memcpy(str_new, str, length);        
     CayflyString cstr(str_new);
-    delete str_new;
+    delete[] str_new;
     return cstr;
 }
 #endif

@@ -3,7 +3,7 @@ project(cpp-mods.musicplayer.ayflyplugin)
 
 
 set(SOURCE_FILES
-	#ayfly/src/libayfly/AbstractAudio.cpp 
+	ayfly/src/libayfly/AbstractAudio.cpp
 	ayfly/src/libayfly/ay.cpp 
 	ayfly/src/libayfly/formats.cpp 
 	ayfly/src/libayfly/speccy.cpp 
