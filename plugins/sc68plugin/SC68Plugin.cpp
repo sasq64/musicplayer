@@ -59,11 +59,6 @@ public:
 		memset(&init68, 0, sizeof(init68));
 		init68.msg_handler = (sc68_msg_t)write_debug;
 
-#ifdef _DEBUG
-		init68.debug = vfprintf;
-		init68.debug_cookie = stderr;
-#endif
-
 		if(sc68_init(&init68) != 0) {
 			LOGW("Init failed");
 			return false;

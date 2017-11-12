@@ -181,7 +181,7 @@ void reconf_timer(mfp_timer_t * const ptimer, int tcr, const bogoc68_t bogoc)
         "mfp: timer-%c -- reconf @%u cti:%u cpp:%u -- %d:%dhz\n",
         ptimer->def.letter, bogoc,
         ptimer->cti, cpp(ptimer->tdr_res),
-        frq,timerfrq(ptimer->tdr_res));
+        0,timerfrq(ptimer->tdr_res));
 }
 
 /* Stop a running timer: tcr !0->0
@@ -297,7 +297,7 @@ void mfp_put_tdr(mfp_t * const mfp, int timer, int68_t v, bogoc68_t bogoc)
           ptimer->def.letter, bogoc, ptimer->cti,
           prediv_width[ptimer->tcr], ptimer->tcr,
           cpp(ptimer->tdr_res),
-          old_frq,old_tdr,
+          0,old_tdr,
           timerfrq(ptimer->tdr_res), ptimer->tdr_res);
   }
 }
