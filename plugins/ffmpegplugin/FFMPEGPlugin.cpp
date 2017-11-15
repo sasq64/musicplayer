@@ -144,9 +144,9 @@ public:
 
 private:
 	std::thread decodeThread;
-	bool quit = false;
+	std::atomic<bool> quit{false};
 	long rate;
-	uint64_t totalSize = 0;
+	std::atomic<uint64_t> totalSize{0};
 	double totalSeconds = 0;
 	float bitRate = 0;
 	mutex m;

@@ -25,7 +25,7 @@ set(SOURCE_FILES
 )
 
 include_directories(common common/svn_version_default .)
-add_definitions(-DLIBOPENMPT_BUILD -DMPT_CHARSET_CUSTOMUTF8 -DMPT_WITH_ZLIB -DNO_PLUGINS)
+add_definitions(-DLIBOPENMPT_BUILD -DOPENMPT_VERSION_REVISION=1 -DMPT_CHARSET_CUSTOMUTF8 -DMPT_WITH_ZLIB -DNO_PLUGINS)
 
 find_package(ZLIB)
 include_directories(${ZLIB_INCLUDE_DIRS})

@@ -535,7 +535,6 @@ vector<uint16_t> VicePlugin::findLengths(uint64_t key) {
 	auto it = lower_bound(mainHash.begin(), mainHash.end(), key);
 	if(it != mainHash.end()) {
 		uint16_t len = it->length;
-		LOGD("%llx %llx LEN: %x", key, it->hash, len);
 		if((len & 0x8000) != 0) {
 			len &= 0x7fff;
 			int xl = 0;
