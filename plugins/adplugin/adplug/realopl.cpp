@@ -84,7 +84,7 @@ CRealopl::CRealopl(unsigned short initport)
 bool CRealopl::harddetect()
 {
   unsigned char		stat1, stat2, i;
-  //unsigned short	adp = (currChip == 0 ? adlport : adlport + 2);
+  unsigned short	adp = (currChip == 0 ? adlport : adlport + 2);
 
   hardwrite(4,0x60); hardwrite(4,0x80);
   stat1 = INP(adp);
@@ -151,7 +151,7 @@ void CRealopl::setquiet(bool quiet)
 void CRealopl::hardwrite(int reg, int val)
 {
   int 			i;
-  //unsigned short	adp = (currChip == 0 ? adlport : adlport + 2);
+  unsigned short	adp = (currChip == 0 ? adlport : adlport + 2);
 
   OUTP(adp,reg);		// set register
   for(i=0;i<SHORTDELAY;i++)	// wait for adlib
