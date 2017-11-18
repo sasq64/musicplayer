@@ -20,8 +20,11 @@ public:
 	}
 
 	FFMPEGPlayer(const std::string &fileName) {
-
-		pipe = std::move(execPipe(utils::format("ffmpeg -i \"%s\" -ac 2 -ar 44100 -f s16le -", fileName)));
+#ifdef _WIN32
+		pipe = std::move(execPipe(utils::format("bin\\ffmpeg.exe -i \"%s\" -v error -ac 2 -ar 44100 -f s16le -", fileName)));
+#else
+		pipe = std::move(execPipe(utils::format("ffmpeg -i \"%s\" -v error -ac 2 -ar 44100 -f s16le -", fileName)));
+#endif
 	}
 
 	~FFMPEGPlayer() override {
