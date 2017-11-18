@@ -15,6 +15,7 @@
 #include <uade/unixatomic.h>
 #include <uade/ossupport.h>
 #include <uade/amifilemagic.h>
+#include <uade/uadeutils.h>
 #include "support.h"
 
 #include <stdlib.h>

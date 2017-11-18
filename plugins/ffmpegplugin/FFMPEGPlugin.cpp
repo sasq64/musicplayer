@@ -21,7 +21,7 @@ public:
 
 	FFMPEGPlayer(const std::string &fileName) {
 
-		pipe = std::move(execPipe(utils::format("ffmpeg -v error -i \"%s\" -f s16le -", fileName)));
+		pipe = std::move(execPipe(utils::format("ffmpeg -i \"%s\" -ac 2 -ar 44100 -f s16le -", fileName)));
 	}
 
 	~FFMPEGPlayer() override {
@@ -31,8 +31,7 @@ public:
 	virtual int getSamples(int16_t *target, int noSamples) override {
 		int rc = pipe.read(reinterpret_cast<uint8_t*>(target), noSamples*2);
 		if(rc == -1) return 0;
-		rc/=2;
-		return rc;
+		return rc/2;
 	}
 
 	virtual bool seekTo(int song, int seconds) override { return false; }

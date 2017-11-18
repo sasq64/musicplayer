@@ -6,7 +6,7 @@
 #include <uade/uadeutils.h>
 #include <uade/ossupport.h>
 #include <uade/amifilemagic.h>
-
+#include <uade/compat/memmemrep.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
