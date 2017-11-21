@@ -147,83 +147,96 @@ public:
 	}
 
 	virtual void putStream(const uint8_t *source, int size) override {
-		lock_guard<mutex> {m};
-		if(!opened) {
-			if(mpg123_open_feed(mp3) != MPG123_OK)
-				throw player_exception("Could not open MP3");
-			opened = true;
-		}
-		if(!source) {
-			if(size <= 0)
-				streamDone = true;
-			//else
-			//	mpg123_set_filesize(mp3, size);
-			return;
-		}
-		
-		totalSize += size;
-		do {
-
-			if(metaInterval > 0 && metaCounter + size > metaInterval) {
-				// This batch includes start of meta block
-				int pos = metaInterval - metaCounter;
-				metaSize = source[pos] * 16;
-
-				LOGV("METASIZE %d at offset %d", metaSize, pos);
-
-				if(pos > 0)
-					mpg123_feed(mp3, source, pos);
-				source += (pos+1);
-				size -= (pos+1);
-				bytesPut += (pos+1);
-				metaCounter = 0;
-				icyPtr = icyData;
+		long buffered = 0;
+		{
+			lock_guard<mutex> {m};
+			if(!opened) {
+				if(mpg123_open_feed(mp3) != MPG123_OK)
+					throw player_exception("Could not open MP3");
+				opened = true;
 			}
-		
-			if(metaSize > 0) {
-				int metaBytes = size > metaSize ? metaSize : size;
-				LOGD("Metabytes %d", metaBytes);
+			if(!source) {
+				if(size <= 0)
+					streamDone = true;
+				//else
+				//	mpg123_set_filesize(mp3, size);
+				return;
+			}
+			
+			totalSize += size;
+			do {
 
-				memcpy(icyPtr, source, metaBytes);
-				icyPtr += metaBytes;
-				*icyPtr = 0;
+				if(metaInterval > 0 && metaCounter + size > metaInterval) {
+					// This batch includes start of meta block
+					int pos = metaInterval - metaCounter;
+					metaSize = source[pos] * 16;
 
-				size -= metaBytes;
-				source += metaBytes;
-				metaSize -= metaBytes;
+					LOGV("METASIZE %d at offset %d", metaSize, pos);
 
-				if(metaSize <= 0) {
-					LOGD("META: %s", icyData);
+					if(pos > 0)
+						mpg123_feed(mp3, source, pos);
+					source += (pos+1);
+					size -= (pos+1);
+					bytesPut += (pos+1);
+					metaCounter = 0;
 					icyPtr = icyData;
+				}
+			
+				if(metaSize > 0) {
+					int metaBytes = size > metaSize ? metaSize : size;
+					LOGD("Metabytes %d", metaBytes);
 
-					auto parts = split(string(icyData), ";");
-					for(const auto &p : parts) {
-						auto data = split(p, "=", 2);
-						if(data.size() == 2) {
-							if(data[0] == "StreamTitle") {
-								auto title = data[1].substr(1, data[1].length()-2);
-								setMeta("sub_title", utf8_encode(title));
+					memcpy(icyPtr, source, metaBytes);
+					icyPtr += metaBytes;
+					*icyPtr = 0;
+
+					size -= metaBytes;
+					source += metaBytes;
+					metaSize -= metaBytes;
+
+					if(metaSize <= 0) {
+						LOGD("META: %s", icyData);
+						icyPtr = icyData;
+
+						auto parts = split(string(icyData), ";");
+						for(const auto &p : parts) {
+							auto data = split(p, "=", 2);
+							if(data.size() == 2) {
+								if(data[0] == "StreamTitle") {
+									auto title = data[1].substr(1, data[1].length()-2);
+									setMeta("sub_title", utf8_encode(title));
+								}
 							}
 						}
+						
 					}
-					
+
 				}
+			} while(metaInterval > 0 && metaCounter + size > metaInterval);
 
+			if(size > 0) {
+				mpg123_feed(mp3, source, size);
+				if(metaInterval > 0)
+					metaCounter += size;
 			}
-		} while(metaInterval > 0 && metaCounter + size > metaInterval);
 
-		if(size > 0) {
-			mpg123_feed(mp3, source, size);
-			if(metaInterval > 0)
-				metaCounter += size;
+
+			bytesPut += size;
+			int bytesRead = mpg123_framepos(mp3);
+
+			int inBuffer = bytesPut - bytesRead;
+
+			checkMeta();
+			mpg123_getstate(mp3, MPG123_BUFFERFILL, &buffered, nullptr);
+			LOGD("Buffered %d", buffered);
 		}
 
-		bytesPut += size;
-		int bytesRead = mpg123_framepos(mp3);
-
-		int inBuffer = bytesPut - bytesRead;
-
-		checkMeta();
+		/* while(buffered > 1*1024*104) { */
+		/* 	m.lock(); */
+		/* 	mpg123_getstate(mp3, MPG123_BUFFERFILL, &buffered, nullptr); */
+		/* 	m.unlock(); */
+		/* 	utils::sleepms(1); */
+		/* } */
 	}
 
 	virtual int getSamples(int16_t *target, int noSamples) override {
