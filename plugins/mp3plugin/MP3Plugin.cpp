@@ -4,6 +4,7 @@
 
 #include <coreutils/utils.h>
 #include <coreutils/file.h>
+#include <coreutils/fifo.h>
 
 #include <mpg123.h>
 //#include <curl/curl.h>
@@ -26,7 +27,7 @@ namespace chipmachine {
 class MP3Player : public ChipPlayer {
 public:
 
-	MP3Player() {
+	MP3Player(Fifo<uint8_t>* f) : fifo(f) {
 		int err = mpg123_init();
 		mp3 = mpg123_new(NULL, &err);
 		mpg123_param(mp3, MPG123_ADD_FLAGS, MPG123_QUIET, 0);
@@ -54,6 +55,7 @@ public:
 		}
 		return false;
 	}
+
 	MP3Player(const std::string &fileName) {
 		int err = mpg123_init();
 		mp3 = mpg123_new(NULL, &err);
@@ -78,6 +80,7 @@ public:
 
 	~MP3Player() override {
 		//delete [] buffer;
+		LOGD("Destroying MP3Player");
 		if(mp3) {
 			mpg123_close(mp3);
 			mpg123_delete(mp3);
@@ -146,10 +149,11 @@ public:
 			mpg123_meta_free(mp3);
 	}
 
-	virtual void putStream(const uint8_t *source, int size) override {
+	utils::Fifo<uint8_t>* fifo;
+
+	void putStream(const uint8_t *source, int size)  {
 		long buffered = 0;
 		{
-			lock_guard<mutex> {m};
 			if(!opened) {
 				if(mpg123_open_feed(mp3) != MPG123_OK)
 					throw player_exception("Could not open MP3");
@@ -227,28 +231,33 @@ public:
 			int inBuffer = bytesPut - bytesRead;
 
 			checkMeta();
-			mpg123_getstate(mp3, MPG123_BUFFERFILL, &buffered, nullptr);
-			LOGD("Buffered %d", buffered);
 		}
 
-		/* while(buffered > 1*1024*104) { */
-		/* 	m.lock(); */
-		/* 	mpg123_getstate(mp3, MPG123_BUFFERFILL, &buffered, nullptr); */
-		/* 	m.unlock(); */
-		/* 	utils::sleepms(1); */
-		/* } */
 	}
 
 	virtual int getSamples(int16_t *target, int noSamples) override {
+
+		if(fifo) {
+			int sz = fifo->filled();
+			if(sz > 0) {
+				static uint8_t temp[8192];
+				if(sz > 8192) sz = 8192; 
+				LOGD("Getting %d bytes from stream", sz);
+				fifo->get(temp, sz);
+				putStream(temp, sz);
+			}
+		}
+
 		size_t done = 0;
-		lock_guard<mutex> {m};
 		if(bytesPut == 0)
 			return 0;
 		int err = mpg123_read(mp3, (unsigned char*)target, noSamples*2, &done);
 		
+		long buffered;
+		mpg123_getstate(mp3, MPG123_BUFFERFILL, &buffered, nullptr);
 		totalSeconds += ((double)done / (44100*4));
 		if(totalSeconds > 0) {
-			auto r = (double)totalSize / totalSeconds;
+			auto r = (double)(totalSize - buffered) / totalSeconds;
 			r = (r * 8) / 1000;
 			if(bitRate == 0)
 				bitRate = r;
@@ -256,6 +265,10 @@ public:
 				bitRate = r * 0.25 + bitRate * 0.75;
 			//LOGD("Bitrate %f %d kbit (%d) %d", r, bitRate, totalSize, totalSeconds);
 			setMeta("bitrate", (int)bitRate);
+		}
+
+		if(err != 0) {
+			LOGD("MP3 Error %d", err);
 		}
 
 		if(err == MPG123_NEW_FORMAT)
@@ -283,7 +296,6 @@ private:
     long rate = 0;
     int channels = 0;
 	//thread httpThread;
-	mutex m;
 	bool gotLength = false;
 	bool gotMeta = false;
 	int length;
@@ -303,17 +315,17 @@ private:
 	
 };
 
-bool MP3Plugin::canHandle(const std::string &name) {
+bool MP3Plugin::canHandle(const std::string& name) {
 	auto ext = utils::path_extension(name);
 	return ext == "mp3";
 }
 
-ChipPlayer *MP3Plugin::fromFile(const std::string &fileName) {
+ChipPlayer *MP3Plugin::fromFile(const std::string& fileName) {
 	return new MP3Player { fileName };
 };
 
-ChipPlayer *MP3Plugin::fromStream() {
-	return new MP3Player();
+ChipPlayer *MP3Plugin::fromStream(Fifo<uint8_t>* fifo) {
+	return new MP3Player(fifo);
 }
 
 

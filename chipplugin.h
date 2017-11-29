@@ -6,6 +6,8 @@
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <coreutils/fifo.h>
+
 
 #include "chipplayer.h"
 
@@ -18,10 +20,10 @@ public:
 
 	// Must be implemented
 	virtual std::string name() const = 0; 
-	virtual bool canHandle(const std::string &name) = 0;
-	virtual ChipPlayer *fromFile(const std::string &fileName) = 0;
+	virtual bool canHandle(const std::string& name) = 0;
+	virtual ChipPlayer *fromFile(const std::string& fileName) = 0;
 
-	virtual ChipPlayer *fromStream() { return nullptr; }
+	virtual ChipPlayer *fromStream(utils::Fifo<uint8_t>*) { return nullptr; }
 	virtual int priority() { return 0; }
 	
 	virtual bool checkSilence() const { return true; }

@@ -52,7 +52,7 @@ ChipPlayer *FFMPEGPlugin::fromFile(const std::string &fileName) {
 	return new FFMPEGPlayer{fileName};
 };
 
-ChipPlayer *FFMPEGPlugin::fromStream() {
+ChipPlayer *FFMPEGPlugin::fromStream(utils::Fifo<uint8_t>* fifo) {
 	return new FFMPEGPlayer();
 }
 }

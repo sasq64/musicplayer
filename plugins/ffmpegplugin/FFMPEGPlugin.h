@@ -10,7 +10,7 @@ public:
 	virtual std::string name() const override { return "ffmpeg"; }
 	virtual bool canHandle(const std::string &name) override;
 	virtual ChipPlayer *fromFile(const std::string &fileName) override;
-	virtual ChipPlayer *fromStream() override;
+	virtual ChipPlayer *fromStream(utils::Fifo<uint8_t>* fiflo) override;
 	virtual bool checkSilence() const override { return false; }
 };
 

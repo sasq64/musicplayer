@@ -16,7 +16,8 @@ extern "C" {
 #include "VBA/psftag.h"
 #include "gsf.h"
 }
-#include "../common/fifo.h"
+//#include "../common/fifo.h"
+#include <coreutils/fifo.h>
 
 extern "C" {
 int defvolume=1000;
@@ -47,7 +48,7 @@ extern char soundLowPass;
 extern char soundReverse;
 extern char soundQuality;*/
 
-static Fifo *gsfFifo = nullptr;
+static utils::Fifo<int16_t> *gsfFifo = nullptr;
 
 extern "C" void end_of_track()
 {
@@ -57,7 +58,7 @@ extern "C" void end_of_track()
 extern "C" void writeSound(void)
 {
 	//int tmp;
-	gsfFifo->putShorts((short*)soundFinalWave, soundBufferLen/2);
+	gsfFifo->put((short*)soundFinalWave, soundBufferLen/2);
 	decode_pos_ms += (soundBufferLen/(2*sndNumChannels) * 1000)/sndSamplesPerSec;
 }
 
@@ -115,11 +116,11 @@ public:
 		if(fifo.filled() == 0)
 			return 0;
 
-		int len = fifo.getShorts(target, noSamples);
+		int len = fifo.get(target, noSamples);
 		return len;
 	}
 private:
-	Fifo fifo;
+	utils::Fifo<int16_t> fifo;
 	PSFFile psf;
 };
 
