@@ -237,12 +237,16 @@ public:
 
 	virtual int getSamples(int16_t *target, int noSamples) override {
 
-		if(fifo) {
+		long buffered;
+		mpg123_getstate(mp3, MPG123_BUFFERFILL, &buffered, nullptr);
+
+		if(fifo && buffered < 1024*128) {
 			int sz = fifo->filled();
+
 			if(sz > 0) {
 				static uint8_t temp[8192];
 				if(sz > 8192) sz = 8192; 
-				LOGD("Getting %d bytes from stream", sz);
+				//LOGD("Getting %d bytes from stream", sz);
 				fifo->get(temp, sz);
 				putStream(temp, sz);
 			}
@@ -253,8 +257,6 @@ public:
 			return 0;
 		int err = mpg123_read(mp3, (unsigned char*)target, noSamples*2, &done);
 		
-		long buffered;
-		mpg123_getstate(mp3, MPG123_BUFFERFILL, &buffered, nullptr);
 		totalSeconds += ((double)done / (44100*4));
 		if(totalSeconds > 0) {
 			auto r = (double)(totalSize - buffered) / totalSeconds;
@@ -267,7 +269,7 @@ public:
 			setMeta("bitrate", (int)bitRate);
 		}
 
-		if(err != 0) {
+		if(err != 0 && err != MPG123_NEED_MORE) {
 			LOGD("MP3 Error %d", err);
 		}
 
