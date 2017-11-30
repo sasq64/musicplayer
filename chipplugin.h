@@ -23,7 +23,7 @@ public:
 	virtual bool canHandle(const std::string& name) = 0;
 	virtual ChipPlayer *fromFile(const std::string& fileName) = 0;
 
-	virtual ChipPlayer *fromStream(utils::Fifo<uint8_t>*) { return nullptr; }
+	virtual ChipPlayer *fromStream(std::shared_ptr<utils::Fifo<uint8_t>>) { return nullptr; }
 	virtual int priority() { return 0; }
 	
 	virtual bool checkSilence() const { return true; }

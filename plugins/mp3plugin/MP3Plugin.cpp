@@ -27,7 +27,7 @@ namespace chipmachine {
 class MP3Player : public ChipPlayer {
 public:
 
-	MP3Player(Fifo<uint8_t>* f) : fifo(f) {
+	MP3Player(std::shared_ptr<utils::Fifo<uint8_t>> fifo) : fifo(fifo) {
 		int err = mpg123_init();
 		mp3 = mpg123_new(NULL, &err);
 		mpg123_param(mp3, MPG123_ADD_FLAGS, MPG123_QUIET, 0);
@@ -149,7 +149,7 @@ public:
 			mpg123_meta_free(mp3);
 	}
 
-	utils::Fifo<uint8_t>* fifo;
+	std::shared_ptr<utils::Fifo<uint8_t>> fifo;
 
 	void putStream(const uint8_t *source, int size)  {
 		long buffered = 0;
@@ -326,7 +326,7 @@ ChipPlayer *MP3Plugin::fromFile(const std::string& fileName) {
 	return new MP3Player { fileName };
 };
 
-ChipPlayer *MP3Plugin::fromStream(Fifo<uint8_t>* fifo) {
+ChipPlayer *MP3Plugin::fromStream(std::shared_ptr<utils::Fifo<uint8_t>> fifo) {
 	return new MP3Player(fifo);
 }
 
