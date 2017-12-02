@@ -44,7 +44,8 @@ FFMPEGPlugin::FFMPEGPlugin() {
 	ffmpeg = "bin\\ffmpeg.exe";
 #else
 	auto xd = File::getExeDir();
-	string path = File::makePath({xd.resolve(), (xd / ".." / ".." / "bin").resolve()});
+	string path = File::makePath({xd.resolve(), (xd / ".." / ".." / "bin").resolve(),
+	                              (xd / ".." / "Resources" / "bin").resolve()});
 	LOGD("PATH IS '%s'", path);
 	ffmpeg = File::findFile(path, "ffmpeg");
 	if(ffmpeg == "")
