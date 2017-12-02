@@ -37,7 +37,6 @@ public:
 		auto songs = openmpt_module_get_num_subsongs(mod);
 
 		auto keys = openmpt_module_get_metadata_keys(mod);
-		LOGD("META:%s", keys);
 
 		auto title = openmpt_module_get_metadata(mod, "title");
 		auto artist = openmpt_module_get_metadata(mod, "artist");
@@ -113,7 +112,6 @@ bool OpenMPTPlugin::canHandle(const std::string &n) {
 
 ChipPlayer *OpenMPTPlugin::fromFile(const std::string &fileName) {
 	utils::File file { fileName };
-	LOGD("From file %s", fileName);
 	try {
 		return new OpenMPTPlayer { file.readAll() };
 	} catch(player_exception &e) {

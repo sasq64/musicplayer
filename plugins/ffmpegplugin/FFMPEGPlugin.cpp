@@ -16,15 +16,11 @@ namespace chipmachine {
 
 class FFMPEGPlayer : public ChipPlayer {
 public:
-	FFMPEGPlayer() {
+	FFMPEGPlayer(const std::string &ffmpeg) {
 	}
 
-	FFMPEGPlayer(const std::string &fileName) {
-#ifdef _WIN32
-		pipe = std::move(execPipe(utils::format("bin\\ffmpeg.exe -i \"%s\" -v error -ac 2 -ar 44100 -f s16le -", fileName)));
-#else
-		pipe = std::move(execPipe(utils::format("ffmpeg -i \"%s\" -v error -ac 2 -ar 44100 -f s16le -", fileName)));
-#endif
+	FFMPEGPlayer(const std::string &fileName, const std::string &ffmpeg) {
+		pipe = std::move(execPipe(utils::format("%s -i \"%s\" -v error -ac 2 -ar 44100 -f s16le -", ffmpeg, fileName)));
 	}
 
 	~FFMPEGPlayer() override {
@@ -43,16 +39,30 @@ private:
 	ExecPipe pipe;
 };
 
+FFMPEGPlugin::FFMPEGPlugin() {
+#ifdef _WIN32
+	ffmpeg = "bin\\ffmpeg.exe";
+#else
+	auto xd = File::getExeDir();
+	string path = File::makePath({xd.resolve(), (xd / ".." / ".." / "bin").resolve()});
+	LOGD("PATH IS '%s'", path);
+	ffmpeg = File::findFile(path, "ffmpeg");
+	if(ffmpeg == "")
+		ffmpeg = "ffmpeg";
+#endif
+	LOGD("FFMPEG IS '%s'", ffmpeg);
+}
+
 bool FFMPEGPlugin::canHandle(const std::string &name) {
 	auto ext = utils::path_extension(name);
 	return ext == "m4a" || ext == "aac";
 }
 
 ChipPlayer *FFMPEGPlugin::fromFile(const std::string &fileName) {
-	return new FFMPEGPlayer{fileName};
+	return new FFMPEGPlayer{fileName, ffmpeg};
 };
 
 ChipPlayer *FFMPEGPlugin::fromStream(std::shared_ptr<utils::Fifo<uint8_t>> fifo) {
-	return new FFMPEGPlayer();
+	return new FFMPEGPlayer(ffmpeg);
 }
 }
