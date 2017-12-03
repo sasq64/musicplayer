@@ -48,10 +48,11 @@ public:
 			started = true;
 		}
 
-		if(gme_track_ended(emu)) {
-			//return -1;
-			LOGD("## GME HAS ENDED REALLY");
+		if(!ended && gme_track_ended(emu)) {
+			LOGD("## GME HAS ENDED");
 			ended = true;
+		}
+		if(ended) {
 			memset(target, 0, noSamples*2);
 			return noSamples;
 		}
