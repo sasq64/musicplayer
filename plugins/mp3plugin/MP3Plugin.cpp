@@ -240,7 +240,7 @@ public:
 		long buffered;
 		mpg123_getstate(mp3, MPG123_BUFFERFILL, &buffered, nullptr);
 
-		if(fifo && buffered < 1024*128) {
+		if(fifo && (buffered < 1024*128 || totalSeconds == 0)) {
 			int sz = fifo->filled();
 
 			if(sz > 0) {
@@ -258,7 +258,8 @@ public:
 		int err = mpg123_read(mp3, (unsigned char*)target, noSamples*2, &done);
 		
 		totalSeconds += ((double)done / (44100*4));
-		if(totalSeconds > 0) {
+		//LOGD("BUFFERED %d SECONDS %d (done %d)", buffered, totalSeconds, done);
+		if(totalSeconds > 2) {
 			auto r = (double)(totalSize - buffered) / totalSeconds;
 			r = (r * 8) / 1000;
 			if(bitRate == 0)
