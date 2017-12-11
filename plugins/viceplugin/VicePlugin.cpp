@@ -499,32 +499,32 @@ void VicePlugin::readLengths() {
 
 	File fp{"data/Songlengths.txt"};
 	string secs, mins;
-	vector<uint16_t> lengths;
+    int ll = 0;
+    extraLengths.reserve(30000);
 	for(const auto &l : fp.getLines()) {
-		//puts(l.c_str());
 		if(l[0] != ';' && l[0] != '[') {
 			auto key = from_hex<uint64_t>(l.substr(0,16));
-			//printf("\nHASH %llx\n", key);
-			lengths.clear();
-			for(const auto &sl : split(l.substr(33), " ")) {
-				tie(mins,secs) = splitn<2>(sl, ":");
-				lengths.push_back(stol(mins)*60 + stol(secs));
-			}
-			int ll = 0;
-			if(lengths.size() > 1) {
-				ll = extraLengths.size() | 0x8000;
-				extraLengths.insert(extraLengths.end(), lengths.begin(), lengths.end());
-				extraLengths.back() |= 0x8000;
-			} else {
-				ll = lengths[0];
+            auto lengths = split(l.substr(33), " ");
+            if(lengths.size() == 1) {
+				tie(mins,secs) = splitn<2>(lengths[0], ":");
+                ll = stol(mins)*60 + stol(secs);
+            } else {
+                ll = extraLengths.size() | 0x8000;
+                for(const auto &sl : lengths) {
+                    tie(mins,secs) = splitn<2>(sl, ":");
+                    extraLengths.push_back(stol(mins)*60 + stol(secs));
+                }
+                extraLengths.back() |= 0x8000;
 			}
 
 			LengthEntry le(key, ll);
 
+            // Sadly, this is ~100% of the cost of this function
 			mainHash.insert(upper_bound(mainHash.begin(), mainHash.end(), le), le);
 
 		}
 	}
+    printf("Extra lenghts: %d", (int)extraLengths.size());
 
 }
 
