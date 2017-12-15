@@ -26,6 +26,8 @@ public:
 	virtual ChipPlayer *fromStream(std::shared_ptr<utils::Fifo<uint8_t>>) { return nullptr; }
 	virtual int priority() { return 0; }
 	
+	// Normally a player stops playing when music is silent, but can be overriden
+	// by plugin
 	virtual bool checkSilence() const { return true; }
 
 	// Return other files required for playing the provided file. The returned

@@ -166,9 +166,9 @@ include_directories(
 )
 
 #vice_CFLAGS := -Wno-array-bounds
-if(NOT TARGET crypto)
-	add_subdirectory(../../../crypto crypto)
-endif()
+#if(NOT TARGET crypto)
+#	add_subdirectory(../../../apone/crypto crypto)
+#endif()
 
 find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})

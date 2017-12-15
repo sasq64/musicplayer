@@ -3,6 +3,8 @@ project(cpp-mods)
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
+message(${CMAKE_CURRENT_SOURCE_DIR})
+
 foreach(PLUGIN ${MUSICPLAYER_PLUGINS})
     add_subdirectory(${PLUGIN})
 	if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${PLUGIN}/${PLUGIN}_register.cpp)

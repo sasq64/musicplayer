@@ -2,7 +2,7 @@
 
 #include "GSFPlugin.h"
 
-#include <musicplayer/PSFFile.h>
+#include "../../PSFFile.h"
 #include <coreutils/utils.h>
 #include <set>
 #include <unordered_map>

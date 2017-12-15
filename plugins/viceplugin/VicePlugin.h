@@ -17,11 +17,13 @@ public:
 	virtual bool canHandle(const std::string &name) override;
 	virtual ChipPlayer *fromFile(const std::string &fileName) override;
 
+
+	friend class VicePlayer;
+
+private:
 	void readLengths();
 	void readSTIL();
 	std::vector<uint16_t> findLengths(uint64_t key);
-
-//private:
 	struct __attribute__((packed)) LengthEntry {
 		LengthEntry() {}
 		LengthEntry(uint64_t h, uint16_t l) : hash(h), length(l) {}
@@ -56,6 +58,7 @@ public:
 
 	static std::unordered_map<std::string, STILSong> stilSongs;
 
+	std::thread initThread;
 };
 
 }

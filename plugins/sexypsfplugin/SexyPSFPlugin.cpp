@@ -2,17 +2,17 @@ extern "C" {
 #include "sexypsf/driver.h"
 }
 #include "SexyPSFPlugin.h"
-#include "../../common/fifo.h"
+#include <coreutils/fifo.h>
 
 #include "../../chipplayer.h"
 #include <coreutils/utils.h>
 
-static Fifo *sexyFifo;
+static utils::Fifo<int16_t> *sexyFifo;
 
 void sexyd_update(unsigned char *pSound, long lBytes)
 {
 	if(sexyFifo)
-		sexyFifo->putBytes((uint8_t*)pSound, lBytes);
+		sexyFifo->put((int16_t*)pSound, lBytes/2);
 }
 
 namespace chipmachine {
@@ -45,7 +45,7 @@ public:
 	}
 
 	int getSamples(int16_t *target, int noSamples) {
-		while(fifo.filled() < noSamples*2) {
+		while(fifo.filled() < noSamples) {
 			int rc = sexy_execute();
 			if(rc <= 0)
 				return rc;
@@ -53,14 +53,14 @@ public:
 		if(fifo.filled() == 0)
 			return 0;
 
-		return fifo.getShorts(target, noSamples);
+		return fifo.get(target, noSamples);
 	}
 
 	//virtual void seekTo(int song, int seconds) {
 	//}
 
 private:
-	Fifo fifo;
+	utils::Fifo<int16_t> fifo;
 	PSFINFO *psfInfo;
 };
 
