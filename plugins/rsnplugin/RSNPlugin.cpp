@@ -86,8 +86,8 @@ ChipPlayer *RSNPlugin::fromFile(const string &fileName) {
 	if(l.size() > 0) {
 		for(auto name : l) {
 			utils::makeLower(name);
-			for(auto plugin : plugins) {
-				if(plugin->name() != "UADE" && plugin->canHandle(name)) {
+			for(auto plugin : ChipPlugin::getPlugins()) {
+				if(plugin->name() != "UADE" && plugin->name() != "RSNPlugin" && plugin->canHandle(name)) {
 					try {
 						return new RSNPlayer(l, plugin);
 					} catch(player_exception &e) {

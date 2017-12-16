@@ -35,9 +35,10 @@ add_subdirectory(plugins)
 add_subdirectory(../apone/mods/coreutils coreutils)
 add_subdirectory(../apone/mods/crypto crypto)
 add_subdirectory(../apone/mods/audioplayer audioplayer)
+add_subdirectory(../apone/mods/archive archive)
 
 add_executable(musictest main.cpp ${PLUGIN_EXTRA_FILES})
-target_link_libraries(musictest ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto pthread)
+target_link_libraries(musictest ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto archive pthread)
 set_property(TARGET musictest PROPERTY CXX_STANDARD 14)
 set_property(TARGET musictest PROPERTY CXX_STANDARD_REQUIRED ON)
 

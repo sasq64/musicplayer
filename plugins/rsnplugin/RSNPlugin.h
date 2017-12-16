@@ -8,7 +8,7 @@ namespace chipmachine {
 class RSNPlugin : public ChipPlugin {
 public:
 	RSNPlugin() {}
-	RSNPlugin(std::vector<std::shared_ptr<ChipPlugin>> &plugins) : plugins(plugins) {}
+	//RSNPlugin(std::vector<std::shared_ptr<ChipPlugin>> &plugins) : plugins(plugins) {}
 	virtual std::string name() const { return "RSNPlugin"; }
 	virtual ChipPlayer *fromFile(const std::string &fileName);
 

@@ -379,7 +379,7 @@ static int psf_load_internal( psf_load_state * state, const char * file_name )
     strcpy( full_path, state->base_path );
     strcat( full_path, file_name );
 
-    fprintf(stderr, "Load internal '%s'\n", full_path);
+    //fprintf(stderr, "Load internal '%s'\n", full_path);
 
     file = state->file_callbacks->fopen( full_path );
 
