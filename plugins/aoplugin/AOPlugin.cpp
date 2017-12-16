@@ -1,8 +1,9 @@
 
 #include "AOPlugin.h"
 #include "../../chipplayer.h"
-#include <coreutils/utils.h>
+
 #include <coreutils/file.h>
+#include <coreutils/utils.h>
 
 #include <set>
 #include <string>
@@ -70,7 +71,7 @@ int ao_get_lib(char *filename, uint8 **buffer, uint64 *length)
 	uint32 size;
 	FILE *auxfile;
 
-	std::string fullName = baseDir + "/" + filename;
+	std::string fullName = baseDir + "/" + utils::toLower(filename);
 
 	auxfile = fopen(fullName.c_str(), "rb");
 	if (!auxfile)
@@ -102,7 +103,6 @@ int ao_get_lib(char *filename, uint8 **buffer, uint64 *length)
 }
 
 }
-using namespace std;
 
 enum {
 	SIG_QSF = 0x50534641,
@@ -112,6 +112,8 @@ enum {
 	SIG_PSF2 = 0x50534602,
 	SIG_DSF = 0x50534612
 };
+
+using namespace std;
 
 namespace chipmachine {
 

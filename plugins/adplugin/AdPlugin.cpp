@@ -46,12 +46,12 @@ class AdPlugPlayer : public ChipPlayer {
 	CPlayer * m_player = nullptr;
 	/* STATIC! */ CAdPlugDatabase * g_database = nullptr; 
 public:
-	AdPlugPlayer(const std::string &fileName) {
+	AdPlugPlayer(const std::string &fileName, const std::string& configDir) {
 
 		int core = 0;
 			
 		if(!g_database) {
-			binistream *fp  = new binifstream("data/adplug.db");
+			binistream *fp  = new binifstream(configDir + "/" + "adplug.db");
 			fp->setFlag(binio::BigEndian, false);
 			fp->setFlag(binio::FloatIEEE);
 				
@@ -136,9 +136,9 @@ bool AdPlugin::canHandle(const std::string &name) {
 	return supported_ext.count(utils::path_extension(name)) > 0;
 }
 
-ChipPlayer *AdPlugin::fromFile(const std::string &fileName) {
+ChipPlayer *AdPlugin::fromFile(const std::string& fileName) {
 	try {
-		return new AdPlugPlayer { fileName };
+		return new AdPlugPlayer { fileName, configDir };
 	} catch(player_exception &e) {
 		return nullptr;
 	}

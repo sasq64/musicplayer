@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 2.8.4)
 project(cpp-mods.musicplayer)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
-include_directories(. ../apone/mods)
+set(APONE ../apone/mods)
+
+include_directories(. ${APONE})
 
 
 set(MUSICPLAYER_PLUGINS
@@ -32,13 +34,13 @@ set(MUSICPLAYER_PLUGINS
 )
 
 add_subdirectory(plugins)
-add_subdirectory(../apone/mods/coreutils coreutils)
-add_subdirectory(../apone/mods/crypto crypto)
-add_subdirectory(../apone/mods/audioplayer audioplayer)
-add_subdirectory(../apone/mods/archive archive)
+add_subdirectory(${APONE}/coreutils coreutils)
+add_subdirectory(${APONE}/crypto crypto)
+add_subdirectory(${APONE}/audioplayer audioplayer)
+add_subdirectory(${APONE}/archive archive)
 
-add_executable(musictest main.cpp ${PLUGIN_EXTRA_FILES})
-target_link_libraries(musictest ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto archive pthread)
-set_property(TARGET musictest PROPERTY CXX_STANDARD 14)
-set_property(TARGET musictest PROPERTY CXX_STANDARD_REQUIRED ON)
+add_executable(play main.cpp ${PLUGIN_EXTRA_FILES})
+target_link_libraries(play ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto archive pthread)
+set_property(TARGET play PROPERTY CXX_STANDARD 14)
+set_property(TARGET play PROPERTY CXX_STANDARD_REQUIRED ON)
 

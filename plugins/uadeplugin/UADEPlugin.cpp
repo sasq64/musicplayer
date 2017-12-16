@@ -203,7 +203,7 @@ bool UADEPlugin::canHandle(const std::string&name) {
 ChipPlayer *UADEPlugin::fromFile(const std::string &fileName) {
 
 
-	auto *player = new UADEPlayer(dataDir + "/data/uade");
+	auto *player = new UADEPlayer(dataDir + "/uade");
 	LOGD("UADE data %s", dataDir);
 	if(!player->load(File::resolvePath(fileName))) {
 		delete player;

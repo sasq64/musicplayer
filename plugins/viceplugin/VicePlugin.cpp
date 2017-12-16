@@ -312,7 +312,7 @@ public:
 };
 
 VicePlugin::VicePlugin(const string &dataDir) : dataDir(dataDir) {
-    VicePlayer::init(dataDir + "/data/c64");
+    VicePlayer::init(dataDir + "/c64");
 	initThread = std::thread([=] {
     	readLengths();
     	readSTIL();
@@ -348,7 +348,9 @@ void VicePlugin::readSTIL() {
 
     STIL current;
     vector<STIL> songs;
-    File f = File(dataDir + "/data/STIL.txt");
+    File f = File(dataDir + "/STIL.txt");
+    if(!f.exists())
+        return;
     // int subsong = -1;
     string path;
     string what;
@@ -502,7 +504,9 @@ template <typename T> T from_hex(const std::string &s) {
 
 void VicePlugin::readLengths() {
 
-    File fp{"data/Songlengths.txt"};
+    File fp{dataDir + "/Songlengths.txt"};
+    if(!fp.exists())
+        return;
     string secs, mins;
     int ll = 0;
     extraLengths.reserve(30000);

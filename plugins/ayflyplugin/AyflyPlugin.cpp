@@ -21,7 +21,7 @@ public:
 			throw player_exception("Not any ay file");
 		const char *songName = ay_getsongname(aysong);
 		const char *songAuthor = ay_getsongauthor(aysong);
-		int len =  ay_getsonglength(&aysong) / 50;
+		unsigned long len =  ay_getsonglength(&aysong) / 50;
 		if(len > 1000) len = 0;
 		 setMeta(
 		 	"title", songName,
