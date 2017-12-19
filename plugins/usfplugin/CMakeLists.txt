@@ -56,15 +56,10 @@ set(SOURCE_FILES
 	lazyusf2/usf/usf.c
 	lazyusf2/vi/vi_controller.c
 )
-include_directories(. lazyusf2 lazyusf2/rsp_hle)
-
-#if(RASPBERRY)
-#add_definitions(-DARCH_MIN_ARM_NEON)
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard")
-#endif()
 
 find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
 
 add_library(usfplugin USFPlugin.cpp resampler.c ${SOURCE_FILES})
 target_link_libraries(usfplugin ${ZLIB_LIBRARIES})
+target_include_directories(usfplugin PRIVATE . lazyusf2 lazyusf2/rsp_hle)

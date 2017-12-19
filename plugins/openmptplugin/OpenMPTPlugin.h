@@ -1,17 +1,15 @@
-#ifndef OPENMPTPLAYER_H
-#define OPENMPTPLAYER_H
+#pragma once
 
 #include "../../chipplugin.h"
 
-namespace chipmachine {
+namespace musix {
 
 class OpenMPTPlugin : public ChipPlugin {
 public:
-	virtual std::string name() const override { return "OpenMPT"; }
-	virtual bool canHandle(const std::string &name) override;
-	virtual ChipPlayer *fromFile(const std::string &fileName) override;
+    virtual std::string name() const override { return "OpenMPT"; }
+    virtual bool canHandle(const std::string& name) override;
+    virtual ChipPlayer* fromFile(const std::string& fileName) override;
 };
 
-}
+} // namespace musix
 
-#endif // OPENMPTPLAYER_H

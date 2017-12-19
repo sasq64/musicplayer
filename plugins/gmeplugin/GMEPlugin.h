@@ -1,17 +1,14 @@
-#ifndef GME_PLAYER_H
-#define GME_PLAYER_H
+#pragma once
 
 #include "../../chipplugin.h"
 
-namespace chipmachine {
+namespace musix {
 
 class GMEPlugin : public ChipPlugin {
 public:
-	virtual std::string name() const override { return "Game Music Engine"; }
-	virtual bool canHandle(const std::string &name) override;
-	virtual ChipPlayer *fromFile(const std::string &fileName) override;
+    virtual std::string name() const override { return "Game Music Engine"; }
+    virtual bool canHandle(const std::string &name) override;
+    virtual ChipPlayer *fromFile(const std::string &fileName) override;
 };
 
-}
-
-#endif // GME_PLAYER_H
+} // namespace musix

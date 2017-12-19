@@ -3,12 +3,12 @@ project(cpp-mods.musicplayer.uade)
 
 add_subdirectory(uade)
 
-include_directories(../.. uade/uade/src/frontends/include)
 
 if(WIN32)
 set(EXTRA_LIBS ws2_32)
 endif()
 
 add_library(uadeplugin UADEPlugin.cpp)
-target_link_libraries(uadeplugin uade ${EXTRA_LIBS})
+target_link_libraries(uadeplugin PRIVATE uade ${EXTRA_LIBS})
+target_include_directories(uadeplugin PRIVATE ../.. uade/uade/src/frontends/include)
 

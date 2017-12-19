@@ -3,15 +3,15 @@
 
 #include "../../chipplugin.h"
 
-namespace chipmachine {
+namespace musix {
 
 class AyflyPlugin : public ChipPlugin {
 public:
-	virtual std::string name() const override { return "Ayfly ZX"; }
-	virtual bool canHandle(const std::string &name) override;
-	virtual ChipPlayer *fromFile(const std::string &fileName) override;
+    virtual std::string name() const override { return "Ayfly ZX"; }
+    virtual bool canHandle(const std::string &name) override;
+    virtual ChipPlayer *fromFile(const std::string &fileName) override;
 };
 
-}
+} // namespace musix
 
 #endif // AYFLY_PLAYER_H

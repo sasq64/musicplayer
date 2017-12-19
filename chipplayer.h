@@ -11,7 +11,7 @@
 #include <functional>
 #include <vector>
 
-namespace chipmachine {
+namespace musix {
 
 class player_exception : public std::exception {
 public:

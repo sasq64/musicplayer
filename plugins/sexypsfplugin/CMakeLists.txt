@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 2.8.4)
 project(cpp-mods.musicplayer.sexypsfplugin)
 
-
 set(SOURCE_FILES
 	SexyPSFPlugin.cpp
 	sexypsf/Misc.c
@@ -16,8 +15,8 @@ set(SOURCE_FILES
 	sexypsf/Spu.c
 	sexypsf/spu/spu.c
 )
-include_directories(../..)
-
-add_definitions(-DPSS_STYLE=1)
 
 add_library(sexypsfplugin ${SOURCE_FILES})
+target_include_directories(sexypsfplugin PRIVATE  ../..)
+target_compile_definitions(sexypsfplugin PRIVATE -DPSS_STYLE=1)
+

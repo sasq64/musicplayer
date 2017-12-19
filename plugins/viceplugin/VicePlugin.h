@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace chipmachine {
+namespace musix {
 
 class VicePlugin : public ChipPlugin {
 public:

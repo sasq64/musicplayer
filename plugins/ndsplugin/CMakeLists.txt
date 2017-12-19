@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 2.8.4)
 project(cpp-mods.musicplayer.ndsplugin)
 
-
-
 set(SOURCE_FILES
 	NDSPlugin.cpp
 	nds/vio2sf/vio2sf.c
@@ -20,11 +18,9 @@ set(SOURCE_FILES
 	nds/vio2sf/desmume/thumb_instructions.c
 )
 
-include_directories(nds/vio2sf nds/vio2sf/desmume nds)
-add_definitions(-DLSB_FIRST -DHAVE_STDINT_H -D_strnicmp=strncasecmp)
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-parentheses-equality -Wno-bitwise-op-parentheses -Wno-parentheses -Wno-pointer-sign  -Wno-dangling-else")
-
-
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-parentheses-equality -Wno-bitwise-op-parentheses -Wno-parentheses -Wno-pointer-sign  -Wno-dangling-else")
 
 add_library(ndsplugin ${SOURCE_FILES})
+target_include_directories(ndsplugin PRIVATE nds/vio2sf nds/vio2sf/desmume nds)
+target_compile_definitions(ndsplugin PRIVATE -DLSB_FIRST -DHAVE_STDINT_H -D_strnicmp=strncasecmp)
+

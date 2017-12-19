@@ -32,10 +32,7 @@ set(SOURCE_FILES
 	aosdk/corlett.c
 )
 
-include_directories(aosdk/eng_ssf aosdk)
-#add_definitions(-DDISABLE_AUDIO)
-#find_package(ZLIB REQUIRED)
-#include_directories(${ZLIB_INCLUDE_DIRS})
 
 add_library(aoplugin AOPlugin.cpp ${SOURCE_FILES})
+target_include_directories(aoplugin PRIVATE aosdk/eng_ssf aosdk)
 target_link_libraries(aoplugin ${ZLIB_LIBRARIES})

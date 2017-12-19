@@ -3,7 +3,7 @@
 
 #include "../../chipplugin.h"
 
-namespace chipmachine {
+namespace musix {
 
 class HTPlugin : public ChipPlugin {
 public:

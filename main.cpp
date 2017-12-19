@@ -7,8 +7,8 @@
 #include "plugins/plugins.h"
 
 int main(int argc, const char **argv) {
-    using chipmachine::ChipPlayer;
-    using chipmachine::ChipPlugin;
+    using musix::ChipPlayer;
+    using musix::ChipPlugin;
 
     if(argc < 2)
         return 0;
@@ -17,6 +17,7 @@ int main(int argc, const char **argv) {
 
     std::string name = argv[1];
     std::string pluginName;
+
     ChipPlugin::createPlugins("data");
 
     std::shared_ptr<ChipPlayer> player;

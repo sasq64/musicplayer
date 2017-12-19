@@ -18,19 +18,20 @@ set(MUSICPLAYER_PLUGINS
 	hivelyplugin
 	htplugin
 	mdxplugin
-	modplugin
 	mp3plugin
 	ndsplugin
 	openmptplugin
 	rsnplugin
 	s98plugin
 	sc68plugin
-	sexypsfplugin
 	stsoundplugin
 	tedplugin
 	uadeplugin
 	usfplugin
 	viceplugin
+    # Obsolete
+    # sexypsfplugin
+    # modplugin
 )
 
 add_subdirectory(plugins)

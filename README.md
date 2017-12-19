@@ -1,6 +1,7 @@
-chipmachine
+Musicplayer
 ===========
 
 A portable C++ music playing 'framework'
+Used by chipmachine
 
-Check out `play.cpp` for a simple example.
+

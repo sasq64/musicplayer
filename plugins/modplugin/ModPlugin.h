@@ -3,15 +3,15 @@
 
 #include "../../chipplugin.h"
 
-namespace chipmachine {
+namespace musix {
 
 class ModPlugin : public ChipPlugin {
 public:
-	virtual std::string name() const override { return "ModPlug"; }
-	virtual bool canHandle(const std::string &name) override;
-	virtual ChipPlayer *fromFile(const std::string &fileName) override;
+    virtual std::string name() const override { return "ModPlug"; }
+    virtual bool canHandle(const std::string& name) override;
+    virtual ChipPlayer* fromFile(const std::string& fileName) override;
 };
 
-}
+} // namespace musix
 
 #endif // MODPLAYER_H

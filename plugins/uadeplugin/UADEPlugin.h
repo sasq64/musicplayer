@@ -1,24 +1,22 @@
-#ifndef UADEPLUGIN_H
-#define UADEPLUGIN_H
+#pragma once
 
 #include "../../chipplugin.h"
 
-namespace chipmachine {
+namespace musix {
 
 class UADEPlugin : public ChipPlugin {
 public:
+    UADEPlugin(const std::string& dataDir) : dataDir(dataDir) {}
 
-	UADEPlugin(const std::string &dataDir) : dataDir(dataDir) {}
+    virtual std::string name() const override { return "UADE"; }
+    virtual bool canHandle(const std::string& name) override;
+    virtual ChipPlayer* fromFile(const std::string& fileName) override;
 
-	virtual std::string name() const override { return "UADE"; }
-	virtual bool canHandle(const std::string &name) override;
-	virtual ChipPlayer *fromFile(const std::string &fileName) override;
+    virtual int priority() override { return -10; }
 
-	virtual int priority() override { return -10; }
 private:
-	std::string dataDir;
+    std::string dataDir;
 };
 
-}
+} // namespace musix
 
-#endif // UADEPLUGIN_H

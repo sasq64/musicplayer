@@ -1,17 +1,15 @@
-#ifndef TED_PLAYER_H
-#define TED_PLAYER_H
+#pragma once
 
 #include "../../chipplugin.h"
 
-namespace chipmachine {
+namespace musix {
 
 class TEDPlugin : public ChipPlugin {
 public:
-	virtual std::string name() const override { return "Tedplay"; }
-	virtual bool canHandle(const std::string &name) override;
-	virtual ChipPlayer *fromFile(const std::string &fileName) override;
+    virtual std::string name() const override { return "Tedplay"; }
+    virtual bool canHandle(const std::string& name) override;
+    virtual ChipPlayer* fromFile(const std::string& fileName) override;
 };
 
-}
+} // namespace musix
 
-#endif // TED_PLAYER_H

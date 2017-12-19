@@ -11,7 +11,7 @@
 
 #include "chipplayer.h"
 
-namespace chipmachine {
+namespace musix {
 
 class ChipPlugin {
 public:

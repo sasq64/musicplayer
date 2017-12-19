@@ -34,7 +34,7 @@ int console_mode = 1;
 int vsid_mode = 1;
 int video_disabled_mode = 1;
 
-namespace chipmachine {
+namespace musix {
 
 using namespace std;
 using namespace utils;
@@ -555,4 +555,4 @@ vector<uint16_t> VicePlugin::findLengths(uint64_t key) {
     return songLengths;
 }
 
-} // namespace chipmachine
+} // namespace musix

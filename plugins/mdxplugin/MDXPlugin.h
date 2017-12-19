@@ -1,18 +1,17 @@
-#ifndef MDX_PLAYER_H
-#define MDX_PLAYER_H
+#pragma once
 
 #include "../../chipplugin.h"
 
-namespace chipmachine {
+namespace musix {
 
 class MDXPlugin : public ChipPlugin {
 public:
-	virtual std::string name() const override { return "MDX"; }
-	virtual bool canHandle(const std::string &name) override;
-	virtual ChipPlayer *fromFile(const std::string &fileName) override;
-	virtual std::vector<std::string> getSecondaryFiles(const std::string &name) override;
+    virtual std::string name() const override { return "MDX"; }
+    virtual bool canHandle(const std::string& name) override;
+    virtual ChipPlayer* fromFile(const std::string& fileName) override;
+    virtual std::vector<std::string>
+    getSecondaryFiles(const std::string& name) override;
 };
 
-}
+} // namespace musix
 
-#endif // MDX_PLAYER_H

@@ -22,10 +22,6 @@ set(SOURCE_FILES
 
 )
 
-include_directories(m_s98)
-#add_definitions(-DDISABLE_AUDIO)
-#find_package(ZLIB REQUIRED)
-#include_directories(${ZLIB_INCLUDE_DIRS})
-
 add_library(s98plugin S98Plugin.cpp ${SOURCE_FILES})
-target_link_libraries(s98plugin ${ZLIB_LIBRARIES})
+target_link_libraries(s98plugin PRIVATE ${ZLIB_LIBRARIES})
+target_include_directories(s98plugin PRIVATE m_s98)

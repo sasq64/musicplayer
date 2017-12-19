@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 2.8.4)
 project(cpp-mods.musicplayer.viceplugin)
 
-
-
 set(SOURCE_FILES
 	VicePlugin.cpp
 	common/archdep.c
@@ -143,9 +141,14 @@ set(SOURCE_FILES
 	vice/resid/wave.cpp
 )
 
-include_directories(
+find_package(ZLIB REQUIRED)
+
+add_library(viceplugin ${SOURCE_FILES})
+target_link_libraries(viceplugin crypto ${ZLIB_LIBRARIES})
+target_include_directories(viceplugin PRIVATE)
+include_directories(viceplugin PRIVATE
 	.
-	../..
+    #	../..
 	common
 	common/readline
 	vice
@@ -163,15 +166,6 @@ include_directories(
 	vice/vdrive
 	vice/vicii
 	vice/rtc
+    ${ZLIB_INCLUDE_DIRS}
 )
 
-#vice_CFLAGS := -Wno-array-bounds
-#if(NOT TARGET crypto)
-#	add_subdirectory(../../../apone/crypto crypto)
-#endif()
-
-find_package(ZLIB REQUIRED)
-include_directories(${ZLIB_INCLUDE_DIRS})
-
-add_library(viceplugin ${SOURCE_FILES})
-target_link_libraries(viceplugin crypto ${ZLIB_LIBRARIES})

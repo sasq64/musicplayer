@@ -12,7 +12,7 @@
 
 using namespace std;
 
-namespace chipmachine {
+namespace musix {
 
 class HTPlayer : public ChipPlayer {
 public:

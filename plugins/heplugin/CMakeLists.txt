@@ -19,17 +19,16 @@ set(SOURCE_FILES
 	he/psflib.c
 )
 
-add_definitions(-DEMU_COMPILE -DEMU_LITTLE_ENDIAN)
 
-#htplugin_LDFLAGS := -Wl,--fix-cortex-a8
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-pointer-sign -Wno-implicit-function-declaration -Wno-incompatible-pointer-types")
 endif()
 
-include_directories(he)
 
 find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
 
 add_library(heplugin ${SOURCE_FILES})
+target_include_directories(heplugin PRIVATE he)
+target_compile_definitions(heplugin PRIVATE -DEMU_COMPILE -DEMU_LITTLE_ENDIAN)
 target_link_libraries(heplugin ${ZLIB_LIBRARIES})

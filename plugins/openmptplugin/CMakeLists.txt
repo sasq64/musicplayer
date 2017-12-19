@@ -7,12 +7,9 @@ file(GLOB MPT_FILES common/mpt*.cpp)
 
 set(SOURCE_FILES
 	OpenMPTPlugin.cpp
-	#common/AudioCriticalSection.cpp
-	#common/stdafx.cpp
 	${MPT_FILES}
 	common/Logging.cpp
 	common/misc_util.cpp
-	#common/Profiler.cpp
 	common/serialization_utils.cpp
 	common/typedefs.cpp
 	common/version.cpp
@@ -24,11 +21,9 @@ set(SOURCE_FILES
 	${SOUNDLIB_FILES}
 )
 
-include_directories(common common/svn_version_default .)
-add_definitions(-DLIBOPENMPT_BUILD -DOPENMPT_VERSION_REVISION=1 -DMPT_CHARSET_CUSTOMUTF8 -DMPT_WITH_ZLIB -DNO_PLUGINS)
-
 find_package(ZLIB)
-include_directories(${ZLIB_INCLUDE_DIRS})
 
 add_library(openmptplugin ${SOURCE_FILES})
 target_link_libraries(openmptplugin ${ZLIB_LIBRARIES})
+target_include_directories(openmptplugin PRIVATE ${ZLIB_INCLUDE_DIRS} common common/svn_version_default .)
+target_compile_definitions(openmptplugin PRIVATE -DLIBOPENMPT_BUILD -DOPENMPT_VERSION_REVISION=1 -DMPT_CHARSET_CUSTOMUTF8 -DMPT_WITH_ZLIB -DNO_PLUGINS)
