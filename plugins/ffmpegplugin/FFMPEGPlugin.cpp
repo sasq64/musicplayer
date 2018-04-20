@@ -41,7 +41,7 @@ FFMPEGPlugin::FFMPEGPlugin() {
     ffmpeg = "bin\\ffmpeg.exe";
 #elif defined __APPLE__
     auto xd = utils::File::getExeDir();
-    string path =
+	std::string path =
         utils::File::makePath({xd.resolve(), (xd / ".." / ".." / "bin").resolve(),
                         (xd / ".." / "Resources" / "bin").resolve()});
     LOGD("PATH IS '%s'", path);

@@ -6,6 +6,7 @@ set(APONE ../apone/mods)
 
 include_directories(. ${APONE})
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
 set(MUSICPLAYER_PLUGINS
 	adplugin
