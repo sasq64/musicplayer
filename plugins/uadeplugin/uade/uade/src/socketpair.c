@@ -50,7 +50,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 # include <ws2tcpip.h>  /* socklen_t, et al (MSVC20xx) */
 # include <windows.h>
 # include <io.h>
@@ -60,7 +60,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # include <errno.h>
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 
 /* dumb_socketpair:
  *   If make_overlapped is nonzero, both sockets created will be usable for
@@ -81,6 +81,10 @@ int dumb_socketpair(SOCKET socks[2], int make_overlapped)
     socklen_t addrlen = sizeof(a.inaddr);
     DWORD flags = (make_overlapped ? WSA_FLAG_OVERLAPPED : 0);
     int reuse = 1;
+
+    static WSADATA wsaData = {0};
+    if(wsaData.wVersion == 0)
+        WSAStartup(MAKEWORD(2,2), &wsaData);
 
     if (socks == 0) {
       WSASetLastError(WSAEINVAL);
