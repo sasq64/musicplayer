@@ -68,7 +68,7 @@ public:
                 "songs", m_player->getsubsongs(), "format",
                 m_player->gettype());
 
-        LOGD("CORE %d, PLAYER %p", core, m_player);
+        LOGD("CORE %d, PLAYER %p", core, (void*)m_player);
     }
 
     ~AdPlugPlayer() {
