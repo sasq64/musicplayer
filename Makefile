@@ -6,5 +6,5 @@ build :
 	mkdir build
 
 build/Makefile :
-	(cd build ; cmake ..)
+	(cd build ; cmake -G"Unix Makefiles" ..)
 

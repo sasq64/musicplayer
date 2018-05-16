@@ -65,6 +65,8 @@ set(SOURCE_FILES ${SOURCE_FILES}
 )
 
 add_library(uade ${SOURCE_FILES})
-
+if(WIN32)
+  target_link_libraries(uade Ws2_32)
+endif()
 
 
