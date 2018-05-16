@@ -2,6 +2,7 @@
 #define CHIP_PLAYER_H
 
 #include <coreutils/log.h>
+#include <coreutils/utils.h>
 
 #include <stdint.h>
 #include <stdlib.h>

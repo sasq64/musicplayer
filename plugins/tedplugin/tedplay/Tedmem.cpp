@@ -61,7 +61,7 @@ enum {
 
 TED::TED() : filter(0), sidCard(0)
 {
-	register unsigned int	i;
+	unsigned int	i;
 
 	instance_ = this;
 	// clearing cartdridge ROMs
@@ -124,7 +124,7 @@ TED::TED() : filter(0), sidCard(0)
 void TED::Reset()
 {
 	// clear RAM with powerup pattern
-	for (int i=0;i<RAMSIZE;Ram[i++] = (i>>1)<<1==i ? 0 : 0xFF);
+	for (int i=0;i<RAMSIZE;i++) Ram[i] = (i>>1)<<1 == i ? 0 : 0xFF;
 	// reset oscillators
 	oscillatorReset();
 	if (sidCard) sidCard->reset();
@@ -139,7 +139,7 @@ void TED::forcedReset()
 
 void TED::texttoscreen(int x,int y, const char *scrtxt)
 {
-	register int i =0;
+	int i =0;
 
 	while (scrtxt[i]!=0) {
 		chrtoscreen(x+i*8,y,scrtxt[i]);
@@ -149,7 +149,7 @@ void TED::texttoscreen(int x,int y, const char *scrtxt)
 
 void TED::chrtoscreen(int x,int y, char scrchr)
 {
-	register int j, k;
+	int j, k;
 	unsigned char *charset = (unsigned char *) kernal+0x1000;
 
 	if (isalpha(scrchr)) {
@@ -181,7 +181,7 @@ void TED::loadloromfromfile(int nr, char fname[512])
 	FILE			*img;
 
 	if (fname[0]!='\0') {
-		if (img = fopen(fname, "rb")) {
+		if ((img = fopen(fname, "rb"))) {
 			// load low ROM file
 			fread(&(RomLo[nr]),ROMSIZE,1,img);
 			fclose(img);
@@ -206,7 +206,7 @@ void TED::loadhiromfromfile(int nr, char fname[512])
 	FILE	*img;
 
 	if (fname[0]!='\0') {
-		if (img = fopen(fname, "rb")) {
+		if ((img = fopen(fname, "rb"))) {
 			// load high ROM file
 			fread(&(RomHi[nr]),ROMSIZE,1,img);
 			fclose(img);
@@ -1212,7 +1212,7 @@ void TED::ted_process(short *buffer, unsigned int count)
 
     			    case 205:
 						CharacterCount = 0;
-					    // cursor phase counter in TED register $1F
+					    // cursor phase counter in TED $1F
 						VertSubActive = false;
 						if ((++crsrphase&0x0F) == 0x0F)
     			        	crsrblinkon ^= 1;

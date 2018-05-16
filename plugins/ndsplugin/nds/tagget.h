@@ -1,4 +1,4 @@
-static unsigned int getdwordle(const char *pData)
+static unsigned int getdwordle(const unsigned char *pData)
 {
 	//return pData[0] | ((pData[1]) << 8) | ((pData[2]) << 16) | ((pData[3]) << 24); bad bad bad this doesnt work at least on Android :(
 	return ((pData[3] & 0xff) << 24) | ((pData[2] & 0xff) << 16) | ((pData[1] & 0xff) << 8) | (pData[0] & 0xff); 
