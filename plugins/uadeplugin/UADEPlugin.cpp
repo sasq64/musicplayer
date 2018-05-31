@@ -111,7 +111,6 @@ public:
 
         return valid;
     }
-
     ~UADEPlayer() override {
         uade_cleanup_state(state);
         state = nullptr;
@@ -233,7 +232,42 @@ static const set<string> supported_ext{
     "qpa",       "sqt",          "qts",         "ftm",          "sdata"};
 
 bool UADEPlugin::canHandle(const std::string& name) {
-    return supported_ext.count(utils::path_extension(name)) > 0;
+    if(supported_ext.count(utils::path_extension(name)) > 0)
+        return true;
+    return (supported_ext.count(utils::path_basename(name)) > 0);
+}
+
+
+std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string &file) {
+    bool isStarTrekker = (file.find("Startrekker") != string::npos);
+
+    // Known music formats with 2 files
+    static const std::unordered_map<string, string> fmt_2files = {
+        {"mdat", "smpl"},   // TFMX
+        {"sng", "ins"},     // Richard Joseph
+        {"jpn", "smp"},     // Jason Page PREFIX
+        {"dum", "ins"},     // Rob Hubbard 2
+        {"adsc", "adsc.as"}, // Audio Sculpture
+        {"sdata", "ip"} // Audio Sculpture
+    };
+
+    string ext = path_extension(file);
+    string base = path_basename(file);
+    std::vector<std::string> result;
+
+    string ext2;
+    if(fmt_2files.count(ext) > 0)
+        ext2 = fmt_2files.at(ext);
+    else if(fmt_2files.count(base) > 0) {
+        ext2 = base;
+        base = fmt_2files.at(base);
+    } else
+    if(isStarTrekker)
+        ext2 = "mod.nt";
+    if(!ext2.empty()) {
+        result.push_back(base + "." + ext2);
+    }
+    return result;
 }
 
 ChipPlayer* UADEPlugin::fromFile(const std::string& fileName) {
