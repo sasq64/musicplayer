@@ -21,5 +21,5 @@ extern union flagu historyf[MAX_HIST];
 extern uaecptr history[MAX_HIST];
 #endif
 
-extern void debug(void);
+extern void uade_debug(void);
 extern void activate_debugger(void);

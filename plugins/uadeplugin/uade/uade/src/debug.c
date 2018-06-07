@@ -399,7 +399,7 @@ static void history_flush(void) {
   lasthist = firsthist = 0;
 }
 
-void debug (void) {
+void uade_debug (void) {
   char input[80];
   uaecptr nextpc,nxdis,nxmem;
   

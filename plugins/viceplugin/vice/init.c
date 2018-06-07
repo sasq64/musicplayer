@@ -255,7 +255,7 @@ int init_cmdline_options(void)
 
 int init_main(void)
 {
-    signals_init(debug.do_core_dumps);
+    signals_init(vice_debug.do_core_dumps);
 
     romset_init();
 

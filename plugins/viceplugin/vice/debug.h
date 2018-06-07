@@ -61,7 +61,7 @@ typedef struct debug_s {
     int do_core_dumps;
 } debug_t;
 
-extern debug_t debug;
+extern debug_t vice_debug;
 
 struct interrupt_cpu_status_s;
 

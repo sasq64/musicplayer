@@ -44,7 +44,7 @@
 #include "vice-event.h"
 
 
-debug_t debug;
+debug_t vice_debug;
 
 
 #ifdef DEBUG
@@ -91,26 +91,26 @@ static int set_autoplay_frames(int val, void *param)
 /* Debug-related resources. */
 static const resource_int_t resources_int[] = {
     { "DoCoreDump", 0, RES_EVENT_NO, NULL,
-      &debug.do_core_dumps, set_do_core_dumps, NULL },
+      &vice_debug.do_core_dumps, set_do_core_dumps, NULL },
 #ifdef DEBUG
     { "MainCPU_TRACE", 0, RES_EVENT_NO, NULL,
-      &debug.maincpu_traceflg, set_maincpu_traceflg, NULL },
+      &vice_debug.maincpu_traceflg, set_maincpu_traceflg, NULL },
     { "Drive0CPU_TRACE", 0, RES_EVENT_NO, NULL,
-      &debug.drivecpu_traceflg[0], set_drive_traceflg, (void *)0 },
+      &vice_debug.drivecpu_traceflg[0], set_drive_traceflg, (void *)0 },
     { "Drive1CPU_TRACE", 0, RES_EVENT_NO, NULL,
-      &debug.drivecpu_traceflg[1], set_drive_traceflg, (void *)1 },
+      &vice_debug.drivecpu_traceflg[1], set_drive_traceflg, (void *)1 },
 #if DRIVE_NUM > 2
     { "Drive2CPU_TRACE", 0, RES_EVENT_NO, NULL,
-      &debug.drivecpu_traceflg[2], set_drive_traceflg, (void *)2 },
+      &vice_debug.drivecpu_traceflg[2], set_drive_traceflg, (void *)2 },
 #endif
 #if DRIVE_NUM > 3
     { "Drive3CPU_TRACE", 0, RES_EVENT_NO, NULL,
-      &debug.drivecpu_traceflg[3], set_drive_traceflg, (void *)3 },
+      &vice_debug.drivecpu_traceflg[3], set_drive_traceflg, (void *)3 },
 #endif
     { "TraceMode", 0, RES_EVENT_NO, NULL,
-      &debug.trace_mode, set_trace_mode, NULL },
+      &vice_debug.trace_mode, set_trace_mode, NULL },
     { "AutoPlaybackFrames", 200, RES_EVENT_NO, NULL,
-      &debug_autoplay_frames, set_autoplay_frames, NULL },
+      &vice_debug_autoplay_frames, set_autoplay_frames, NULL },
 #endif
     { NULL }
 };

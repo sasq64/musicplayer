@@ -1314,7 +1314,7 @@ void m68k_go (void)
 
     while (uadecore_reboot == 0 && quit_program == 0) {
       if (debugging)
-	debug ();
+	uade_debug ();
       if (quit_program != 0)
 	break;
       m68k_run_1 ();
