@@ -46,7 +46,8 @@ private:
 
 static const std::set<std::string> supported_ext = {
     "stp2", "ay",  "psg", "asc", "stc", "psc", "sqt",
-    "stp",  "pt1", "pt2", "pt3", "ftc", "vtx", "vt2"};
+    "stp",  "pt1", "pt2", "pt3", "ftc", "vtx", "vt2",
+	"zxs", "st13"};
 
 bool AyflyPlugin::canHandle(const std::string &name) {
     if(utils::toLower(name).find("/quartet") != std::string::npos)

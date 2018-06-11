@@ -15,5 +15,6 @@
 #include "mp3plugin/MP3Plugin.h"
 #include "uadeplugin/UADEPlugin.h"
 #include "rsnplugin/RSNPlugin.h"
+#include "ayflyplugin/AyflyPlugin.h"
 
 #endif // MUSICPLAYER_PLUGINS_H

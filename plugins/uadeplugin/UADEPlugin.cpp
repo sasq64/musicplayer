@@ -236,9 +236,10 @@ static const set<string> supported_ext{
     "qpa",       "sqt",          "qts",         "ftm",          "sdata"};
 
 bool UADEPlugin::canHandle(const std::string& name) {
-    if(supported_ext.count(utils::path_extension(name)) > 0)
+	auto lowerName = toLower(name);
+    if(supported_ext.count(utils::path_extension(lowerName)) > 0)
         return true;
-    return (supported_ext.count(utils::path_basename(name)) > 0);
+    return (supported_ext.count(utils::path_prefix(lowerName)) > 0);
 }
 
 
