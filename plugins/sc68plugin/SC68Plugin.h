@@ -14,7 +14,7 @@ public:
 
     static bool identifyFile(const std::string& fileName);
 
-    void setDataDir(const std::string& dataDir) { this->dataDir = dataDir; }
+    //void setDataDir(const std::string& dataDir) { this->dataDir = dataDir; }
 
 private:
     std::string dataDir;

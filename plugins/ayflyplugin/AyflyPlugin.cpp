@@ -36,7 +36,7 @@ public:
         return rc / 2;
     }
 
-    virtual bool seekTo(int song, int seconds) override { return false; }
+    bool seekTo(int song, int seconds) override { return false; }
 
 private:
     void *aysong;
@@ -49,7 +49,6 @@ static const std::set<std::string> supported_ext = {
     "stp",  "pt1", "pt2", "pt3", "ftc", "vtx", "vt2"};
 
 bool AyflyPlugin::canHandle(const std::string &name) {
-    LOGD("ZX NAME %s", name);
     if(utils::toLower(name).find("/quartet") != std::string::npos)
         return false;
     return supported_ext.count(utils::path_extension(name)) > 0;

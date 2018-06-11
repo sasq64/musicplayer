@@ -1304,8 +1304,13 @@ void m68k_go (void)
   reset_frame_rate_hack ();
   update_68k_cycles ();
 
+
   while (quit_program == 0) {
     uadecore_reset ();
+      if(regs.pc_p == NULL) {
+          fprintf(stderr, "PC null\n");
+          return;
+      }
     m68k_reset ();
     customreset ();
 

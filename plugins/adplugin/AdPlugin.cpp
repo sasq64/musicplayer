@@ -112,7 +112,7 @@ static const set<string> supported_ext{
     "dmo", "dro", "dtm", "hcs",  "hsp", "imf", "ksm", "laa",
     "lds", "m",   "mad", "mid",  "mkj", "msc", "mtk", "rad",
     "raw", "rix", "rol", "as3m", "sa2", "sat", "sci", /*"sng", */ "xad",
-    "xms", "xsm", "hsc", "edl",  "mtr"};
+    "xms", "xsm", "hsc", "edl",  "mtr", "adlib" };
 
 bool AdPlugin::canHandle(const std::string &name) {
     return supported_ext.count(utils::path_extension(name)) > 0;

@@ -63,7 +63,11 @@ int ao_get_lib(char *filename, uint8 **buffer, uint64 *length) {
     uint32 size;
     FILE *auxfile;
 
-    std::string fullName = baseDir + "/" + utils::toLower(filename);
+    std::string fullName;
+    if(baseDir != "")
+        fullName = baseDir + "/" + utils::toLower(filename);
+    else
+        fullName = utils::toLower(filename);
 
     auxfile = fopen(fullName.c_str(), "rb");
     if(!auxfile) {

@@ -94,6 +94,7 @@ ChipPlayer* GMEPlugin::fromFile(const std::string& name) {
     try {
         return new GMEPlayer{name};
     } catch(player_exception& e) {
+        LOGW("Failed");
         return nullptr;
     }
 };

@@ -13,7 +13,7 @@ int main(int argc, const char** argv)
 
     if (argc < 2) return 0;
 
-    logging::setLevel(logging::LogLevel::WARNING);
+    logging::setLevel(logging::Level::Warning);
 
     std::string name = argv[1];
     std::string pluginName;
@@ -23,6 +23,7 @@ int main(int argc, const char** argv)
     std::shared_ptr<ChipPlayer> player;
     for (const auto& plugin : ChipPlugin::getPlugins()) {
         if (plugin->canHandle(name)) {
+            LOGD("%s can handle", plugin->name());
             auto ptr = plugin->fromFile(name);
             if (ptr != nullptr) {
                 player = std::shared_ptr<ChipPlayer>(ptr);

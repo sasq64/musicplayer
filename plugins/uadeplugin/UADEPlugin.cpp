@@ -15,7 +15,11 @@
 static std::thread uadeThread;
 extern "C" void uade_run_thread(void (*f)(void*), void* data) {
     LOGD("Starting thread");
-    uadeThread = std::thread(f, data);
+    try {
+        uadeThread = std::thread(f, data);
+    } catch(std::exception e) {
+        puts(e.what());
+    }
 }
 
 extern "C" void uade_wait_thread() {
@@ -40,9 +44,9 @@ public:
         string fileName = name;
 
         if(endsWith(fileName, "SMPL.set"))
-            fileName = path_directory(fileName) + "/set.smpl";
-        else if(path_suffix(fileName) == "music") {
-            fileName = path_directory(fileName) + "/" + up->baseName + "." +
+            fileName =  up->loadDir / "set.smpl";
+        else if(up->uadeFile) {
+            fileName = up->loadDir / up->baseName + "." +
                        path_prefix(fileName);
             LOGD("Translated back to '%s'", fileName);
         } else if(up->currentFileName.find(fileName) == 0) {
@@ -74,23 +78,21 @@ public:
         free(config);
 
         musicStopped = false;
+        loadDir = File{ path_directory(fileName) };
+        baseName = path_basename(fileName);
 
         uade_set_amiga_loader(UADEPlayer::amigaloader, this, state);
-        if(path_suffix(fileName) == "mdat") {
-            baseName = path_basename(fileName);
-            string uadeFileName = path_directory(fileName) + "/" +
-                                  path_extension(fileName) + "." + "music";
-            LOGD("Translated %s to %s", fileName, uadeFileName);
-            File file{uadeFileName};
-            File file2{fileName};
-            file.copyFrom(file2);
-            file.close();
-            fileName = uadeFileName;
+        auto suffix = path_suffix(fileName);
+
+        if(suffix == "mdat") {
+            uadeFile = File::getTempDir() / (suffix + ".music");
+            LOGD("Translated %s to %s", fileName, uadeFile.getName());
+            uadeFile.copyFrom(File{fileName});
+            uadeFile.close();
+            fileName = uadeFile.getName();
         }
 
         currentFileName = fileName;
-
-        LOGD("UADEPLAY %s", fileName);
 
         if(uade_play(fileName.c_str(), -1, state) == 1) {
             songInfo = uade_get_song_info(state);
@@ -102,8 +104,6 @@ public:
                 "startsong", songInfo->subsongs.def - songInfo->subsongs.min,
                 "length", songInfo->duration, "title", modname, "format",
                 songInfo->playername);
-            // printf("UADE:%s %s\n", songInfo->playerfname,
-            // songInfo->playername);
             valid = true;
         }
 
@@ -114,6 +114,8 @@ public:
     ~UADEPlayer() override {
         uade_cleanup_state(state);
         state = nullptr;
+        if(uadeFile)
+            uadeFile.remove();
     }
 
     virtual int getSamples(int16_t* target, int noSamples) override {
@@ -151,12 +153,14 @@ public:
     }
 
 private:
+    utils::File uadeFile;
     string dataDir;
     bool valid;
     struct uade_state* state;
     const struct uade_song_info* songInfo;
     string baseName;
     string currentFileName;
+    utils::File loadDir;
     bool musicStopped;
 };
 
@@ -248,12 +252,38 @@ std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string &file) 
         {"jpn", "smp"},     // Jason Page PREFIX
         {"dum", "ins"},     // Rob Hubbard 2
         {"adsc", "adsc.as"}, // Audio Sculpture
-        {"sdata", "ip"} // Audio Sculpture
+        {"sdata", "ip"}, // Audio Sculpture
+        {"dns", "smp"} // Dynamic Synthesizer
     };
+
+
+    string fileName = file;
+    string prefix;
+    size_t dot = 0;
 
     string ext = path_extension(file);
     string base = path_basename(file);
+
+    auto slash = file.find_last_of("/\\");
+    if(slash != std::string::npos) {
+        fileName = file.substr(slash+1);
+        dot = fileName.find_first_of('.');
+        if(dot != std::string::npos) {
+            prefix = fileName.substr(0, dot);
+        }
+    }
+    
+
     std::vector<std::string> result;
+
+    LOGD("FILENAME '%s', PREFIX '%s', EXT '%s', BASE '%s'", fileName, prefix, ext, base);
+
+    if(fmt_2files.count(prefix) > 0) {
+        base = fileName.substr(dot+1);
+        LOGD("Found prefix, base now %s", base);
+        result.push_back(fmt_2files.at(prefix) + "." + base);
+        return result;
+    }
 
     string ext2;
     if(fmt_2files.count(ext) > 0)
