@@ -30,6 +30,7 @@ set(MUSICPLAYER_PLUGINS
 	uadeplugin
 	usfplugin
 	viceplugin
+	v2plugin
     # Obsolete
     # sexypsfplugin
     # modplugin
