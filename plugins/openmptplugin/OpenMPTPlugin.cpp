@@ -12,13 +12,11 @@
 #include <set>
 #include <unordered_map>
 
-using namespace std;
-
 namespace musix {
 
 class OpenMPTPlayer : public ChipPlayer {
 public:
-    OpenMPTPlayer(vector<uint8_t> data) {
+    OpenMPTPlayer(std::vector<uint8_t> data) {
 
         uint8_t* ptr = &data[0];
         if(memcmp(ptr + 1080, "FLT", 3) == 0 ||
@@ -58,7 +56,7 @@ public:
         openmpt_module_set_render_param(
             mod, OPENMPT_MODULE_RENDER_STEREOSEPARATION_PERCENT, separation);
 
-        auto p = utils::split(string(type_long), " / ");
+        auto p = utils::split(std::string(type_long), " / ");
         if(p.size() > 1)
             type_long = p[0].c_str();
 
@@ -92,25 +90,15 @@ private:
     openmpt_module* mod;
 };
 
-// static const set<string> supported_ext { "mod", "xm", "s3m" , "oct", /*"okt",
-// "okta", sucks here, use UADE */ "it", "ft", "far", "ult", "669", "dmf", "mdl",
-// "stm", "okt", "gdm", "mt2", "mtm", "j2b", "imf", "ptm", "ams" };
-
 bool OpenMPTPlugin::canHandle(const std::string& n) {
     auto name = utils::toLower(n);
     auto ext = utils::path_extension(name);
-    if(ext == "gz")
+    if(ext == "gz" || ext == "rns" || ext == "dtm")
         return false;
-    if(name.find("2fstk.") != string::npos ||
-       name.find("2fmod.") != string::npos) {
+    auto prefix = utils::path_prefix(name);
+    if(prefix == "stk" || prefix == "mod" || ext == "ft") 
         return true;
-    }
-    if(ext == "ft")
-        return true;
-    if(ext == "rns" || ext == "dtm")
-        return false;
     return openmpt_is_extension_supported(ext.c_str());
-    // return supported_ext.count(utils::path_extension(name)) > 0;
 }
 
 ChipPlayer* OpenMPTPlugin::fromFile(const std::string& fileName) {

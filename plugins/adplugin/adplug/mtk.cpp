@@ -123,7 +123,7 @@ bool CmtkLoader::load(const std::string &filename, const CFileProvider &fp)
     strncpy(instname[i],data->instname[i]+1,33);
   memcpy(instr,data->insts,0x80 * 12);
   memcpy(song,data->order,0x80);
-  memcpy(patterns,data->patterns,header.size-6084);
+  memcpy(patterns,data->patterns,header.size-6085);
   for (i=0;i<128;i++) {				// correct instruments
     instr[i][2] ^= (instr[i][2] & 0x40) << 1;
     instr[i][3] ^= (instr[i][3] & 0x40) << 1;
