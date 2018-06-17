@@ -128,8 +128,10 @@ ChipPlayer* HEPlugin::fromFile(const std::string& fileName) {
         fseek(f, 0, SEEK_SET);
 
         uint8_t* bios = (uint8_t*)malloc(bios_size);
-        fread(bios, 1, bios_size, f);
+        int rc = fread(bios, 1, bios_size, f);
         fclose(f);
+        if(rc != bios_size)
+            return nullptr;
         LOGD("Successfully loaded hebios.bin");
         bios_set_image((uint8*)bios, bios_size);
 

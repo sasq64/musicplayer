@@ -38,8 +38,13 @@
 #define FSDEV_EXT_SEP_CHR    '.'
 
 /* Path separator.  */
+#ifdef _WIN32
+#define ARCHDEP_FINDPATH_SEPARATOR_CHAR   ';'
+#define ARCHDEP_FINDPATH_SEPARATOR_STRING ";"
+#else
 #define ARCHDEP_FINDPATH_SEPARATOR_CHAR   ':'
 #define ARCHDEP_FINDPATH_SEPARATOR_STRING ":"
+#endif
 
 /* Modes for fopen().  */
 #define MODE_READ              "rb"
