@@ -256,7 +256,8 @@ int archdep_path_is_relative(const char *path)
         return 0;
     }
 
-    return *path != '/';
+    int winabs = ((strlen(path) > 2) && path[1] == ':' && path[2] == '\\');
+    return *path != '/' && !winabs ;
 }
 
 int archdep_spawn(const char *name, char **argv, char **pstdout_redir, const char *stderr_redir)
