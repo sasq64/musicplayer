@@ -4,6 +4,7 @@
 
 #include <coreutils/file.h>
 #include <coreutils/utils.h>
+#include <coreutils/log.h>
 
 #include <set>
 #include <string>

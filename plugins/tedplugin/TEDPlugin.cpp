@@ -2,6 +2,7 @@
 #include "TEDPlugin.h"
 #include "../../chipplayer.h"
 #include <coreutils/utils.h>
+#include <coreutils/log.h>
 
 #include "tedplay/Audio.h"
 #include "tedplay/Tedmem.h"

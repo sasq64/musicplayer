@@ -3,6 +3,7 @@
 #include "../../chipplayer.h"
 #include <coreutils/file.h>
 #include <coreutils/utils.h>
+#include <coreutils/log.h>
 
 #include "m_s98.h"
 

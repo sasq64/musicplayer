@@ -2,6 +2,7 @@
 
 #include <archive/archive.h>
 #include <coreutils/file.h>
+#include <coreutils/log.h>
 
 #include <set>
 

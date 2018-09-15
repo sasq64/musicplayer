@@ -71,55 +71,6 @@ unsigned int parsePsid(unsigned char *buf, PsidHeader &psidHdr_)
 	return 0;
 }
 
-void getPsidProperties(PsidHeader &psidHdr_, char *os)
-{
-	char temp[512];
-
-	if (!psidHdr_.tracks) {
-		strcat(os, "");
-		return;
-	}
-	std::string mType;
-	switch (psidHdr_.type) {
-		default:
-			mType = "Other";
-			break;
-		case 0:
-			mType = "PSID";
-			break;
-		case 1:
-			mType = "RSID";
-			break;
-		case 2:
-			mType = "CBM8M";
-			break;
-	}
-	sprintf(os,   "Type:         %s\r\n", mType.c_str());
-	sprintf(temp, "Chip:         %s\r\n", psidHdr_.model);
-	strcat(os, temp);
-	sprintf(temp, "Module:       %s\r\n", psidHdr_.title);
-	strcat(os, temp);
-	sprintf(temp, "Author:       %s\r\n", psidHdr_.author);
-	strcat(os, temp);
-	sprintf(temp, "Released:     %s\r\n", psidHdr_.copyright);
-	strcat(os, temp);
-	sprintf(temp, "Total tunes:  %u\r\n", psidHdr_.tracks);
-	strcat(os, temp);
-	sprintf(temp, "Default tune: %u\r\n", psidHdr_.defaultTune);
-	strcat(os, temp);
-	sprintf(temp, "Init        : $%04X\r\n", psidHdr_.initAddress);
-	strcat(os, temp);
-	sprintf(temp, "Play address: $%04X\r\n", psidHdr_.replayAddress);
-	strcat(os, temp);
-}
-
-void printPsidInfo(PsidHeader &psidHdr_)
-{
-	char output[1024];
-	getPsidProperties(psidHdr_, output);
-	std::cout << std::string(output) << std::endl;
-}
-
 unsigned int readFile(const char *fName, unsigned char **bufferPtr, size_t *bLen)
 {
 	std::FILE *file = (std::FILE *) 0;

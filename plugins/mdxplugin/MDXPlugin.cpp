@@ -3,6 +3,7 @@
 #include "../../chipplayer.h"
 #include <coreutils/file.h>
 #include <coreutils/utils.h>
+#include <coreutils/log.h>
 extern "C" {
 #include "mdxmini.h"
 }

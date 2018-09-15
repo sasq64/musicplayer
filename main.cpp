@@ -3,6 +3,8 @@
 #include <audioplayer/audioplayer.h>
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
+#include <coreutils/log.h>
+#include <coreutils/fifo.h>
 
 #include "plugins/plugins.h"
 

@@ -12,6 +12,7 @@
 #include "opl/dbemuopl.h"
 
 #include <coreutils/utils.h>
+#include <coreutils/log.h>
 
 #include <cstdio>
 #include <set>

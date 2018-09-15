@@ -1,5 +1,4 @@
-#ifndef MUSICPLAYER_PLUGINS_H
-#define MUSICPLAYER_PLUGINS_H
+#pragma once
 
 #include "openmptplugin/OpenMPTPlugin.h"
 #include "htplugin/HTPlugin.h"
@@ -17,4 +16,3 @@
 #include "rsnplugin/RSNPlugin.h"
 #include "ayflyplugin/AyflyPlugin.h"
 
-#endif // MUSICPLAYER_PLUGINS_H

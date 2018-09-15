@@ -2,6 +2,7 @@
 #include "GMEPlugin.h"
 #include "../../chipplayer.h"
 #include <coreutils/utils.h>
+#include <coreutils/log.h>
 
 #include "gme/gme.h"
 
