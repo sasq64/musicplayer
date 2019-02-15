@@ -1,10 +1,9 @@
 #include <string>
 
 #include <audioplayer/audioplayer.h>
+#include <coreutils/fifo.h>
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
-#include <coreutils/log.h>
-#include <coreutils/fifo.h>
 
 #include "plugins/plugins.h"
 
@@ -26,8 +25,7 @@ int main(int argc, const char** argv)
     for (const auto& plugin : ChipPlugin::getPlugins()) {
         if (plugin->canHandle(name)) {
             LOGD("%s can handle", plugin->name());
-            auto ptr = plugin->fromFile(name);
-            if (ptr != nullptr) {
+            if(auto ptr = plugin->fromFile(name)) {
                 player = std::shared_ptr<ChipPlayer>(ptr);
                 pluginName = plugin->name();
                 break;
@@ -38,7 +36,7 @@ int main(int argc, const char** argv)
         printf("No plugin could handle file\n");
         return 0;
     }
-    int len = player->getMetaInt("length");
+    auto len = player->getMetaInt("length");
     auto title = player->getMeta("title");
     if (title.empty()) title = utils::path_basename(name);
 
@@ -46,9 +44,10 @@ int main(int argc, const char** argv)
     printf("Playing: %s [%s/%s] (%02d:%02d)\n", title.c_str(),
            pluginName.c_str(), format.c_str(), len / 60, len % 60);
 
-    utils::Fifo<int16_t> fifo{32768};
+    utils::Fifo<int16_t> fifo{ 32768 };
 
-    AudioPlayer::play([&](int16_t* ptr, int size) {
+    AudioPlayer ap{ 44100 };
+    ap.play([&](int16_t* ptr, int size) {
         int rc = fifo.get(ptr, size);
         if (rc <= 0) memset(ptr, 0, size * 2);
     });
