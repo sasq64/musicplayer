@@ -11,5 +11,6 @@ set(SOURCE_FILES
 )
 
 add_library(v2plugin ${SOURCE_FILES})
+target_link_libraries(v2plugin PRIVATE coreutils)
 target_compile_definitions(v2plugin PRIVATE -DRONAN)
 target_compile_options(v2plugin PRIVATE -fwrapv)

@@ -68,3 +68,4 @@ set(SOURCE_FILES
 
 add_library(adplugin ${SOURCE_FILES})
 target_include_directories(adplugin PRIVATE opl libbinio adplug)
+target_link_libraries(adplugin PRIVATE coreutils)

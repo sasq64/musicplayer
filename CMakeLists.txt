@@ -1,12 +1,16 @@
-cmake_minimum_required(VERSION 2.8.4)
-project(cpp-mods.musicplayer)
+cmake_minimum_required(VERSION 3.12)
+project(musicplayer)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+endif()
 
 set(APONE ../apone/mods)
 
-include_directories(. ${APONE})
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(MUSICPLAYER_PLUGINS
     adplugin
@@ -35,15 +39,13 @@ set(MUSICPLAYER_PLUGINS
     # sexypsfplugin
     # modplugin
 )
-
 add_subdirectory(plugins)
+
 add_subdirectory(${APONE}/coreutils coreutils)
 add_subdirectory(${APONE}/crypto crypto)
 add_subdirectory(${APONE}/audioplayer audioplayer)
 add_subdirectory(${APONE}/archive archive)
 
-add_executable(play main.cpp ${PLUGIN_EXTRA_FILES})
-target_link_libraries(play ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto archive pthread)
-set_property(TARGET play PROPERTY CXX_STANDARD 14)
-set_property(TARGET play PROPERTY CXX_STANDARD_REQUIRED ON)
+add_executable(play main.cpp)
+target_link_libraries(play plugin_register ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto archive pthread)
 

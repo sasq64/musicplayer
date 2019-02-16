@@ -20,4 +20,4 @@ add_definitions(-DDISABLE_AUDIO)
 #include_directories(${ZLIB_INCLUDE_DIRS})
 
 add_library(ayflyplugin AyflyPlugin.cpp ${SOURCE_FILES})
-target_link_libraries(ayflyplugin ${ZLIB_LIBRARIES})
+target_link_libraries(ayflyplugin PRIVATE coreutils ${ZLIB_LIBRARIES})
