@@ -1,0 +1,34 @@
+diff --git a/soundlib/SampleFormats.cpp b/soundlib/SampleFormats.cpp
+index 968848465..6314598de 100644
+--- a/soundlib/SampleFormats.cpp
++++ b/soundlib/SampleFormats.cpp
+@@ -10,6 +10,7 @@
+ 
+ #include "stdafx.h"
+ #include "Sndfile.h"
++#include "Endianness.h"
+ #include "mod_specifications.h"
+ #ifdef MODPLUG_TRACKER
+ #include "../mptrack/Moddoc.h"
+diff --git a/soundlib/Snd_fx.cpp b/soundlib/Snd_fx.cpp
+index cfa1f4595..6301ab365 100644
+--- a/soundlib/Snd_fx.cpp
++++ b/soundlib/Snd_fx.cpp
+@@ -25,6 +25,7 @@
+ #include "modsmp_ctrl.h"	// For updating the loop wraparound data with the invert loop effect
+ #include "plugins/PlugInterface.h"
+ #include "OPL.h"
++#include "MIDIEvents.h"
+ 
+ OPENMPT_NAMESPACE_BEGIN
+ 
+@@ -83,7 +84,9 @@ public:
+ 
+ 	void Reset()
+ 	{
++#ifndef NO_PLUGINS
+ 		plugParams.clear();
++#endif
+ 		elapsedTime = 0.0;
+ 		state->m_lTotalSampleCount = 0;
+ 		state->m_nMusicSpeed = sndFile.m_nDefaultSpeed;

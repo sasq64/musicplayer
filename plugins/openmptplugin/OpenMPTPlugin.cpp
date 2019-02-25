@@ -1,14 +1,15 @@
 
 #include "OpenMPTPlugin.h"
 
-#include "libopenmpt/libopenmpt.h"
-#include "libopenmpt/libopenmpt_stream_callbacks_file.h"
+#include "openmpt/libopenmpt/libopenmpt.h"
+#include "openmpt/libopenmpt/libopenmpt_stream_callbacks_file.h"
 
 #include "../../chipplayer.h"
 
 #include <coreutils/file.h>
 #include <coreutils/settings.h>
 #include <coreutils/utils.h>
+#include <coreutils/split.h>
 #include <set>
 #include <unordered_map>
 
@@ -58,7 +59,7 @@ public:
 
         auto p = utils::split(std::string(type_long), " / ");
         if(p.size() > 1)
-            type_long = p[0].c_str();
+            type_long = p[0];
 
         setMeta("title", title, "composer", artist, "message", message,
                 "tracker", tracker, "format", type_long, "type", type, "songs",
