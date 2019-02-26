@@ -5,6 +5,7 @@
 #include <coreutils/fifo.h>
 #include <coreutils/file.h>
 #include <coreutils/utils.h>
+#include <coreutils/split.h>
 
 #include <mpg123.h>
 //#include <curl/curl.h>
@@ -200,7 +201,7 @@ public:
 
                         auto parts = split(string(icyData), ";");
                         for(const auto& p : parts) {
-                            auto data = split(p, "=", 2);
+                            std::vector<std::string> data = split(p, "=", 2);
                             if(data.size() == 2) {
                                 if(data[0] == "StreamTitle") {
                                     auto title =

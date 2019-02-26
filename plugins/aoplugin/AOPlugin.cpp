@@ -5,6 +5,7 @@
 #include <coreutils/file.h>
 #include <coreutils/utils.h>
 #include <coreutils/log.h>
+#include <coreutils/split.h>
 
 #include <set>
 #include <string>

@@ -1,5 +1,6 @@
 
-extern "C" {
+extern "C"
+{
 #include "archdep.h"
 #include "drive.h"
 #include "gfxoutput.h"
@@ -14,16 +15,17 @@ extern "C" {
 #include "sound.h"
 #include "sysfile.h"
 
-void psid_play(short *buf, int size);
-const char *psid_get_name();
-const char *psid_get_author();
-const char *psid_get_copyright();
+    void psid_play(short* buf, int size);
+    const char* psid_get_name();
+    const char* psid_get_author();
+    const char* psid_get_copyright();
 }
 
 #include "../../chipplayer.h"
 #include "VicePlugin.h"
 #include <coreutils/file.h>
 #include <coreutils/log.h>
+#include <coreutils/split.h>
 #include <coreutils/utils.h>
 #include <crypto/md5.h>
 
@@ -44,23 +46,31 @@ static bool videomode_is_forced = false;
 static int sid = 3; // SID_MODEL_DEFAULT;// SID_MODEL_8580;
 static bool sid_is_forced = true;
 
-template <typename T> const T get(const vector<uint8_t> &v, int offset) {}
+namespace {
 
-template <> const uint16_t get(const vector<uint8_t> &v, int offset) {
+template <typename T> const T get(const vector<uint8_t>& v, int offset) {}
+
+template <> const uint16_t get(const vector<uint8_t>& v, int offset)
+{
     return (v[offset] << 8) | v[offset + 1];
 }
 
-template <> const uint32_t get(const vector<uint8_t> &v, int offset) {
+template <> const uint32_t get(const vector<uint8_t>& v, int offset)
+{
     return (v[offset] << 24) | (v[offset + 1] << 16) | (v[offset + 2] << 8) |
            v[offset + 3];
 }
 
-template <> const uint64_t get(const vector<uint8_t> &v, int offset) {
+template <> const uint64_t get(const vector<uint8_t>& v, int offset)
+{
     return ((uint64_t)get<uint32_t>(v, offset) << 32) |
            get<uint32_t>(v, offset + 4);
 }
 
-enum {
+}
+
+enum
+{
     MAGICID = 0,
     PSID_VERSION = 4,
     DATA_OFFSET = 6,
@@ -73,10 +83,11 @@ enum {
     FLAGS = 0x76
 };
 
-class VicePlayer : public ChipPlayer {
+class VicePlayer : public ChipPlayer
+{
 public:
-    vector<uint8_t> calculateMD5(vector<uint8_t> data) {
-
+    vector<uint8_t> calculateMD5(vector<uint8_t> data)
+    {
         uint8_t speed = (data[0] == 'R') ? 60 : 0;
         uint16_t version = get<uint16_t>(data, PSID_VERSION);
 
@@ -97,34 +108,35 @@ public:
         md5.add(playAdr);
         md5.add(songs);
 
-        for(int i = 0; i < songs; i++) {
-            if((speedBits & (1 << i)) != 0) {
+        for (int i = 0; i < songs; i++) {
+            if ((speedBits & (1 << i)) != 0) {
                 md5.add((uint8_t)60);
             } else {
                 md5.add(speed);
             }
         }
 
-        if((flags & 0x8) != 0) {
+        if ((flags & 0x8) != 0) {
             md5.add((uint8_t)2);
         }
 
         return md5.get();
     }
 
-    static bool init(const string &c64Dir) {
+    static bool init(const string& c64Dir)
+    {
         maincpu_early_init();
         machine_setup_context();
         drive_setup_context();
         machine_early_init();
         sysfile_init("C64");
         gfxoutput_early_init();
-        if(init_resources() < 0) {
+        if (init_resources() < 0) {
             archdep_startup_log_error("Failed to init resources");
             return false;
         }
 
-        if(resources_set_defaults() < 0) {
+        if (resources_set_defaults() < 0) {
             archdep_startup_log_error("Cannot set defaults.\n");
             return false;
         }
@@ -132,7 +144,7 @@ public:
         resources_set_int("SidResidSampling", 0);
         resources_set_int("VICIIVideoCache", 0);
         resources_set_string("Directory", c64Dir.c_str());
-        if(init_main() < 0) {
+        if (init_main() < 0) {
             archdep_startup_log_error("Failed to init main");
             return false;
         }
@@ -140,7 +152,8 @@ public:
         return true;
     }
 
-    static void c64_song_init() {
+    static void c64_song_init()
+    {
         /* Set default, potentially overridden by reset. */
         resources_set_int("MachineVideoStandard", videomode_is_ntsc
                                                       ? MACHINE_SYNC_NTSC
@@ -153,25 +166,25 @@ public:
         machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
 
         /* Now force video mode if we are asked to. */
-        if(videomode_is_forced) {
+        if (videomode_is_forced) {
             resources_set_int("MachineVideoStandard", videomode_is_ntsc
                                                           ? MACHINE_SYNC_NTSC
                                                           : MACHINE_SYNC_PAL);
         }
 
         /* Force the SID model if told to in the settings */
-        if(sid_is_forced) {
+        if (sid_is_forced) {
             resources_set_int("SidModel", sid);
         }
     }
 
-    VicePlayer(VicePlugin &plugin, const string &sidFile) : plugin(plugin) {
+    VicePlayer(VicePlugin& plugin, const string& sidFile) : plugin(plugin)
+    {
         int ret = psid_load_file(sidFile.c_str());
         LOGD("Loaded %s -> %d", sidFile, ret);
-        if(ret != 0)
-            throw player_exception("Not a sid file");
+        if (ret != 0) throw player_exception("Not a sid file");
 
-        File f{sidFile};
+        File f{ sidFile };
         auto data = f.readAll();
         auto md5 = calculateMD5(data);
         auto key = get<uint64_t>(md5, 0);
@@ -179,7 +192,7 @@ public:
         songLengths = plugin.findLengths(key);
 
         string realPath = sidFile;
-        if(sidFile.find("C64Music%2f") != string::npos) {
+        if (sidFile.find("C64Music%2f") != string::npos) {
             realPath = utils::urldecode(sidFile, ":/\\?;");
         }
 
@@ -191,7 +204,7 @@ public:
         currentLength = 0;
         currentPos = 0;
         nextCheckPos = currentPos + 44100;
-        if((int)songLengths.size() > defaultSong) {
+        if ((int)songLengths.size() > defaultSong) {
             currentLength = songLengths[defaultSong];
         }
         LOGD("Length:%d", currentLength);
@@ -199,24 +212,22 @@ public:
         string sub_title;
         auto pos = realPath.find("C64Music/");
         currentInfo = 0;
-        if(pos != string::npos) {
+        if (pos != string::npos) {
             auto p = realPath.substr(pos + 8);
             LOGD("SIDFILE:%s", p);
-            if(VicePlugin::stilSongs.count(p)) {
+            if (VicePlugin::stilSongs.count(p)) {
                 currentStil = VicePlugin::stilSongs[p];
                 msg = currentStil.comment;
 
-                for(int i = 0; i < (int)currentStil.songs.size(); i++) {
-                    auto &s = currentStil.songs[i];
+                for (int i = 0; i < (int)currentStil.songs.size(); i++) {
+                    auto& s = currentStil.songs[i];
                     LOGD("#%d: %s", s.subsong, s.title);
-                    if(s.subsong == defaultSong + 1) {
+                    if (s.subsong == defaultSong + 1) {
                         currentInfo = i;
                         sub_title = s.title; // sub_title + s.title + " ";
-                        if(sub_title == "")
-                            sub_title = s.name;
+                        if (sub_title == "") sub_title = s.name;
 
-                        if(msg == "")
-                            msg = s.comment;
+                        if (msg == "") msg = s.comment;
                         break;
                     }
                 }
@@ -234,30 +245,29 @@ public:
 
     ~VicePlayer() { psid_set_tune(-1); }
 
-    virtual bool seekTo(int song, int seconds = -1) {
-        if(song >= 0) {
+    virtual bool seekTo(int song, int seconds = -1)
+    {
+        if (song >= 0) {
             currentSong = song;
             psid_set_tune(song + 1);
             c64_song_init();
             currentLength = 0;
             currentPos = 0;
-            if((int)songLengths.size() > song) {
+            if ((int)songLengths.size() > song) {
                 currentLength = songLengths[song];
             }
 
             LOGD("Length:%d, SONG %d", currentLength, song);
             string sub_title;
             string msg = currentStil.comment;
-            for(int i = 0; i < (int)currentStil.songs.size(); i++) {
-                auto &s = currentStil.songs[i];
+            for (int i = 0; i < (int)currentStil.songs.size(); i++) {
+                auto& s = currentStil.songs[i];
                 LOGD("#%d: %s", s.subsong, s.title);
-                if(s.subsong == song + 1) {
+                if (s.subsong == song + 1) {
                     currentInfo = i;
                     sub_title = s.title; // sub_title + s.title + " ";
-                    if(sub_title == "")
-                        sub_title = s.name;
-                    if(s.comment != "")
-                        msg = s.comment;
+                    if (sub_title == "") sub_title = s.name;
+                    if (s.comment != "") msg = s.comment;
                     break;
                 }
             }
@@ -269,20 +279,21 @@ public:
         return false;
     }
 
-    virtual int getSamples(int16_t *target, int size) {
+    virtual int getSamples(int16_t* target, int size)
+    {
         currentPos += (size / 2);
 
-        if(currentPos > nextCheckPos) {
+        if (currentPos > nextCheckPos) {
             int sec = currentPos / 44100;
             nextCheckPos = currentPos + 44100;
-            for(int i = currentInfo + 1; i < (int)currentStil.songs.size();
-                i++) {
-                auto &s = currentStil.songs[i];
-                if(s.subsong == currentSong + 1) {
-                    if(s.seconds > 0 && sec >= s.seconds) {
+            for (int i = currentInfo + 1; i < (int)currentStil.songs.size();
+                 i++) {
+                auto& s = currentStil.songs[i];
+                if (s.subsong == currentSong + 1) {
+                    if (s.seconds > 0 && sec >= s.seconds) {
                         LOGD("Found new info");
                         currentInfo = i;
-                        if(s.comment != "")
+                        if (s.comment != "")
                             setMeta("sub_title", utf8_encode(s.title),
                                     "message", utf8_encode(s.comment));
                         else
@@ -300,7 +311,7 @@ public:
         return size;
     }
 
-    VicePlugin &plugin;
+    VicePlugin& plugin;
 
     uint32_t currentLength;
     uint32_t currentPos;
@@ -311,13 +322,17 @@ public:
     VicePlugin::STILSong currentStil;
 };
 
-VicePlugin::VicePlugin(const string &dataDir) : dataDir(dataDir) {
-    VicePlayer::init(dataDir + "/c64");
-	initThread = std::thread([=] {
-    	readLengths();
-    	readSTIL();
-	});
+vector<VicePlugin::LengthEntry> VicePlugin::mainHash;
+vector<uint16_t> VicePlugin::extraLengths;
+unordered_map<string, VicePlugin::STILSong> VicePlugin::stilSongs;
 
+VicePlugin::VicePlugin(const string& dataDir) : dataDir(dataDir)
+{
+    VicePlayer::init(dataDir + "/c64");
+    initThread = std::thread([=] {
+        readLengths();
+        readSTIL();
+    });
 }
 
 /* VicePlugin::VicePlugin(const unsigned char *data) { */
@@ -344,13 +359,13 @@ VicePlugin::VicePlugin(const string &dataDir) : dataDir(dataDir) {
 //	return File::findFile(current_exe_path() + ":" + File::getAppDir(), name);
 //}
 
-void VicePlugin::readSTIL() {
+void VicePlugin::readSTIL()
+{
 
     STIL current;
     vector<STIL> songs;
     File f = File(dataDir + "/STIL.txt");
-    if(!f.exists())
-        return;
+    if (!f.exists()) return;
     // int subsong = -1;
     string path;
     string what;
@@ -359,30 +374,29 @@ void VicePlugin::readSTIL() {
     bool currentSet = false;
     // int seconds = 0;
     // int count = 0;
-    for(auto l : f.getLines()) {
+    for (auto l : f.getLines()) {
         // LOGD("'%c' : %s", l[0], l);
-        if(l == "" || l[0] == '#')
-            continue;
+        if (l == "" || l[0] == '#') continue;
         // if(count++ == 300) break;
-        if(l.length() > 4 && l[4] == ' ' && what != "") {
+        if (l.length() > 4 && l[4] == ' ' && what != "") {
             content = content + " " + lstrip(l);
         } else {
-            if(what != "" && content != "") {
-                if(songComment == "" && what == "COMMENT" &&
-                   songs.size() == 0 && current.title == "" &&
-                   current.name == "") {
+            if (what != "" && content != "") {
+                if (songComment == "" && what == "COMMENT" &&
+                    songs.size() == 0 && current.title == "" &&
+                    current.name == "") {
                     songComment = content;
                 } else {
                     // LOGD("WHAT:%s = '%s'", what, content);
-                    if(what == "TITLE")
+                    if (what == "TITLE")
                         current.title = content;
-                    else if(what == "COMMENT")
+                    else if (what == "COMMENT")
                         current.comment = content;
-                    else if(what == "AUTHOR")
+                    else if (what == "AUTHOR")
                         current.author = content;
-                    else if(what == "ARTIST")
+                    else if (what == "ARTIST")
                         current.artist = content;
-                    else if(what == "NAME")
+                    else if (what == "NAME")
                         current.name = content;
                     currentSet = true;
                 }
@@ -390,8 +404,8 @@ void VicePlugin::readSTIL() {
                 content = "";
             }
 
-            if(l[0] == '/') {
-                if(currentSet) {
+            if (l[0] == '/') {
+                if (currentSet) {
                     songs.push_back(current);
                     current = STIL();
                     currentSet = false;
@@ -399,7 +413,7 @@ void VicePlugin::readSTIL() {
                     // LOGD("========================================");
                     // for(auto &s : songs) {
                     //	LOGD(" (#%d) T:%s BY:%s A:%s C:%s SEC:%d", s.subsong,
-                    //s.title, s.artist, s.author, s.comment, s.seconds);
+                    // s.title, s.artist, s.author, s.comment, s.seconds);
                     //}
                 }
                 // LOGD("Adding '%s'", path);
@@ -411,12 +425,12 @@ void VicePlugin::readSTIL() {
                 current.seconds = 0;
                 what = "";
                 content = "";
-            } else if(l[0] == '(') {
+            } else if (l[0] == '(') {
 
-                if(currentSet) {
-                    if(songComment == "" && current.comment != "" &&
-                       songs.size() == 0 && current.title == "" &&
-                       current.name == "") {
+                if (currentSet) {
+                    if (songComment == "" && current.comment != "" &&
+                        songs.size() == 0 && current.title == "" &&
+                        current.name == "") {
                         songComment = content;
                     } else {
                         songs.push_back(current);
@@ -431,23 +445,23 @@ void VicePlugin::readSTIL() {
                 what = "";
             } else {
                 auto colon = l.find(":");
-                if(colon != string::npos) {
+                if (colon != string::npos) {
                     what = lstrip(l.substr(0, colon));
                     content = l.substr(colon + 1);
-                    if(what == "TITLE") {
-                        if(currentSet && current.title != "") {
+                    if (what == "TITLE") {
+                        if (currentSet && current.title != "") {
                             songs.push_back(current);
                             auto s = current.subsong;
                             current = STIL();
                             current.subsong = s;
                             currentSet = false;
                         }
-                        if(content[content.size() - 1] == ')') {
+                        if (content[content.size() - 1] == ')') {
                             auto pos = content.rfind("(");
                             auto secs = split(content.substr(pos + 1), ":");
-                            if(secs.size() >= 2) {
-                                int m = atoi(secs[0].c_str());
-                                int s = atoi(secs[1].c_str());
+                            if (secs.size() >= 2) {
+                                int m = atoi(secs[0]);
+                                int s = atoi(secs[1]);
                                 current.seconds = s + m * 60;
                             }
                         }
@@ -458,68 +472,66 @@ void VicePlugin::readSTIL() {
     }
 }
 
-VicePlugin::~VicePlugin() {
+VicePlugin::~VicePlugin()
+{
     LOGD("VicePlugin destroy\n");
     machine_shutdown();
-	if(initThread.joinable())
-		initThread.join();
+    if (initThread.joinable()) initThread.join();
 }
 
-static const set<string> ext{".sid", ".psid", ".rsid", ".2sid", ".mus"};
+static const set<string> ext{ ".sid", ".psid", ".rsid", ".2sid", ".mus" };
 
-bool VicePlugin::canHandle(const std::string &name) {
-    for(string x : ext) {
-        if(utils::endsWith(name, x))
-            return true;
+bool VicePlugin::canHandle(const std::string& name)
+{
+    for (string x : ext) {
+        if (utils::endsWith(name, x)) return true;
     }
     return false;
 }
 
-ChipPlayer *VicePlugin::fromFile(const std::string &fileName) {
-	if(initThread.joinable())
-		initThread.join();
+ChipPlayer* VicePlugin::fromFile(const std::string& fileName)
+{
+    if (initThread.joinable()) initThread.join();
     try {
-        return new VicePlayer{*this, fileName};
-    } catch(player_exception &e) {
+        return new VicePlayer{ *this, fileName };
+    } catch (player_exception& e) {
         return nullptr;
     }
 }
 
-constexpr uint16_t a2h(char c) {
+constexpr uint16_t a2h(char c)
+{
     return c <= '9' ? c - '0' : (tolower(c) - 'a' + 10);
 }
 
-vector<VicePlugin::LengthEntry> VicePlugin::mainHash;
-vector<uint16_t> VicePlugin::extraLengths;
-unordered_map<string, VicePlugin::STILSong> VicePlugin::stilSongs;
-
-template <typename T> T from_hex(const std::string &s) {
+template <typename T> T from_hex(const std::string& s)
+{
     T t = 0;
-    auto *ptr = s.c_str();
-    while(*ptr) {
+    auto* ptr = s.c_str();
+    while (*ptr) {
         t = (t << 4) | a2h(*ptr++);
     }
     return t;
 }
 
-void VicePlugin::readLengths() {
+void VicePlugin::readLengths()
+{
 
-    File fp{dataDir + "/Songlengths.txt"};
-    if(!fp.exists())
-        return;
+    File fp{ dataDir + "/Songlengths.txt" };
+    if (!fp.exists()) return;
     string secs, mins;
     int ll = 0;
     extraLengths.reserve(30000);
-    for(const auto &l : fp.getLines()) {
-        if(l[0] != ';' && l[0] != '[') {
+    for (const auto& l : fp.getLines()) {
+        if (l[0] != ';' && l[0] != '[') {
             auto key = from_hex<uint64_t>(l.substr(0, 16));
             auto lengths = split(l.substr(33), " ");
-            if(lengths.size() == 1) {
+            if (lengths.size() == 1) {
                 tie(mins, secs) = splitn<2>(lengths[0], ":");
                 ll = stol(mins) * 60 + stol(secs);
             } else {
                 ll = extraLengths.size() | 0x8000;
-                for(const auto &sl : lengths) {
+                for (const auto& sl : lengths) {
                     tie(mins, secs) = splitn<2>(sl, ":");
                     extraLengths.push_back(stol(mins) * 60 + stol(secs));
                 }
@@ -535,17 +547,18 @@ void VicePlugin::readLengths() {
     }
 }
 
-vector<uint16_t> VicePlugin::findLengths(uint64_t key) {
+vector<uint16_t> VicePlugin::findLengths(uint64_t key)
+{
 
     vector<uint16_t> songLengths;
 
     auto it = lower_bound(mainHash.begin(), mainHash.end(), key);
-    if(it != mainHash.end()) {
+    if (it != mainHash.end()) {
         uint16_t len = it->length;
-        if((len & 0x8000) != 0) {
+        if ((len & 0x8000) != 0) {
             len &= 0x7fff;
             int xl = 0;
-            while((xl & 0x8000) == 0) {
+            while ((xl & 0x8000) == 0) {
                 xl = extraLengths[len++];
                 songLengths.push_back(xl & 0x7fff);
             }

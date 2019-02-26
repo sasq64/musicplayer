@@ -76,7 +76,7 @@ static INLINE void merge(short* VD, short* cmp, short* pass, short* fail)
 }
 
 #ifdef ARCH_MIN_ARM_NEON
-static INLINE void vector_copy(short * VD, short * VS)
+INLINE void vector_copy(short * VD, short * VS)
 {
     int16x8_t xmm;
     xmm = vld1q_s16((const int16_t*)VS);
@@ -157,7 +157,7 @@ static INLINE void SIGNED_CLAMP_AM(usf_state_t * state, short* VD)
 
 #if !defined ARCH_MIN_SSE2 && !defined ARCH_MIN_ARM_NEON
 
-static INLINE void vector_copy(short* VD, short* VS)
+INLINE void vector_copy(short* VD, short* VS)
 {
 #if (0)
     memcpy(VD, VS, N*sizeof(short));
@@ -251,7 +251,7 @@ static INLINE void SIGNED_CLAMP_AM(usf_state_t * state, short* VD)
  * just one extra scalar x86 instruction for every RSP vector op-code when we
  * use SSE2 explicitly for this particular goal instead of letting GCC do it.
  */
-static INLINE void vector_copy(short* VD, short* VS)
+INLINE void vector_copy(short* VD, short* VS)
 {
     __m128i xmm;
 

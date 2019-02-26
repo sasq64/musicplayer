@@ -4,6 +4,7 @@
 #include <coreutils/file.h>
 #include <coreutils/utils.h>
 #include <coreutils/log.h>
+#include <coreutils/split.h>
 
 #include "m_s98.h"
 
@@ -40,7 +41,7 @@ public:
                 auto parts = utils::split(line, "=");
                 if(parts.size() == 2) {
                     wstring jis =
-                        utils::jis2unicode((uint8_t*)parts[1].c_str());
+                        utils::jis2unicode((uint8_t*)parts[1]);
                     string u = utils::utf8_encode(jis);
                     tags[utils::toLower(parts[0])] = u;
                     LOGD("%s=%s", parts[0], u);

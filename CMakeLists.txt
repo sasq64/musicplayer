@@ -1,13 +1,15 @@
 cmake_minimum_required(VERSION 3.12)
 project(musicplayer)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
 endif()
 
-set(APONE ../apone/mods)
+set(AP1_ROOT ../apone CACHE PATH "Where apone is checked out")
+set(APONE ${AP1_ROOT}/mods)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -48,4 +50,7 @@ add_subdirectory(${APONE}/archive archive)
 
 add_executable(play main.cpp)
 target_link_libraries(play plugin_register ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto archive pthread)
+
+add_library(musix SHARED lib.cpp)
+target_link_libraries(musix plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive pthread)
 

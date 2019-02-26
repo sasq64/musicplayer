@@ -14,7 +14,7 @@ int main(int argc, const char** argv)
 
     if (argc < 2) return 0;
 
-    logging::setLevel(logging::Level::Warning);
+//    logging::setLevel(logging::Level::Warning);
 
     std::string name = argv[1];
     std::string pluginName;

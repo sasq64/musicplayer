@@ -63,7 +63,7 @@ set(SOURCE_FILES ${SOURCE_FILES}
 add_library(uade ${SOURCE_FILES})
 target_link_libraries(uade PRIVATE coreutils)
 target_include_directories(uade PRIVATE . uade/src uade/src/include uade/src/frontends/include uade/src/frontends/common)
-target_compile_options(uade PRIVATE -fomit-frame-pointer -Wall -Wno-unused -Wno-format -Wmissing-prototypes -Wstrict-prototypes -fno-exceptions)
+target_compile_options(uade PRIVATE -fomit-frame-pointer -Wall -Wno-unused -Wno-format -Wno-strict-prototypes -Wno-missing-prototypes -Wno-implicit-function-declaration -fno-exceptions)
 if(WIN32)
   target_link_libraries(uade Ws2_32)
 endif()

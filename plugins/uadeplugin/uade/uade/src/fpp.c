@@ -828,7 +828,7 @@ void fpp_opp(uae_u32 opcode, uae_u16 extra)
 		if (extra & 0x0400)
 		    regs.fpiar = m68k_dreg (regs, opcode & 7);
 	    }
-	} else if ((opcode & 0x38) == 1) {
+	} else if ((opcode & 0x38) == 8) {
 	    if (extra & 0x2000) {
 		if (extra & 0x1000)
 		    m68k_areg (regs, opcode & 7) = regs.fpcr;
