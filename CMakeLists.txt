@@ -8,8 +8,7 @@ if(CCACHE_PROGRAM)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
 endif()
 
-set(AP1_ROOT ../apone CACHE PATH "Where apone is checked out")
-set(APONE ${AP1_ROOT}/mods)
+set(APONE apone)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -53,4 +52,7 @@ target_link_libraries(play plugin_register ${MUSICPLAYER_PLUGINS} coreutils audi
 
 add_library(musix SHARED lib.cpp)
 target_link_libraries(musix plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive pthread)
+
+add_executable(testing testmain.cpp test.cpp)
+target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
 
