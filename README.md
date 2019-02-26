@@ -7,11 +7,14 @@ Used by chipmachine
 ### Quickstart
 
 ```
-git clone https://github.com/sasq64/apone
-git clone https://github.com/sasq64/musicplayer
-cd musicplayer
 make
-./play music/Warhawk.sap
+build/testing
+build/play music/Warhawk.sap
+```
+Rust stub code (does not play, just calls library)
+```
+rustc -Lbuild musicplay.rs
+LD_LIBRARY_PATH=build ./musicplay
 ```
 
 ### Using

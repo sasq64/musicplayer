@@ -1,6 +1,6 @@
 
 all : build build/Makefile
-	make -j4 -C build
+	make -j8 -C build
 
 build :
 	mkdir build
