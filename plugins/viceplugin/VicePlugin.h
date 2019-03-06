@@ -40,6 +40,8 @@ private:
 
 	std::string dataDir;
 
+    bool stopInitThread = false;
+
 	struct STIL {
 		int subsong;
 		int seconds;

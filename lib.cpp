@@ -52,3 +52,10 @@ extern "C" const char* musix_player_get_meta(void* player, const char* what)
     auto* chipPlayer = static_cast<ChipPlayer*>(player);
     return strdup(chipPlayer->getMeta(what).c_str());
 }
+
+extern "C" void musix_player_seek(void* player, int song, int seconds)
+{
+    using namespace musix;
+    auto* chipPlayer = static_cast<ChipPlayer*>(player);
+    chipPlayer->seekTo(song, seconds);
+}

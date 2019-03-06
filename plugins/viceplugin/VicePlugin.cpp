@@ -67,7 +67,7 @@ template <> const uint64_t get(const vector<uint8_t>& v, int offset)
            get<uint32_t>(v, offset + 4);
 }
 
-}
+} // namespace
 
 enum
 {
@@ -86,25 +86,19 @@ enum
 class VicePlayer : public ChipPlayer
 {
 public:
-    vector<uint8_t> calculateMD5(vector<uint8_t> data)
+    vector<uint8_t> calculateMD5(vector<uint8_t> const& data)
     {
         uint8_t speed = (data[0] == 'R') ? 60 : 0;
         uint16_t version = get<uint16_t>(data, PSID_VERSION);
-
         uint16_t initAdr = get<uint16_t>(data, INIT_ADDRESS);
         uint16_t playAdr = get<uint16_t>(data, PLAY_ADDRESS);
         uint16_t songs = get<uint16_t>(data, SONGS);
-
         uint32_t speedBits = get<uint32_t>(data, SPEED);
         uint16_t flags = get<uint16_t>(data, FLAGS);
-
-        MD5 md5;
-
         auto offset = (version == 2) ? 126 : 120;
 
+        MD5 md5;
         md5.add(data, offset);
-
-        md5.add(initAdr);
         md5.add(playAdr);
         md5.add(songs);
 
@@ -182,9 +176,10 @@ public:
     {
         int ret = psid_load_file(sidFile.c_str());
         LOGD("Loaded %s -> %d", sidFile, ret);
-        if (ret != 0) throw player_exception("Not a sid file");
+        if (ret != 0)
+            throw player_exception("Not a sid file");
 
-        File f{ sidFile };
+        File f{sidFile};
         auto data = f.readAll();
         auto md5 = calculateMD5(data);
         auto key = get<uint64_t>(md5, 0);
@@ -198,8 +193,7 @@ public:
 
         int defaultSong;
         int songs = psid_tunes(&defaultSong);
-        defaultSong--;
-        currentSong = defaultSong;
+        currentSong = --defaultSong;
         LOGD("DEFSONG: %d", defaultSong);
         currentLength = 0;
         currentPos = 0;
@@ -225,9 +219,11 @@ public:
                     if (s.subsong == defaultSong + 1) {
                         currentInfo = i;
                         sub_title = s.title; // sub_title + s.title + " ";
-                        if (sub_title == "") sub_title = s.name;
+                        if (sub_title == "")
+                            sub_title = s.name;
 
-                        if (msg == "") msg = s.comment;
+                        if (msg == "")
+                            msg = s.comment;
                         break;
                     }
                 }
@@ -266,8 +262,10 @@ public:
                 if (s.subsong == song + 1) {
                     currentInfo = i;
                     sub_title = s.title; // sub_title + s.title + " ";
-                    if (sub_title == "") sub_title = s.name;
-                    if (s.comment != "") msg = s.comment;
+                    if (sub_title == "")
+                        sub_title = s.name;
+                    if (s.comment != "")
+                        msg = s.comment;
                     break;
                 }
             }
@@ -306,7 +304,7 @@ public:
 
         // LOGD("%d vs %d", currentPos, currentLength*44100);
         // if(currentLength > 0 && currentPos > currentLength*44100)
-        //	return -1;
+        //  return -1;
         psid_play(target, size);
         return size;
     }
@@ -356,7 +354,7 @@ VicePlugin::VicePlugin(const string& dataDir) : dataDir(dataDir)
 /* } */
 
 // static File find_file(const std::string &name) {
-//	return File::findFile(current_exe_path() + ":" + File::getAppDir(), name);
+//  return File::findFile(current_exe_path() + ":" + File::getAppDir(), name);
 //}
 
 void VicePlugin::readSTIL()
@@ -365,7 +363,8 @@ void VicePlugin::readSTIL()
     STIL current;
     vector<STIL> songs;
     File f = File(dataDir + "/STIL.txt");
-    if (!f.exists()) return;
+    if (!f.exists())
+        return;
     // int subsong = -1;
     string path;
     string what;
@@ -375,8 +374,11 @@ void VicePlugin::readSTIL()
     // int seconds = 0;
     // int count = 0;
     for (auto l : f.getLines()) {
+        if (stopInitThread)
+            return;
         // LOGD("'%c' : %s", l[0], l);
-        if (l == "" || l[0] == '#') continue;
+        if (l == "" || l[0] == '#')
+            continue;
         // if(count++ == 300) break;
         if (l.length() > 4 && l[4] == ' ' && what != "") {
             content = content + " " + lstrip(l);
@@ -409,14 +411,7 @@ void VicePlugin::readSTIL()
                     songs.push_back(current);
                     current = STIL();
                     currentSet = false;
-                    // LOGD("PATH:%s", path);
-                    // LOGD("========================================");
-                    // for(auto &s : songs) {
-                    //	LOGD(" (#%d) T:%s BY:%s A:%s C:%s SEC:%d", s.subsong,
-                    // s.title, s.artist, s.author, s.comment, s.seconds);
-                    //}
                 }
-                // LOGD("Adding '%s'", path);
                 stilSongs[path] = STILSong(songs, songComment);
                 songComment = "";
                 songs.clear();
@@ -476,24 +471,28 @@ VicePlugin::~VicePlugin()
 {
     LOGD("VicePlugin destroy\n");
     machine_shutdown();
-    if (initThread.joinable()) initThread.join();
+    stopInitThread = true;
+    if (initThread.joinable())
+        initThread.join();
 }
 
-static const set<string> ext{ ".sid", ".psid", ".rsid", ".2sid", ".mus" };
+static const set<string> ext{".sid", ".psid", ".rsid", ".2sid", ".mus"};
 
 bool VicePlugin::canHandle(const std::string& name)
 {
     for (string x : ext) {
-        if (utils::endsWith(name, x)) return true;
+        if (utils::endsWith(name, x))
+            return true;
     }
     return false;
 }
 
 ChipPlayer* VicePlugin::fromFile(const std::string& fileName)
 {
-    if (initThread.joinable()) initThread.join();
+    if (initThread.joinable())
+        initThread.join();
     try {
-        return new VicePlayer{ *this, fileName };
+        return new VicePlayer{*this, fileName};
     } catch (player_exception& e) {
         return nullptr;
     }
@@ -517,12 +516,15 @@ template <typename T> T from_hex(const std::string& s)
 void VicePlugin::readLengths()
 {
 
-    File fp{ dataDir + "/Songlengths.txt" };
-    if (!fp.exists()) return;
+    File fp{dataDir + "/Songlengths.txt"};
+    if (!fp.exists())
+        return;
     string secs, mins;
     int ll = 0;
     extraLengths.reserve(30000);
     for (const auto& l : fp.getLines()) {
+        if (stopInitThread)
+            return;
         if (l[0] != ';' && l[0] != '[') {
             auto key = from_hex<uint64_t>(l.substr(0, 16));
             auto lengths = split(l.substr(33), " ");

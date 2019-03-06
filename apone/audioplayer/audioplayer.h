@@ -8,7 +8,7 @@
 class audio_exception : public std::exception {
 public:
     explicit audio_exception(const std::string &msg) : msg(msg) {}
-    virtual const char *what() const noexcept { return msg.c_str(); }
+    const char *what() const noexcept override { return msg.c_str(); }
 
     std::string msg;
 };
@@ -17,8 +17,8 @@ class InternalPlayer;
 
 class AudioPlayer {
 public:
-    explicit AudioPlayer(int hz = 44100);
-    AudioPlayer(std::function<void(int16_t *, int)> cb, int hz = 44100);
+    explicit AudioPlayer(int hz);
+    explicit AudioPlayer(std::function<void(int16_t *, int)> cb, int hz = 44100);
     virtual ~AudioPlayer() = default;
 
     virtual void play(std::function<void(int16_t *, int)> cb);

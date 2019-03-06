@@ -8,77 +8,78 @@
 
 #include <coreutils/file.h>
 #include <coreutils/settings.h>
-#include <coreutils/utils.h>
 #include <coreutils/split.h>
+#include <coreutils/utils.h>
 #include <set>
 #include <unordered_map>
 
 namespace musix {
 
-class OpenMPTPlayer : public ChipPlayer {
+class OpenMPTPlayer : public ChipPlayer
+{
 public:
-    OpenMPTPlayer(std::vector<uint8_t> data) {
-
-        uint8_t* ptr = &data[0];
-        if(memcmp(ptr + 1080, "FLT", 3) == 0 ||
-           memcmp(ptr + 1080, "EXO", 3) == 0)
+    OpenMPTPlayer(std::vector<uint8_t> const& data)
+    {
+        const uint8_t* ptr = &data[0];
+        if (data.size() < 1090)
+            throw player_exception("Data too short");
+        if (memcmp(ptr + 1080, "FLT", 3) == 0 ||
+            memcmp(ptr + 1080, "EXO", 3) == 0)
             throw player_exception("Can not play Startrekker module");
 
         mod = openmpt_module_create_from_memory(&data[0], data.size(), nullptr,
                                                 nullptr, nullptr);
 
-        if(!mod)
+        if (!mod)
             throw player_exception("Could not load module");
 
-        // if(loopmode)
         openmpt_module_set_repeat_count(mod, 99);
 
         auto length = openmpt_module_get_duration_seconds(mod);
         auto songs = openmpt_module_get_num_subsongs(mod);
 
-        auto keys = openmpt_module_get_metadata_keys(mod);
+        auto get = [&](const char* what) {
+            return std::string(openmpt_module_get_metadata(mod, what));
+        };
 
-        auto title = openmpt_module_get_metadata(mod, "title");
-        auto artist = openmpt_module_get_metadata(mod, "artist");
-        auto tracker = openmpt_module_get_metadata(mod, "tracker");
-        auto type = openmpt_module_get_metadata(mod, "type");
-        auto message = openmpt_module_get_metadata(mod, "message");
-        auto type_long = openmpt_module_get_metadata(mod, "type_long");
+        auto type_long = get("type_long");
+        auto type = get("type");
 
-        if(strcmp(type, "mod") == 0)
-            openmpt_module_set_render_param(
-                mod, OPENMPT_MODULE_RENDER_INTERPOLATIONFILTER_LENGTH, 1);
-        else
-            openmpt_module_set_render_param(
-                mod, OPENMPT_MODULE_RENDER_INTERPOLATIONFILTER_LENGTH, 0);
+        auto p = utils::split(type_long, " / ");
+        if (p.size() > 1)
+            type_long = p[0];
+
+        setMeta("title", get("title"), "composer", get("artist"), "message",
+                get("message"), "tracker", get("tracker"), "format", type_long,
+                "type", type, "songs", songs, "length", length);
+
+        openmpt_module_set_render_param(
+            mod, OPENMPT_MODULE_RENDER_INTERPOLATIONFILTER_LENGTH,
+            type == "mod" ? 1 : 0);
 
         auto& Settings = utils::Settings::getGroup("openmpt");
         double separation = Settings.get<double>("separation", 100.0);
         openmpt_module_set_render_param(
             mod, OPENMPT_MODULE_RENDER_STEREOSEPARATION_PERCENT, separation);
-
-        auto p = utils::split(std::string(type_long), " / ");
-        if(p.size() > 1)
-            type_long = p[0];
-
-        setMeta("title", title, "composer", artist, "message", message,
-                "tracker", tracker, "format", type_long, "type", type, "songs",
-                songs, "length", length);
     }
-    ~OpenMPTPlayer() override {
-        if(mod)
+
+    ~OpenMPTPlayer() override
+    {
+        if (mod)
             openmpt_module_destroy(mod);
     }
 
-    virtual int getSamples(int16_t* target, int noSamples) override {
+    virtual int getSamples(int16_t* target, int noSamples) override
+    {
         auto len = openmpt_module_read_interleaved_stereo(
             mod, 44100, noSamples / 2, target);
         return len * 2;
     }
 
-    virtual bool seekTo(int song, int seconds) override {
-        if(mod) {
-            if(song >= 0)
+    virtual bool seekTo(int song, int seconds) override
+    {
+        if (mod) {
+            if (song >= 0)
                 openmpt_module_select_subsong(mod, song);
             else
                 openmpt_module_set_position_seconds(mod, seconds);
@@ -91,22 +92,24 @@ private:
     openmpt_module* mod;
 };
 
-bool OpenMPTPlugin::canHandle(const std::string& n) {
+bool OpenMPTPlugin::canHandle(const std::string& n)
+{
     auto name = utils::toLower(n);
     auto ext = utils::path_extension(name);
-    if(ext == "gz" || ext == "rns" || ext == "dtm")
+    if (ext == "gz" || ext == "rns" || ext == "dtm")
         return false;
     auto prefix = utils::path_prefix(name);
-    if(prefix == "stk" || prefix == "mod" || ext == "ft") 
+    if (prefix == "stk" || prefix == "mod" || ext == "ft")
         return true;
     return openmpt_is_extension_supported(ext.c_str());
 }
 
-ChipPlayer* OpenMPTPlugin::fromFile(const std::string& fileName) {
+ChipPlayer* OpenMPTPlugin::fromFile(const std::string& fileName)
+{
     utils::File file{fileName};
     try {
         return new OpenMPTPlayer{file.readAll()};
-    } catch(player_exception& e) {
+    } catch (player_exception& e) {
         return nullptr;
     }
 };

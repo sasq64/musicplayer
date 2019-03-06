@@ -8,7 +8,7 @@
 
 namespace utils {
 template <typename T> class Fifo;
-}
+} // namespace utils
 
 #include "chipplayer.h"
 
@@ -17,14 +17,14 @@ namespace musix {
 class ChipPlugin
 {
 public:
-    virtual ~ChipPlugin(){};
+    virtual ~ChipPlugin() = default;;
 
     // Must be implemented
     virtual std::string name() const = 0;
     virtual bool canHandle(const std::string& name) = 0;
     virtual ChipPlayer* fromFile(const std::string& fileName) = 0;
 
-    virtual ChipPlayer* fromStream(std::shared_ptr<utils::Fifo<uint8_t>>)
+    virtual ChipPlayer* fromStream(std::shared_ptr<utils::Fifo<uint8_t>> /*unused*/)
     {
         return nullptr;
     }

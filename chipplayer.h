@@ -1,9 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
-#include <stdint.h>
-#include <stdlib.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -13,8 +13,8 @@ namespace musix {
 class player_exception : public std::exception
 {
 public:
-    player_exception(const std::string& msg = "") : msg(msg) {}
-    virtual const char* what() const throw() { return msg.c_str(); }
+    explicit player_exception(const std::string& msg = "") : msg(msg) {}
+    const char* what() const noexcept override { return msg.c_str(); }
 
 private:
     std::string msg;
@@ -26,14 +26,15 @@ public:
     using Callback =
         std::function<void(const std::vector<std::string>& meta, ChipPlayer*)>;
 
-    virtual ~ChipPlayer() {}
+    virtual ~ChipPlayer() = default;
     virtual int getSamples(int16_t* target, int size) = 0;
 
-    virtual bool setParameter(const std::string& name, int32_t value)
+    virtual bool setParameter(const std::string& /*name*/, int32_t /*value*/)
     {
         return false;
     }
-    virtual bool setParameter(const std::string& name, const std::string& value)
+    virtual bool setParameter(const std::string& /*name*/,
+                              const std::string& /*value*/)
     {
         return false;
     }
@@ -48,13 +49,14 @@ public:
     int getMetaInt(const std::string& what)
     {
         const std::string& data = getMeta(what);
-        if (data == "") return -1;
+        if (data == "")
+            return -1;
         return atoi(data.c_str());
     };
 
     void setMeta()
     {
-        for (auto cb : callbacks) {
+        for (const auto& cb : callbacks) {
             cb(changedMeta, this);
         }
         changedMeta.clear();
@@ -85,12 +87,9 @@ public:
         setMeta(args...);
     }
 
-    virtual bool seekTo(int song, int seconds = -1)
-    {
-        return false;
-    }
+    virtual bool seekTo(int song, int seconds = -1) { return false; }
 
-    void onMeta(Callback callback)
+    void onMeta(const Callback& callback)
     {
         callbacks.push_back(callback);
         std::vector<std::string> meta;

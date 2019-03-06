@@ -51,8 +51,9 @@ add_executable(play main.cpp)
 target_link_libraries(play plugin_register ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto archive pthread)
 
 add_library(musix SHARED lib.cpp)
-target_link_libraries(musix plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive pthread)
+target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive pthread)
 
 add_executable(testing testmain.cpp test.cpp)
 target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
 
+install(TARGETS musix DESTINATION .)
