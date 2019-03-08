@@ -141,7 +141,7 @@ set(SOURCE_FILES
     vice/resid/wave.cpp
 )
 
-find_package(ZLIB REQUIRED)
+#find_package(ZLIB REQUIRED)
 
 add_library(viceplugin ${SOURCE_FILES})
 target_link_libraries(viceplugin PRIVATE coreutils crypto ${ZLIB_LIBRARIES})

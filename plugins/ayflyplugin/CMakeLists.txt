@@ -16,7 +16,7 @@ set(SOURCE_FILES
 
 include_directories(ayfly/src/libayfly ayfly/src/libayfly/z80ex/include)
 add_definitions(-DDISABLE_AUDIO)
-#find_package(ZLIB REQUIRED)
+##find_package(ZLIB REQUIRED)
 #include_directories(${ZLIB_INCLUDE_DIRS})
 
 add_library(ayflyplugin AyflyPlugin.cpp ${SOURCE_FILES})

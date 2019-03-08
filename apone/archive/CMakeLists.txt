@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8.4)
 project(cpp-mods.archive)
 
 add_subdirectory(unrar)
-#add_subdirectory(ziplib)
 if (NOT TARGET miniz)
 	add_subdirectory(../miniz miniz)
 endif()

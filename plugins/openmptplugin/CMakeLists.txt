@@ -19,7 +19,7 @@ set(SOURCE_FILES
     ${SOUNDLIB_FILES}
 )
 
-find_package(ZLIB)
+#find_package(ZLIB)
 
 add_library(openmptplugin ${SOURCE_FILES})
 target_link_libraries(openmptplugin PRIVATE coreutils ${ZLIB_LIBRARIES})

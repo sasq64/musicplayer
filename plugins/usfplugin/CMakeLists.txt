@@ -56,7 +56,7 @@ set(SOURCE_FILES
     lazyusf2/vi/vi_controller.c
 )
 
-find_package(ZLIB REQUIRED)
+#find_package(ZLIB REQUIRED)
 
 add_library(usfplugin USFPlugin.cpp resampler.c ${SOURCE_FILES})
 target_link_libraries(usfplugin PRIVATE coreutils ${ZLIB_LIBRARIES})

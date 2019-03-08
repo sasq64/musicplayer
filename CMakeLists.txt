@@ -13,6 +13,10 @@ set(APONE apone)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+add_subdirectory(external/zlib)
+set(ZLIB_LIBRARIES zlibstatic)
+
+
 set(MUSICPLAYER_PLUGINS
     adplugin
     aoplugin
@@ -24,7 +28,7 @@ set(MUSICPLAYER_PLUGINS
     hivelyplugin
     htplugin
     mdxplugin
-    mp3plugin
+    #mp3plugin
     ndsplugin
     openmptplugin
     rsnplugin

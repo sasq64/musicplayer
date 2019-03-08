@@ -22,7 +22,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-pointer-sign -Wno-implicit-function-declaration -Wno-incompatible-pointer-types")
 endif()
 
-find_package(ZLIB REQUIRED)
+#find_package(ZLIB REQUIRED)
 
 add_library(heplugin ${SOURCE_FILES})
 target_include_directories(heplugin PRIVATE he ${ZLIB_INCLUDE_DIRS})

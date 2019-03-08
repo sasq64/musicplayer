@@ -13,7 +13,7 @@ set(SOURCE_FILES
     ht/m68k/m68kcpu.cpp
 )
 
-find_package(ZLIB REQUIRED)
+#find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
 
 add_library(htplugin ${SOURCE_FILES})
