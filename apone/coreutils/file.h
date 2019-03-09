@@ -58,8 +58,8 @@ public:
     static const char SLASH = '\\';
     static constexpr const char* SLASH_STR = "\\";
     static const char DIR_SEPARATOR = '\\';
-    static const char PATH_SEPARATOR = ';';
-    static constexpr const char* PATH_SEPARATOR_STR = ";";
+    static const char PathSeparator = ';';
+    static constexpr const char* PathSeparator_STR = ";";
     static constexpr int maxPath = 8192;
     static int Fileno(FILE* fp) { return _fileno(fp); }
     static FILE* Fopen(const char* name, const char* mode)
@@ -78,8 +78,8 @@ public:
     static const char SLASH = '/';
     static const char DIR_SEPARATOR = '/';
     static constexpr const char* SLASH_STR = "/";
-    static const char PATH_SEPARATOR;
-    static constexpr const char* PATH_SEPARATOR_STR = ":";
+    static const char PathSeparator;
+    static constexpr const char* PathSeparator_STR = ":";
     static constexpr int maxPath = PATH_MAX;
     static int Fileno(FILE* fp) { return fileno(fp); }
     static FILE* Fopen(const char* name, const char* mode)
@@ -125,7 +125,7 @@ public:
 
     inline static bool isAbsolutePath(std::string& fname)
     {
-        return fname[0] == PATH_SEPARATOR;
+        return fname[0] == PathSeparator;
     }
 
     /*

@@ -8,7 +8,7 @@
 #include <math.h>
 #include <stdint.h>
 
-#ifdef _MSC_VER
+#ifdef _MSC_VER_WITH_32_DUMMY
 static double sFPow(double a, double b)
 {
     // faster pow based on code by agner fog

@@ -5,8 +5,9 @@
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
 
-#include "plugins/plugins.h"
-
+//#include "plugins/plugins.h"
+#include "chipplayer.h"
+#include "chipplugin.h"
 int main(int argc, const char** argv)
 {
     using musix::ChipPlayer;

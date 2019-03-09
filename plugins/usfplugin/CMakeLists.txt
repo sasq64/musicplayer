@@ -60,4 +60,9 @@ set(SOURCE_FILES
 
 add_library(usfplugin USFPlugin.cpp resampler.c ${SOURCE_FILES})
 target_link_libraries(usfplugin PRIVATE coreutils ${ZLIB_LIBRARIES})
+
+if(MSVC)
+target_compile_options(usfplugin PRIVATE -DNO_ASM)
+endif()
+
 target_include_directories(usfplugin PRIVATE ${ZLIB_INCLUDE_DIRS} . lazyusf2 lazyusf2/rsp_hle)

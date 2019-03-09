@@ -6,7 +6,9 @@
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
 
-#include "plugins/plugins.h"
+//#include "plugins/plugins.h"
+#include "chipplayer.h"
+#include "chipplugin.h"
 
 extern "C" int musix_create(const char* dataDir)
 {

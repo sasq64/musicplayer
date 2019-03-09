@@ -1,7 +1,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+//#include <unistd.h>
 //#include <types.h>
 //#include <endian.h>
 
@@ -32,7 +32,7 @@ public:
         usf_clear(usf_state->emu_state);
         sample_rate = 0;
 
-        char temp[fileName.length() + 1];
+        char temp[8192];
         strcpy(temp, fileName.c_str());
 
         LOGD("Trying to load USF %s", string(temp));

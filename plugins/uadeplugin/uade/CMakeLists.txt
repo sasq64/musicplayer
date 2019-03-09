@@ -65,7 +65,7 @@ target_link_libraries(uade PRIVATE coreutils)
 target_include_directories(uade PRIVATE . uade/src uade/src/include uade/src/frontends/include uade/src/frontends/common)
 target_compile_options(uade PRIVATE -fomit-frame-pointer -Wall -Wno-unused -Wno-format -Wno-strict-prototypes -Wno-missing-prototypes -Wno-implicit-function-declaration -fno-exceptions)
 if(WIN32)
-  target_link_libraries(uade Ws2_32)
+  target_link_libraries(uade PUBLIC Ws2_32)
 endif()
 
 

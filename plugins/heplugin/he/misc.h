@@ -8,6 +8,11 @@
 #include "mkhebios.h"
 #include "r3000.h"
 
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
 #include <coreutils/utils.h>
 #include <coreutils/file.h>
 #include <coreutils/log.h>

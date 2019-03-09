@@ -17,7 +17,7 @@ class HEPlayer : public ChipPlayer {
 public:
     HEPlayer(const std::string& fileName) {
 
-        char temp[fileName.size() + 1];
+        char temp[2048];
         strcpy(temp, fileName.c_str());
 
         int psf_version = psf_load(temp, &psf_file_system, 0, 0, 0, 0, 0);

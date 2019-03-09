@@ -210,7 +210,7 @@ void r4300_reset_soft(usf_state_t * state)
 static void dynarec_setup_code()
 {
    usf_state_t * state;
-#ifdef _MSC_VER
+#ifdef _MSC_VER_WITH_32_DUMMY
    _asm
    {
 	   mov state, esi

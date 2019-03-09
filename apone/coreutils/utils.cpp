@@ -2,8 +2,8 @@
 #include "log.h"
 
 #include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
+//#include <sys/time.h>
+//#include <unistd.h>
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
@@ -20,6 +20,7 @@ namespace fs = std::experimental::filesystem;
 #ifdef _WIN32
 #include <windows.h>
 #include <ShellApi.h>
+#include <direct.h>
 #else
 #include <sys/wait.h>
 #endif
@@ -130,7 +131,7 @@ static uint16_t decode(const std::string& symbol) {
 }
 
 std::string htmldecode(const std::string& s, bool stripTags) {
-    char target[s.length() + 1];
+    char target[8192];
     auto* ptr = (unsigned char*)target;
     char symbol[32];
     char* sptr;
@@ -180,7 +181,7 @@ std::string htmldecode(const std::string& s, bool stripTags) {
 }
 
 std::string urlencode(const std::string& s, const std::string& chars) {
-    char target[s.length() * 3 + 1];
+    char target[8192];
     char* ptr = target;
     for (unsigned i = 0; i < s.length(); i++) {
         auto c = s[i];
@@ -195,7 +196,7 @@ std::string urlencode(const std::string& s, const std::string& chars) {
 }
 
 std::string urldecode(const std::string& s, const std::string& chars) {
-    char target[s.length() + 1];
+    char target[8192];
     char* ptr = target;
     for (unsigned i = 0; i < s.length(); i++) {
         auto c = s[i];
@@ -217,6 +218,7 @@ void sleepus(unsigned us) {
     std::this_thread::sleep_for(std::chrono::microseconds(us));
 }
 
+#ifndef _WIN32
 uint64_t getms() {
 #ifdef EMSCRIPTEN
     return (uint64_t)emscripten_get_now();
@@ -232,6 +234,7 @@ uint64_t getus() {
     gettimeofday(&tv, nullptr);
     return (uint64_t)tv.tv_sec * 1000000 + (uint64_t)tv.tv_usec;
 }
+#endif
 
 bool isalpha(const std::string& s) {
     for (const auto& c : s) {
@@ -240,13 +243,13 @@ bool isalpha(const std::string& s) {
     return true;
 }
 
-float clamp(float x, float a0, float a1) {
-    return std::min(std::max(x, a0), a1);
-}
+//float clamp(float x, float a0, float a1) {
+//    return std::min(std::max(x, a0), a1);
+//}
 
 void makedir(const std::string& name) {
 #ifdef _WIN32
-    mkdir(name.c_str());
+    _mkdir(name.c_str());
 #else
     mkdir(name.c_str(), 07777);
 #endif

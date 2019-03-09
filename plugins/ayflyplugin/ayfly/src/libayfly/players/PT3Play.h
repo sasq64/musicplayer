@@ -156,6 +156,8 @@ unsigned char *PT3_FindSig(unsigned char *buffer, long length)
     return 0;
 }
 
+#include <stdint.h>
+
 void PT3_Init(AYSongInfo &info)
 {
     int i;

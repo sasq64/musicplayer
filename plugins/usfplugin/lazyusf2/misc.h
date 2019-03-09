@@ -2,6 +2,11 @@
 #include "psflib.h"
 #include "usf/usf.h"
 
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
 static void * psf_file_fopen( const char * uri );
 static void * psf_file_fopen( const char * uri );
 static int psf_file_fseek( void * handle, int64_t offset, int whence );

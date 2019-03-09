@@ -15,30 +15,31 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(external/zlib)
 set(ZLIB_LIBRARIES zlibstatic)
+set(ZLIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/zlib ${CMAKE_BINARY_DIR}/external/zlib)
 
 
 set(MUSICPLAYER_PLUGINS
-    adplugin
-    aoplugin
+    #adplugin
+    #aoplugin
     ayflyplugin
-    ffmpegplugin
+    #ffmpegplugin
     gmeplugin
-    gsfplugin
+    #gsfplugin
     heplugin
     hivelyplugin
     htplugin
-    mdxplugin
+    #mdxplugin
     #mp3plugin
-    ndsplugin
+    #ndsplugin
     openmptplugin
-    rsnplugin
-    s98plugin
+    #rsnplugin
+    #s98plugin
     sc68plugin
-    stsoundplugin
-    tedplugin
-    uadeplugin
+    #stsoundplugin
+    #tedplugin
+    #uadeplugin
     usfplugin
-    viceplugin
+    #viceplugin
     v2plugin
     # Obsolete
     # sexypsfplugin
@@ -52,12 +53,14 @@ add_subdirectory(${APONE}/audioplayer audioplayer)
 add_subdirectory(${APONE}/archive archive)
 
 add_executable(play main.cpp)
-target_link_libraries(play plugin_register ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto archive pthread)
+target_link_libraries(play plugin_register ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto archive)
+#pthread)
 
 add_library(musix SHARED lib.cpp)
-target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive pthread)
+target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
+#pthread)
 
-add_executable(testing testmain.cpp test.cpp)
-target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
+#add_executable(testing testmain.cpp test.cpp)
+#target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
 
 install(TARGETS musix DESTINATION .)

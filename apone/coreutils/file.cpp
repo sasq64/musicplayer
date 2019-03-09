@@ -7,12 +7,14 @@
 #define LOGD(x, ...)
 #ifdef _WIN32
 #    include <windows.h>
+#include <direct.h>
+#undef PathSeparator
 #endif
-#include <dirent.h>
+//#include <dirent.h>
 #include <iomanip>
 #include <sstream>
 #include <stdlib.h>
-#include <unistd.h>
+//#include <unistd.h>
 #ifdef APPLE
 #    include <mach-o/dyld.h>
 #endif
@@ -27,7 +29,7 @@ namespace utils {
 
 using namespace std;
 
-const char File::PATH_SEPARATOR = ':';
+//const char File::PathSeparator = ':';
 
 const File File::NO_FILE;
 
@@ -74,11 +76,13 @@ File::File(const string& parent, const string& name, const Mode mode)
         open(mode);
 }
 
+#ifndef _WIN32
+
 vector<File> File::listFiles() const
 {
+    vector<File> rc;
     DIR* dir;
     struct dirent* ent;
-    vector<File> rc;
     if ((dir = opendir(fileName.c_str())) != nullptr) {
         while ((ent = readdir(dir)) != nullptr) {
             char* p = ent->d_name;
@@ -123,6 +127,7 @@ vector<File> File::listRecursive(bool includeDirs) const
     listRecursive(*this, rc, includeDirs);
     return rc;
 }
+#endif
 
 vector<uint8_t> File::readAll()
 {
@@ -256,7 +261,7 @@ string File::makePath(vector<File> files, bool resolve)
             path = path + sep + f.resolve().getName();
         else
             path = path + sep + f.getName();
-        sep = string(1, PATH_SEPARATOR);
+        sep = string(1, PathSeparator);
     }
     return path;
 }
@@ -266,7 +271,7 @@ File File::findFile(const string& path, const string& name)
     LOGD("Find '%s'", name);
     if (name == "")
         return NO_FILE;
-    auto parts = split(path, PATH_SEPARATOR);
+    auto parts = split(path, PathSeparator);
     for (string p : parts) {
         if (p.length() > 0) {
             if (p[p.length() - 1] != '/')
@@ -378,6 +383,7 @@ int64_t File::getSize() const
     return size;
 }
 
+#ifndef _WIN32
 bool File::isDir() const
 {
     struct stat ss;
@@ -385,6 +391,7 @@ bool File::isDir() const
         throw io_exception{"Could not stat file"};
     return S_ISDIR(ss.st_mode);
 }
+#endif
 
 void File::remove()
 {
@@ -457,7 +464,7 @@ File File::resolve() const
 File File::cwd()
 {
     char temp[PATH_MAX];
-    if (::getcwd(temp, sizeof(temp))) {
+    if (_getcwd(temp, sizeof(temp))) {
 #ifdef _WIN32
         replace_char(temp, '\\', '/');
 #endif
