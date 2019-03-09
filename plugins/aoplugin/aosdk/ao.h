@@ -139,7 +139,7 @@ typedef unsigned long long	UINT64;
 // #elif defined(__powerc)
 // #define INLINE inline
 // #else
-#define INLINE
+#define INLINE inline
 // #endif
 // #endif
 

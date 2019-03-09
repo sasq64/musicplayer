@@ -16,6 +16,10 @@
 #include "version.h"
 #include "mdx.h"
 
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
 /* ------------------------------------------------------------------ */
 
 static void*

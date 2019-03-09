@@ -25,6 +25,11 @@
 #include <string>
 #include "binio.h"
 
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
 class CFileProvider
 {
 public:

@@ -951,7 +951,7 @@ static void perform_state_offset(struct R3000_MEMORY_MAP *map, struct IOP_STATE 
 // Recompute the memory maps.
 // PERFORMS NO REGISTRATION with the actual R3000 state.
 //
-static void recompute_memory_maps(struct IOP_STATE *state) {
+static void EMU_CALL recompute_memory_maps(struct IOP_STATE *state) {
   sint32 i;
   struct R3000_MEMORY_MAP *mapload  = MAPLOAD;
   struct R3000_MEMORY_MAP *mapstore = MAPSTORE;

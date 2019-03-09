@@ -32,7 +32,7 @@ void DisplayError (char * Message, ...) {
 }
 */
 
-#if 0
+#ifdef _MSC_VER
 static void truncate(const char *filename, long size) {
 	/*
   HANDLE f = CreateFile(

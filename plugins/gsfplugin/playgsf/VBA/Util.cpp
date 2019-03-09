@@ -54,6 +54,11 @@ extern "C" {
 #define _stricmp strcasecmp
 #endif // ! _MSC_VER
 
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
 //extern int systemColorDepth;
 //extern int systemRedShift;
 //extern int systemGreenShift;

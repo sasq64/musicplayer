@@ -123,6 +123,7 @@ u8 soundBuffer[6][735];
 //u16 soundFinalWave[1470];
 u16 soundFinalWave[2304];
 int soundBufferLen = 576;
+
 int soundBufferTotalLen = 14700;
 int soundQuality = 1;
 #ifndef NO_INTERPOLATION
@@ -1357,7 +1358,7 @@ void soundMix()
 //int began_seek = 1;
 
 extern "C" int decode_pos_ms;
-extern "C" int seek_needed;
+int seek_needed;
 
 extern "C" void end_of_track(void);
 //extern "C" void pause(void);

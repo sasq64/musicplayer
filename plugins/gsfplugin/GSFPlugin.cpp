@@ -29,7 +29,6 @@ int playforever = 1;
 int fileoutput = 0;
 int TrailingSilence = 1000;
 int DetectSilence = 0, silencedetected = 0, silencelength = 5;
-}
 
 int cpupercent = 0, sndSamplesPerSec, sndNumChannels;
 int sndBitsPerSample = 16;
@@ -42,6 +41,7 @@ extern unsigned short soundFinalWave[2304];
 
 extern int soundBufferLen;
 
+}
 /*
 extern char soundEcho;
 extern char soundLowPass;

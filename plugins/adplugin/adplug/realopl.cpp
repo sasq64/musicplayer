@@ -19,7 +19,7 @@
  * realopl.cpp - Real hardware OPL, by Simon Peter <dn.tlp@gmx.net>
  */
 
-#ifdef _MSC_VER			// Microsoft Visual C++
+#ifdef _MSC_VER_REMOVED			// Microsoft Visual C++
 #	include <conio.h>
 #	define INP	_inp
 #	define OUTP	_outp

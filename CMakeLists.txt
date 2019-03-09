@@ -19,24 +19,24 @@ set(ZLIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/zlib ${CMAKE_BINARY_DIR}/exte
 
 
 set(MUSICPLAYER_PLUGINS
-    #adplugin
-    #aoplugin
+    adplugin
+    aoplugin
     ayflyplugin
-    #ffmpegplugin
+    ffmpegplugin
     gmeplugin
-    #gsfplugin
+    gsfplugin
     heplugin
     hivelyplugin
     htplugin
-    #mdxplugin
+    mdxplugin
     #mp3plugin
-    #ndsplugin
+    ndsplugin
     openmptplugin
     #rsnplugin
     #s98plugin
     sc68plugin
-    #stsoundplugin
-    #tedplugin
+    stsoundplugin
+    tedplugin
     #uadeplugin
     usfplugin
     #viceplugin

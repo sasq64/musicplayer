@@ -13,6 +13,11 @@
 #include "../tagget.h"
 #include "vio2sf.h"
 
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
 volatile BOOL execute = FALSE;
 
 static struct
