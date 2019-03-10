@@ -5,8 +5,6 @@
 #include <cmath>
 #include "adplug/adplug.h"
 #include "adplug/emuopl.h"
-#include "adplug/kemuopl.h"
-#include "adplug/temuopl.h"
 #include "libbinio/binfile.h"
 #include "libbinio/binio.h"
 #include "opl/dbemuopl.h"
@@ -32,8 +30,6 @@ class AdPlugPlayer : public ChipPlayer {
 public:
     AdPlugPlayer(const std::string &fileName, const std::string &configDir) {
 
-        int core = 0;
-
         if(!g_database) {
             binistream *fp = new binifstream(configDir + "/" + "adplug.db");
             fp->setFlag(binio::BigEndian, false);
@@ -45,19 +41,7 @@ public:
             CAdPlug::set_database(g_database);
         }
 
-        int emuhz = 44100; // 49716;
-
-        switch(core) {
-        case 2:
-            emu = new CEmuopl(emuhz, true, true);
-            break;
-        case 1:
-            emu = new CKemuopl(emuhz, true, true);
-            break;
-        case 0:
-            emu = new DBemuopl(emuhz, true);
-            break;
-        }
+        emu = new CEmuopl(44100, true, true);
 
         m_player = CAdPlug::factory(fileName.c_str(), emu, CAdPlug::players);
 
@@ -68,8 +52,6 @@ public:
                 m_player->getauthor(), "length", m_player->songlength() / 1000,
                 "songs", m_player->getsubsongs(), "format",
                 m_player->gettype());
-
-        LOGD("CORE %d, PLAYER %p", core, (void*)m_player);
     }
 
     ~AdPlugPlayer() {

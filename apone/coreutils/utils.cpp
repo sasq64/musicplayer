@@ -2,8 +2,6 @@
 #include "log.h"
 
 #include <sys/stat.h>
-//#include <sys/time.h>
-//#include <unistd.h>
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
@@ -22,7 +20,11 @@ namespace fs = std::experimental::filesystem;
 #include <ShellApi.h>
 #include <direct.h>
 #else
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/time.h>
 #include <sys/wait.h>
+#include <unistd.h>
 #endif
 
 #ifdef EMSCRIPTEN
@@ -564,8 +566,6 @@ void ExecPipe::Kill() {
 
 #else
 
-#include <fcntl.h>
-#include <signal.h>
 
 pid_t popen2(const char* command, int* infp, int* outfp) {
     enum { READ, WRITE };

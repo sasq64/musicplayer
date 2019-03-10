@@ -3,7 +3,6 @@ project(cpp-mods.musicplayer.gmeplugin)
 
 file(GLOB SOURCE_FILES gme/*.cpp)
 
-#find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
 
 add_library(gmeplugin GMEPlugin.cpp ${SOURCE_FILES})

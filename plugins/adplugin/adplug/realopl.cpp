@@ -19,31 +19,9 @@
  * realopl.cpp - Real hardware OPL, by Simon Peter <dn.tlp@gmx.net>
  */
 
-#ifdef _MSC_VER_REMOVED			// Microsoft Visual C++
-#	include <conio.h>
-#	define INP	_inp
-#	define OUTP	_outp
-#elif defined(__WATCOMC__)	// Watcom C/C++ and OpenWatcom
-#	include <conio.h>
-#	define INP	inp
-#	define OUTP	outp
-#elif defined(WIN32) && defined(__MSVCRT__) && defined(__MINGW32__)	// MinGW32
-/*
-int __cdecl _inp(unsigned short);
-int __cdecl _outp(unsigned short, int);
-#	define INP	_inp
-#	define OUTP	_outp
-*/
-#	define INP		inb
-#	define OUTP(reg, val)	outb(val, reg)
-#elif defined(DJGPP)		// DJGPP
-#	include <pc.h>
-#	define INP	inportb
-#	define OUTP	outportb
-#else				// no support on other platforms
-#	define INP(reg)		0
-#	define OUTP(reg, val)
-#endif
+// TODO: What are these used for when defined ?
+#define INP(reg)		0
+#define OUTP(reg, val)
 
 #include "realopl.h"
 
@@ -52,21 +30,6 @@ int __cdecl _outp(unsigned short, int);
 
 const unsigned char CRealopl::op_table[9] =
   {0x00, 0x01, 0x02, 0x08, 0x09, 0x0a, 0x10, 0x11, 0x12};
-
-#if defined(WIN32) && defined(__MINGW32__)
-static __inline unsigned char inb(unsigned short int port)
-{
-  unsigned char _v;
-
-  __asm__ __volatile__ ("inb %w1,%0":"=a" (_v):"Nd" (port));
-  return _v;
-}
-
-static __inline void outb(unsigned char value, unsigned short int port)
-{
-  __asm__ __volatile__ ("outb %b0,%w1": :"a" (value), "Nd" (port));
-}
-#endif
 
 CRealopl::CRealopl(unsigned short initport)
   : adlport(initport), hardvol(0), bequiet(false), nowrite(false)

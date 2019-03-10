@@ -3,6 +3,11 @@
 #include <string.h>
 #include <ctype.h>
 
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
 #include "desmume/MMU.h"
 #include "desmume/armcpu.h"
 #include "desmume/NDSSystem.h"
@@ -13,10 +18,6 @@
 #include "../tagget.h"
 #include "vio2sf.h"
 
-#ifdef _MSC_VER
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
-#endif
 
 volatile BOOL execute = FALSE;
 
@@ -246,7 +247,7 @@ static int load_psfcb(void *pWork, const char *pNameTop, const char *pNameEnd, c
 
 	int ret = xsf_tagenum_callback_returnvaluecontinue;
 
-	if (pNameEnd - pNameTop == pwork->taglen && !_strnicmp(pNameTop, pwork->tag , pwork->taglen))
+	if (pNameEnd - pNameTop == pwork->taglen && !strncasecmp(pNameTop, pwork->tag , pwork->taglen))
 	{
 		unsigned l = pValueEnd - pValueTop;
 		char *lib = malloc(l + 1);

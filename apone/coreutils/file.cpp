@@ -8,9 +8,7 @@
 #ifdef _WIN32
 #    include <windows.h>
 #include <direct.h>
-#undef PathSeparator
 #endif
-//#include <dirent.h>
 #include <iomanip>
 #include <sstream>
 #include <stdlib.h>
@@ -29,7 +27,7 @@ namespace utils {
 
 using namespace std;
 
-//const char File::PathSeparator = ':';
+const char File::PathSeparator = ':';
 
 const File File::NO_FILE;
 
@@ -77,6 +75,8 @@ File::File(const string& parent, const string& name, const Mode mode)
 }
 
 #ifndef _WIN32
+
+#include <dirent.h>
 
 vector<File> File::listFiles() const
 {
@@ -464,9 +464,11 @@ File File::resolve() const
 File File::cwd()
 {
     char temp[PATH_MAX];
-    if (_getcwd(temp, sizeof(temp))) {
 #ifdef _WIN32
+    if (_getcwd(temp, sizeof(temp))) {
         replace_char(temp, '\\', '/');
+#else
+    if (getcwd(temp, sizeof(temp))) {
 #endif
         return File(temp);
     }

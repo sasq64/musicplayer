@@ -29,22 +29,30 @@ set(MUSICPLAYER_PLUGINS
     hivelyplugin
     htplugin
     mdxplugin
-    #mp3plugin
     ndsplugin
     openmptplugin
-    #rsnplugin
-    #s98plugin
     sc68plugin
     stsoundplugin
     tedplugin
-    #uadeplugin
     usfplugin
-    #viceplugin
     v2plugin
+    # MSVC incompatible
+    #mp3plugin
+    #rsnplugin
+    #s98plugin
+    uadeplugin
+    #viceplugin
     # Obsolete
     # sexypsfplugin
     # modplugin
 )
+
+if(WIN32)
+else()
+set(THREAD_LIB pthread)
+endif()
+
+
 add_subdirectory(plugins)
 
 add_subdirectory(${APONE}/coreutils coreutils)
@@ -53,14 +61,14 @@ add_subdirectory(${APONE}/audioplayer audioplayer)
 add_subdirectory(${APONE}/archive archive)
 
 add_executable(play main.cpp)
-target_link_libraries(play plugin_register ${MUSICPLAYER_PLUGINS} coreutils audioplayer crypto archive)
-#pthread)
+target_link_libraries(play plugin_register ${MUSICPLAYER_PLUGINS}
+    coreutils audioplayer crypto archive ${THREAD_LIB})
 
 add_library(musix SHARED lib.cpp)
-target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
-#pthread)
+target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
+    coreutils crypto archive ${THREAD_LIB})
 
-#add_executable(testing testmain.cpp test.cpp)
-#target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
+add_executable(testing testmain.cpp test.cpp)
+target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
 
 install(TARGETS musix DESTINATION .)
