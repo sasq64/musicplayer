@@ -55,6 +55,7 @@ static void read_counts (void)
     int nr = 0;
     memset (counts, 0, 65536 * sizeof *counts);
 
+	count = 0;
     file = fopen ("frequent.68k", "r");
     if (file) {
 	fscanf (file, "Total: %lu\n", &total);

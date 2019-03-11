@@ -61,16 +61,16 @@ add_subdirectory(${APONE}/audioplayer audioplayer)
 add_subdirectory(${APONE}/archive archive)
 
 add_executable(play main.cpp)
-target_link_libraries(play plugin_register ${MUSICPLAYER_PLUGINS}
+target_link_libraries(play PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
     coreutils audioplayer crypto archive ${THREAD_LIB})
 
-add_library(musix SHARED lib.cpp)
-target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
-    coreutils crypto archive ${THREAD_LIB})
+#add_library(musix SHARED lib.cpp)
+#target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
+#    coreutils crypto archive ${THREAD_LIB})
 
 #if(NOT WIN32)
 #add_executable(testing testmain.cpp test.cpp)
 #target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
 #endif()
 
-install(TARGETS musix DESTINATION .)
+#install(TARGETS musix DESTINATION .)

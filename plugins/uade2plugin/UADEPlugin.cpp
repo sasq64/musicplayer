@@ -9,8 +9,11 @@
 #include <set>
 #include <thread>
 #include <uade/uade.h>
-#include <unistd.h>
+//#include <unistd.h>
 #include <unordered_map>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 
 static std::thread uadeThread;
 extern "C" void uade_run_thread(void (*f)(void*), void* data) {
@@ -62,11 +65,13 @@ public:
 
     bool load(string fileName) {
 
-        char currdir[2048];
-        if(!getcwd(currdir, sizeof(currdir)))
-            return false;
+		string currDir = File::cwd();
 
-        int ok = chdir(dataDir.c_str());
+        /* char currdir[2048]; */
+        /* if(!getcwd(currdir, sizeof(currdir))) */
+        /*     return false; */
+
+        int ok = _chdir(dataDir.c_str());
 
         struct uade_config* config = uade_new_config();
         uade_config_set_option(config, UC_ONE_SUBSONG, NULL);
@@ -107,7 +112,7 @@ public:
             valid = true;
         }
 
-        ok = chdir(currdir);
+        ok = _chdir(currDir.c_str());
 
         return valid;
     }
