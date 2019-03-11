@@ -40,7 +40,7 @@ set(MUSICPLAYER_PLUGINS
     #mp3plugin
     #rsnplugin
     #s98plugin
-	#uadeplugin
+	uade2plugin
     #viceplugin
     # Obsolete
     # sexypsfplugin
@@ -68,9 +68,9 @@ add_library(musix SHARED lib.cpp)
 target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive ${THREAD_LIB})
 
-if(NOT WIN32)
-add_executable(testing testmain.cpp test.cpp)
-target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
+#if(NOT WIN32)
+#add_executable(testing testmain.cpp test.cpp)
+#target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
+#endif()
 
-endif()
 install(TARGETS musix DESTINATION .)
