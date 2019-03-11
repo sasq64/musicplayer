@@ -104,7 +104,7 @@ bool AdPlugin::canHandle(const std::string &name) {
 ChipPlayer *AdPlugin::fromFile(const std::string &fileName) {
     try {
         return new AdPlugPlayer{fileName, configDir};
-    } catch(player_exception &e) {
+    } catch(player_exception&) {
         return nullptr;
     }
 };

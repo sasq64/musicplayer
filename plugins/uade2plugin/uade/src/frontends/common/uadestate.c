@@ -19,6 +19,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <dirent.h>
+#else
+#include <winsock2.h>
 #endif
 
 #include <time.h>
@@ -35,6 +37,7 @@
 #include <sys/stat.h>
 #define	stat _stat
 #endif
+
 
 static enum uade_control_state ipc_state(const struct uade_state *state)
 {

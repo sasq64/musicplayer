@@ -107,7 +107,7 @@ public:
             setMeta(
                 "songs", songInfo->subsongs.max - songInfo->subsongs.min + 1,
                 "startsong", songInfo->subsongs.def - songInfo->subsongs.min,
-                "length", songInfo->duration, "title", modname, "format",
+                "length", (int)songInfo->duration, "title", modname, "format",
                 songInfo->playername);
             valid = true;
         }

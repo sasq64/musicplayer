@@ -40,6 +40,7 @@
 #ifdef _WIN32
 #include <errno.h>
 #include <uade/dirent_win32.h>
+#include <winsock2.h>
 #endif
 
 #define UADE_SAFE_BUFSIZE 4096
