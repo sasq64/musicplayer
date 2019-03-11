@@ -1,6 +1,0 @@
-SB.AdvancedSkiSimulator         67766  Steve Barrett
-SB.ArtificialDreams             49842  Steve Barrett (?)
-SB.ChroniclesOfOmega            64880  Steve Barrett
-SB.Dragonscape                  62538  Steve Barrett
-SB.KellyX                       30966  Steve Barrett
-SB.StreetFighter                35482  Wally Beben, reconverted and fixed by Don Adan/WT

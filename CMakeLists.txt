@@ -34,13 +34,13 @@ set(MUSICPLAYER_PLUGINS
     sc68plugin
     stsoundplugin
     tedplugin
-	#usfplugin
+    uadeplugin
     v2plugin
     # MSVC incompatible
     #mp3plugin
+    #usfplugin
     #rsnplugin
     #s98plugin
-	uade2plugin
     #viceplugin
     # Obsolete
     # sexypsfplugin

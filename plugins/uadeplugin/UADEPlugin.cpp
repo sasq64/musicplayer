@@ -9,8 +9,11 @@
 #include <set>
 #include <thread>
 #include <uade/uade.h>
-#include <unistd.h>
 #include <unordered_map>
+#ifdef _WIN32
+#include <direct.h>
+#define chdir _chdir
+#endif
 
 static std::thread uadeThread;
 extern "C" void uade_run_thread(void (*f)(void*), void* data) {
@@ -62,9 +65,11 @@ public:
 
     bool load(string fileName) {
 
-        char currdir[2048];
-        if(!getcwd(currdir, sizeof(currdir)))
-            return false;
+		string currDir = File::cwd();
+
+        /* char currdir[2048]; */
+        /* if(!getcwd(currdir, sizeof(currdir))) */
+        /*     return false; */
 
         int ok = chdir(dataDir.c_str());
 
@@ -74,7 +79,7 @@ public:
         uade_config_set_option(config, UC_NO_EP_END, NULL);
         // uade_config_set_option(config, UC_VERBOSE, "true");
         uade_config_set_option(config, UC_BASE_DIR, ".");
-        state = uade_new_state(config);
+        state = uade_new_state(config, 1);
         free(config);
 
         musicStopped = false;
@@ -102,17 +107,17 @@ public:
             setMeta(
                 "songs", songInfo->subsongs.max - songInfo->subsongs.min + 1,
                 "startsong", songInfo->subsongs.def - songInfo->subsongs.min,
-                "length", songInfo->duration, "title", modname, "format",
+                "length", (int)songInfo->duration, "title", modname, "format",
                 songInfo->playername);
             valid = true;
         }
 
-        ok = chdir(currdir);
+        ok = chdir(currDir.c_str());
 
         return valid;
     }
     ~UADEPlayer() override {
-        uade_cleanup_state(state);
+        uade_cleanup_state(state, 1);
         state = nullptr;
         if(uadeFile)
             uadeFile.remove();
