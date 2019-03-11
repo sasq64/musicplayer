@@ -159,7 +159,7 @@ public:
         fwrite(line.c_str(), 1, line.length()+1, fp);
     }
 
-    size_t getSize() const noexcept {
+    int64_t getSize() const noexcept {
         auto pos = tell();
         seek(0, Seek::End);
         auto sz = tell();
@@ -169,7 +169,7 @@ public:
 
     std::vector<uint8_t> readAll() const {
         std::vector<uint8_t> data;
-        data.resize(getSize());
+        data.resize((size_t)getSize());
         seek(0);
         if(!data.empty()) {
             size_t rc = read(&data[0], data.size());
@@ -205,7 +205,7 @@ public:
 #endif
     }
 
-    size_t tell() const {
+    int64_t tell() const {
 #ifdef _WIN32
         return _ftelli64(fp);
 #else
@@ -215,7 +215,11 @@ public:
 
     bool open(const char* name, Mode mode) noexcept
     {
+#ifdef _WIN32
+		return fopen_s(&fp, name, mode == Read ? "rb" : "wb") == 0;
+#else
         fp = fopen(name, mode == Read ? "rb" : "wb");
+#endif
 		return fp != nullptr;
     }
 

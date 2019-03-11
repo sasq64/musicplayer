@@ -58,7 +58,7 @@ public:
     static const char SLASH = '\\';
     static constexpr const char* SLASH_STR = "\\";
     static const char DIR_SEPARATOR = '\\';
-    static const char PathSeparator = ';';
+    static const char PathSeparator;
     static constexpr const char* PathSeparator_STR = ";";
     static constexpr int maxPath = 8192;
     static int Fileno(FILE* fp) { return _fileno(fp); }

@@ -18,7 +18,7 @@ public:
     {
         utils::File f{ name };
 
-        int fileSize = f.getSize();
+        int fileSize = (int)f.getSize();
 
         uint8_t header[6];
 

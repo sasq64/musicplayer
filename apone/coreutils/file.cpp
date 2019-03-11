@@ -133,7 +133,7 @@ vector<uint8_t> File::readAll()
 {
     vector<uint8_t> data;
     seek(0);
-    data.resize(getSize());
+    data.resize((size_t)getSize());
     if (!data.empty()) {
         int rc = read(&data[0], data.size());
         if (rc != data.size())
@@ -146,15 +146,23 @@ void File::open(const Mode mode)
 {
     if (mode == READ) {
         if (!readFP) {
-            readFP = fopen(fileName.c_str(), "rb");
-            if (!readFP)
-                throw file_not_found_exception(fileName);
+#ifdef _WIN32
+			if (fopen_s(&readFP, fileName.c_str(), "rb") !=0)
+#else
+			readFP = fopen(fileName.c_str(), "rb");
+			if (!readFP)
+#endif
+				throw file_not_found_exception(fileName);
         }
     } else if (mode == WRITE) {
         if (!writeFP) {
             // makedirs(fileName);
-            writeFP = fopen(fileName.c_str(), "wb");
-            if (!writeFP)
+#ifdef _WIN32
+			if (fopen_s(&writeFP, fileName.c_str(), "wb") !=0)
+#else
+			writeFP = fopen(fileName.c_str(), "wb");
+			if (!writeFP)
+#endif
                 throw io_exception{"Could not open file'"s + fileName +
                                    "' for writing"s};
         }
@@ -174,7 +182,11 @@ void File::seek(int64_t where)
     open(READ);
     if (!readFP)
         throw file_not_found_exception(fileName);
+#ifdef _WIN32
+    _fseeki64(readFP, where, SEEK_SET);
+#else
     fseek(readFP, where, SEEK_SET);
+#endif
 }
 int64_t File::tell()
 {
@@ -289,8 +301,11 @@ const File& File::getHomeDir()
 {
     if (!homeDir) {
 #ifdef _WIN32
-        char path[MAX_PATH];
-        string h = getenv("HOMEPATH");
+        char *path;
+		size_t len;
+		_dupenv_s(&path, &len, "HOMEPATH");
+        string h = path;
+		free(path);
         if (h[0] == '\\') {
             h = string("C:") + h;
             replace_char(h, '\\', '/');
@@ -373,7 +388,11 @@ int64_t File::getSize() const
         if (fileName != "") {
             rc = stat(fileName.c_str(), &ss);
         } else if (writeFP != nullptr) {
+#ifdef _WIN32
+            rc = fstat(_fileno(writeFP), &ss);
+#else
             rc = fstat(fileno(writeFP), &ss);
+#endif
             LOGD("RC %d", rc);
         }
         if (rc != 0)

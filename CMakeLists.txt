@@ -34,13 +34,13 @@ set(MUSICPLAYER_PLUGINS
     sc68plugin
     stsoundplugin
     tedplugin
-    usfplugin
+	#usfplugin
     v2plugin
     # MSVC incompatible
     #mp3plugin
     #rsnplugin
     #s98plugin
-    uadeplugin
+	#uadeplugin
     #viceplugin
     # Obsolete
     # sexypsfplugin
@@ -68,7 +68,9 @@ add_library(musix SHARED lib.cpp)
 target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive ${THREAD_LIB})
 
+if(NOT WIN32)
 add_executable(testing testmain.cpp test.cpp)
 target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
 
+endif()
 install(TARGETS musix DESTINATION .)
