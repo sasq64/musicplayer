@@ -96,14 +96,14 @@ public:
     {
         int16_t temp_data[8192];
 
-        engine.play(temp_data, noSamples/2);
+        int rc = engine.play(temp_data, noSamples/2);
 
-        for (int i = 0; i < noSamples/2; ++i) {
+        for (int i = 0; i < rc; ++i) {
             auto v = temp_data[i];
-            *target++ = v;
-            *target++ = v;
+            target[i*2] = v;
+            target[i*2+1] = v;
         }
-        return noSamples;
+        return rc*2;
     }
 
     virtual bool seekTo(int song, int seconds) override { return true; }
