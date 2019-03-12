@@ -50,7 +50,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 # include <ws2tcpip.h>  /* socklen_t, et al (MSVC20xx) */
 # include <windows.h>
 # include <io.h>
@@ -60,7 +60,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # include <errno.h>
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 
 static int has_init_socket = 0;
 

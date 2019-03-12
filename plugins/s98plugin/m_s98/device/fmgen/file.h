@@ -6,6 +6,10 @@
 #include "types.h"
 #include <limits.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#define PATH_MAX MAX_PATH
+#endif
 // ---------------------------------------------------------------------------
 
 class FileIO

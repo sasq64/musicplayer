@@ -28,12 +28,12 @@
 /* ----------------------------------------- */
 
 /* necessary headers */
-#if defined(WIN32)
+#if defined(_WIN32)
   #include <windows.h>
 #endif
 
 /* DLL handles and function declaration specifiers */
-#if defined(WIN32)
+#if defined(_WIN32)
   #define IMPORT extern "C" __declspec(dllimport)
   #define EXPORT __declspec(dllexport)
   #define CALL   __cdecl

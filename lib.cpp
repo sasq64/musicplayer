@@ -10,13 +10,17 @@
 #include "chipplayer.h"
 #include "chipplugin.h"
 
-extern "C" int musix_create(const char* dataDir)
+#ifdef _WIN32
+#define API __declspec(dllexport)
+#endif
+
+extern "C" API int musix_create(const char* dataDir)
 {
     musix::ChipPlugin::createPlugins(dataDir);
     return 0;
 }
 
-extern "C" void* musix_find_plugin(const char* fileName)
+extern "C" API void* musix_find_plugin(const char* fileName)
 {
     using namespace musix;
 
@@ -28,34 +32,34 @@ extern "C" void* musix_find_plugin(const char* fileName)
     return nullptr;
 }
 
-extern "C" void* musix_plugin_create_player(void* plugin, const char* fileName)
+extern "C" API void* musix_plugin_create_player(void* plugin, const char* fileName)
 {
     using namespace musix;
     auto* chipPlugin = static_cast<ChipPlugin*>(plugin);
     return chipPlugin->fromFile(fileName);
 }
 
-extern "C" void musix_player_destroy(void* player)
+extern "C" API void musix_player_destroy(void* player)
 {
     using namespace musix;
     delete static_cast<ChipPlayer*>(player);
 }
 
-extern "C" int musix_player_get_samples(void* player, int16_t* target, int size)
+extern "C" API int musix_player_get_samples(void* player, int16_t* target, int size)
 {
     using namespace musix;
     auto* chipPlayer = static_cast<ChipPlayer*>(player);
     return chipPlayer->getSamples(target, size);
 }
 
-extern "C" const char* musix_player_get_meta(void* player, const char* what)
+extern "C" API const char* musix_player_get_meta(void* player, const char* what)
 {
     using namespace musix;
     auto* chipPlayer = static_cast<ChipPlayer*>(player);
     return strdup(chipPlayer->getMeta(what).c_str());
 }
 
-extern "C" void musix_player_seek(void* player, int song, int seconds)
+extern "C" API void musix_player_seek(void* player, int song, int seconds)
 {
     using namespace musix;
     auto* chipPlayer = static_cast<ChipPlayer*>(player);

@@ -7,7 +7,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+#ifdef _WIN32
+#include <fileapi.h>
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 // ---------------------------------------------------------------------------
 //	構築/消滅
@@ -195,5 +201,10 @@ bool FileIO::SetEndOfFile()
 {
 	if (!(GetFlags() & open))
 		return false;
+#ifdef _WIN32
+	// TODO: Truncate file
+	//::SetEndOfFile(hfile);
+#else
 	return ::ftruncate(hfile, Tellp()) == 0;
+#endif
 }

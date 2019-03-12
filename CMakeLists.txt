@@ -37,13 +37,13 @@ set(MUSICPLAYER_PLUGINS
     uadeplugin
     v2plugin
     sidplugin
+    usfplugin
+    rsnplugin
+    s98plugin
     # MSVC incompatible
-    #mp3plugin
-    #usfplugin
-    #rsnplugin
-    #s98plugin
-    #viceplugin
+    # mp3plugin
     # Obsolete
+    # viceplugin
     # sexypsfplugin
     # modplugin
 )
@@ -52,7 +52,6 @@ if(WIN32)
 else()
 set(THREAD_LIB pthread)
 endif()
-
 
 add_subdirectory(plugins)
 
@@ -65,13 +64,13 @@ add_executable(play main.cpp)
 target_link_libraries(play PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
     coreutils audioplayer crypto archive ${THREAD_LIB})
 
-#add_library(musix SHARED lib.cpp)
-#target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
-#    coreutils crypto archive ${THREAD_LIB})
+add_library(musix SHARED lib.cpp)
+target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
+    coreutils crypto archive ${THREAD_LIB})
 
 #if(NOT WIN32)
 #add_executable(testing testmain.cpp test.cpp)
 #target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
 #endif()
 
-#install(TARGETS musix DESTINATION .)
+install(TARGETS musix DESTINATION .)

@@ -13,7 +13,7 @@ set(SOURCE_FILES
     m_s98/device/s_logtbl.c
     m_s98/device/s_sng.c
     m_s98/m_s98.cpp
-    m_s98/device/fmgen/file.cpp
+	m_s98/device/fmgen/file.cpp
     m_s98/device/fmgen/fmgen.cpp
     m_s98/device/fmgen/fmtimer.cpp
     m_s98/device/fmgen/opm.cpp
@@ -24,5 +24,5 @@ set(SOURCE_FILES
 
 add_library(s98plugin S98Plugin.cpp ${SOURCE_FILES})
 target_link_libraries(s98plugin PRIVATE coreutils ${ZLIB_LIBRARIES})
-target_include_directories(s98plugin PRIVATE m_s98)
-set_source_files_properties(m_s98/device/s_sng.c PROPERTIES COMPILE_FLAGS -Wno-incompatible-pointer-types)
+target_include_directories(s98plugin PRIVATE m_s98 ${ZLIB_INCLUDE_DIRS})
+#set_source_files_properties(m_s98/device/s_sng.c PROPERTIES COMPILE_FLAGS -Wno-incompatible-pointer-types)

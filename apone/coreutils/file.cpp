@@ -7,7 +7,9 @@
 #define LOGD(x, ...)
 #ifdef _WIN32
 #    include <windows.h>
-#include <direct.h>
+#    include <direct.h>
+#    include <experimental/filesystem>
+	namespace fs = std::experimental::filesystem;
 #endif
 #include <iomanip>
 #include <sstream>
@@ -74,7 +76,33 @@ File::File(const string& parent, const string& name, const Mode mode)
         open(mode);
 }
 
-#ifndef _WIN32
+#ifdef _WIN32
+
+static void _listFiles(const std::string& dirName,
+                const std::function<void(const std::string& path)>& f)
+{
+    for (const auto& p : fs::directory_iterator(dirName)) {
+        auto&& path = p.path().string();
+        if (path[0] == '.' &&
+            (path[1] == 0 || (path[1] == '.' && path[2] == 0)))
+            continue;
+        if (fs::is_directory(p.status()))
+            _listFiles(path, f);
+        else
+            f(path);
+    }
+}
+
+vector<File> File::listFiles() const
+{
+	vector<File> result;
+    _listFiles(fileName, [&](const std::string& name) {
+		result.emplace_back(name);
+	});
+	return result;
+}
+
+#else
 
 #include <dirent.h>
 
