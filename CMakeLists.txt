@@ -36,6 +36,7 @@ set(MUSICPLAYER_PLUGINS
     tedplugin
     uadeplugin
     v2plugin
+    sidplugin
     # MSVC incompatible
     #mp3plugin
     #usfplugin
