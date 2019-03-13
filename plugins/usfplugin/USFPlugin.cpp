@@ -5,7 +5,7 @@
 //#include <types.h>
 //#include <endian.h>
 
-#include "../../PSFFile.h"
+#include <psf/PSFFile.h>
 #include "USFPlugin.h"
 #include <coreutils/utils.h>
 #include <set>
@@ -17,7 +17,7 @@
 //}
 
 #include "lazyusf2/misc.h"
-#include "lazyusf2/psflib.h"
+#include <psf/psflib.h>
 #include "resampler.h"
 
 using namespace std;

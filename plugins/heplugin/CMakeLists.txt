@@ -15,7 +15,6 @@ set(SOURCE_FILES
     he/spu.c
     he/mkhebios.c
     he/psf2fs.c
-    he/psflib.c
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -27,4 +26,4 @@ endif()
 add_library(heplugin ${SOURCE_FILES})
 target_include_directories(heplugin PRIVATE he ${ZLIB_INCLUDE_DIRS})
 target_compile_definitions(heplugin PRIVATE -DEMU_COMPILE -DEMU_LITTLE_ENDIAN)
-target_link_libraries(heplugin PRIVATE coreutils ${ZLIB_LIBRARIES})
+target_link_libraries(heplugin PRIVATE psf coreutils ${ZLIB_LIBRARIES})

@@ -1,5 +1,5 @@
 
-#include "psflib.h"
+#include <psf/psflib.h>
 #include "usf/usf.h"
 
 #ifdef _MSC_VER

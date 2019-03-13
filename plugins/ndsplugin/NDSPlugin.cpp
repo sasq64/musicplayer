@@ -1,6 +1,6 @@
 
 #include "NDSPlugin.h"
-#include "../../PSFFile.h"
+#include <psf/PSFFile.h>
 #include <coreutils/utils.h>
 #include <set>
 #include <string.h>

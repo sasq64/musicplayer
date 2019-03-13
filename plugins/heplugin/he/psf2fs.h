@@ -1,7 +1,7 @@
 #ifndef PSF2FS_H
 #define PSF2FS_H
 
-#include "psflib.h"
+#include <psf/psflib.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -3,7 +3,6 @@ project(cpp-mods.musicplayer.usfplugin)
 
 set(SOURCE_FILES
     lazyusf2/r4300/empty_dynarec.c
-    lazyusf2/psflib.c
     lazyusf2/ai/ai_controller.c
     lazyusf2/api/callbacks.c
     lazyusf2/debugger/dbg_decoder.c
@@ -51,7 +50,7 @@ set(SOURCE_FILES
     lazyusf2/si/pif.c
     lazyusf2/si/si_controller.c
     lazyusf2/usf/barray.c
-    lazyusf2/usf/resampler.c
+    #lazyusf2/usf/resampler.c
     lazyusf2/usf/usf.c
     lazyusf2/vi/vi_controller.c
 )
@@ -59,7 +58,7 @@ set(SOURCE_FILES
 #find_package(ZLIB REQUIRED)
 
 add_library(usfplugin USFPlugin.cpp resampler.c ${SOURCE_FILES})
-target_link_libraries(usfplugin PRIVATE coreutils ${ZLIB_LIBRARIES})
+target_link_libraries(usfplugin PRIVATE psf coreutils ${ZLIB_LIBRARIES})
 
 if(MSVC)
 target_compile_options(usfplugin PRIVATE -DNO_ASM)

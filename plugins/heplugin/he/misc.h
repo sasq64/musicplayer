@@ -1,5 +1,5 @@
 
-#include "psflib.h"
+#include <psf/psflib.h>
 #include "psf2fs.h"
 #include "bios.h"
 #include "psx.h"

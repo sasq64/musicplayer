@@ -2,7 +2,7 @@
 #include "ht/satsound.h"
 #include "ht/sega.h"
 #include "ht/dcsound.h"
-#include "ht/psflib.h"
+#include <psf/psflib.h>
 #include "ht/yam.h" 
 
 

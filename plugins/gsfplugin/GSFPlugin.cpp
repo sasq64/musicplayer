@@ -2,7 +2,7 @@
 
 #include "GSFPlugin.h"
 
-#include "../../PSFFile.h"
+#include <psf/PSFFile.h>
 #include <coreutils/utils.h>
 #include <set>
 #include <stdio.h>

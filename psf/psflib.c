@@ -1,4 +1,4 @@
-#include "psflib.h"
+#include "include/psf/psflib.h"
 
 #include <string.h>
 #include <stdlib.h>

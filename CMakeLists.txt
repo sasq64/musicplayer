@@ -17,6 +17,7 @@ add_subdirectory(external/zlib)
 set(ZLIB_LIBRARIES zlibstatic)
 set(ZLIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/zlib ${CMAKE_BINARY_DIR}/external/zlib)
 
+add_subdirectory(psf)
 
 set(MUSICPLAYER_PLUGINS
     adplugin
@@ -64,7 +65,7 @@ add_executable(play main.cpp)
 target_link_libraries(play PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
     coreutils audioplayer crypto archive ${THREAD_LIB})
 
-add_library(musix SHARED lib.cpp)
+add_library(musix STATIC lib.cpp)
 target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive ${THREAD_LIB})
 

@@ -3,7 +3,7 @@
 
 #include "ht/misc.h"
 
-#include "../../PSFFile.h"
+#include <psf/PSFFile.h>
 #include "../../chipplayer.h"
 
 #include <coreutils/utils.h>
@@ -51,9 +51,9 @@ public:
 		char temp[1024];
 		strcpy(temp, fileName.c_str());
 		
-		version = psf_load(temp, &psf_file_system,0,0,0,0,0);
+		version = psf_load(temp, &psf_file_system,0,0,0,0,0,0);
 
-		int load_result = psf_load( temp, &psf_file_system, version, sdsf_loader, &lstate, 0, 0 );
+		int load_result = psf_load( temp, &psf_file_system, version, sdsf_loader, &lstate, 0, 0, 0 );
 		if (load_result < 0)
 		{
 			throw player_exception();

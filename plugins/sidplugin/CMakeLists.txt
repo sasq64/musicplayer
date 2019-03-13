@@ -18,7 +18,7 @@ set(SOURCE_FILES
     libsidplayfp/src/builders/residfp-builder/residfp-builder.cpp
     libsidplayfp/src/builders/residfp-builder/residfp/OpAmp.cpp
     libsidplayfp/src/builders/residfp-builder/residfp/resample/SincResampler.cpp
-    libsidplayfp/src/builders/residfp-builder/residfp/resample/test.cpp
+    #libsidplayfp/src/builders/residfp-builder/residfp/resample/test.cpp
     libsidplayfp/src/builders/residfp-builder/residfp/EnvelopeGenerator.cpp
     libsidplayfp/src/builders/residfp-builder/residfp/Dac.cpp
     libsidplayfp/src/builders/residfp-builder/residfp/WaveformGenerator.cpp
