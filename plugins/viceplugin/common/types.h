@@ -31,6 +31,10 @@
 #define VICE_TYPES_H
 
 #include "vice.h"
+#ifdef _WIN32
+#include <windows.h>
+#define strcasecmp _stricmp
+#endif
 
 #define BYTE unsigned char
 
@@ -45,16 +49,16 @@ typedef signed short SWORD;
 
 #if SIZEOF_UNSIGNED_INT == 4
 
-//#ifndef WIN32
+#ifndef _WIN32
 typedef unsigned int DWORD;
-//#endif
+#endif
 
 typedef signed int SDWORD;
 #elif SIZEOF_UNSIGNED_LONG == 4
 
-//#ifndef WIN32
+#ifndef _WIN32
 typedef unsigned long DWORD;
-//#endif
+#endif
 
 typedef signed long SDWORD;
 #else

@@ -39,7 +39,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 //#include <sys/wait.h>
-#include <unistd.h>
+//#include <unistd.h>
 
 #undef HAVE_VFORK_H
 
@@ -77,6 +77,17 @@
 #define S_ISDIR(mode)  (((mode) & (0170000)) == (0040000))
 #endif
 #endif
+
+#ifdef _WIN32
+//#include <io.h>
+#include <dirent_win32.h>
+typedef int mode_t;
+#define R_OK 4
+#define W_OK 2
+#define F_OK 0
+#endif
+
+
 
 static char *argv0 = NULL;
 

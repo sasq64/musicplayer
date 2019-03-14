@@ -25,7 +25,7 @@ private:
 	void readLengths();
 	void readSTIL();
 	std::vector<uint16_t> findLengths(uint64_t key);
-	struct __attribute__((packed)) LengthEntry {
+	struct alignas(1) LengthEntry {
 		LengthEntry() {}
 		LengthEntry(uint64_t h, uint16_t l) : hash(h), length(l) {}
 		uint64_t hash;

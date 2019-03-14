@@ -165,10 +165,10 @@
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
-#define HAVE_DIRENT_H 1
+//#define HAVE_DIRENT_H 1
 
 /* Define to 1 if you have the `dirname' function. */
-#define HAVE_DIRNAME 1
+//#define HAVE_DIRNAME 1
 
 /* Define to 1 if you have the <dir.h> header file. */
 /* #undef HAVE_DIR_H */
@@ -351,7 +351,7 @@
 /* #undef HAVE_MIDI */
 
 /* Define to 1 if you have the `mkstemp' function. */
-#define HAVE_MKSTEMP 1
+//#define HAVE_MKSTEMP 1
 
 /* Define to 1 if you have the `mmap_device_io' function. */
 /* #undef HAVE_MMAP_DEVICE_IO */
@@ -360,7 +360,7 @@
 /* #undef HAVE_MOUSE */
 
 /* Use nanosleep instead of usleep */
-#define HAVE_NANOSLEEP /**/
+//#define HAVE_NANOSLEEP /**/
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 /* #undef HAVE_NDIR_H */
@@ -515,7 +515,7 @@
 #define HAVE_STRERROR 1
 
 /* Define to 1 if you have the <strings.h> header file. */
-#define HAVE_STRINGS_H 1
+//#define HAVE_STRINGS_H 1
 
 /* Define to 1 if you have the <string.h> header file. */
 /* #undef HAVE_STRING_H */
@@ -568,7 +568,7 @@
 #define HAVE_SYS_STAT_H 1
 
 /* Define to 1 if you have the <sys/time.h> header file. */
-#define HAVE_SYS_TIME_H 1
+//#define HAVE_SYS_TIME_H 1
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
@@ -583,7 +583,7 @@
 /* #undef HAVE_UMS_UMSBAUDDEVICE_H */
 
 /* Define to 1 if you have the <unistd.h> header file. */
-#define HAVE_UNISTD_H 1
+//#define HAVE_UNISTD_H 1
 
 /* Define to 1 if you have the <usbhid.h> header file. */
 /* #undef HAVE_USBHID_H */

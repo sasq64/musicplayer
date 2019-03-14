@@ -68,6 +68,11 @@
 #define dirent direct
 #endif
 
+#ifdef _WIN32
+#include <dirent_win32.h>
+#define X_OK 1
+#endif
+
 #include "archdep.h"
 #include "ioutil.h"
 #include "lib.h"

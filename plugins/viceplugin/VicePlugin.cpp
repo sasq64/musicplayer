@@ -1,7 +1,11 @@
+#include <coreutils/file.h>
+#include <coreutils/log.h>
+#include <coreutils/split.h>
+#include <coreutils/utils.h>
+#include <crypto/md5.h>
 
 extern "C"
 {
-#include "archdep.h"
 #include "drive.h"
 #include "gfxoutput.h"
 #include "init.h"
@@ -23,11 +27,6 @@ extern "C"
 
 #include "../../chipplayer.h"
 #include "VicePlugin.h"
-#include <coreutils/file.h>
-#include <coreutils/log.h>
-#include <coreutils/split.h>
-#include <coreutils/utils.h>
-#include <crypto/md5.h>
 
 #include <algorithm>
 #include <set>
@@ -126,12 +125,12 @@ public:
         sysfile_init("C64");
         gfxoutput_early_init();
         if (init_resources() < 0) {
-            archdep_startup_log_error("Failed to init resources");
+            //archdep_startup_log_error("Failed to init resources");
             return false;
         }
 
         if (resources_set_defaults() < 0) {
-            archdep_startup_log_error("Cannot set defaults.\n");
+            //archdep_startup_log_error("Cannot set defaults.\n");
             return false;
         }
 
@@ -139,7 +138,7 @@ public:
         resources_set_int("VICIIVideoCache", 0);
         resources_set_string("Directory", c64Dir.c_str());
         if (init_main() < 0) {
-            archdep_startup_log_error("Failed to init main");
+            //archdep_startup_log_error("Failed to init main");
             return false;
         }
 

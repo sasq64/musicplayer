@@ -43,9 +43,9 @@
 #ifdef HAVE_NANOSLEEP
 #include <time.h>
 #else
-#include <unistd.h>
+//#include <unistd.h>
 #endif
-#include <sys/time.h>
+//#include <sys/time.h>
 
 /* hook to ui event dispatcher */
 static void_hook_t ui_dispatch_hook;
@@ -64,11 +64,10 @@ signed long vsyncarch_frequency(void)
 /* Get time in timer units. */
 unsigned long vsyncarch_gettime(void)
 {
-    struct timeval now;
-
-    gettimeofday(&now, NULL);
-
-    return 1000000UL * now.tv_sec + now.tv_usec;
+    //struct timeval now;
+    //gettimeofday(&now, NULL);
+    //return 1000000UL * now.tv_sec + now.tv_usec;
+	return 0;
 }
 #endif
 
@@ -96,7 +95,7 @@ void vsyncarch_sleep(signed long delay)
     /* wait until whole interval has elapsed */
     while (nanosleep(&ts, &ts));
 #else
-    usleep(delay);
+    //usleep(delay);
 #endif
 #endif
 }
