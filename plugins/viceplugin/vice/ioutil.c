@@ -71,6 +71,8 @@
 #ifdef _WIN32
 #include <dirent_win32.h>
 #define X_OK 1
+#else
+#include <dirent.h>
 #endif
 
 #include "archdep.h"
