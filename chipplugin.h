@@ -17,14 +17,16 @@ namespace musix {
 class ChipPlugin
 {
 public:
-    virtual ~ChipPlugin() = default;;
+    virtual ~ChipPlugin() = default;
+    ;
 
     // Must be implemented
     virtual std::string name() const = 0;
     virtual bool canHandle(const std::string& name) = 0;
     virtual ChipPlayer* fromFile(const std::string& fileName) = 0;
 
-    virtual ChipPlayer* fromStream(std::shared_ptr<utils::Fifo<uint8_t>> /*unused*/)
+    virtual ChipPlayer*
+        fromStream(std::shared_ptr<utils::Fifo<uint8_t>> /*unused*/)
     {
         return nullptr;
     }
@@ -62,15 +64,19 @@ public:
         pluginConstructors().clear();
     }
 
-    static void addPlugin(std::shared_ptr<ChipPlugin> plugin)
+    static void addPlugin(std::shared_ptr<ChipPlugin> plugin, bool first)
     {
-        getPlugins().push_back(plugin);
+        if (first)
+            getPlugins().insert(getPlugins().begin(), plugin);
+        else
+            getPlugins().push_back(plugin);
     }
 
     static std::shared_ptr<ChipPlugin> getPlugin(const std::string& name)
     {
         for (auto& p : getPlugins()) {
-            if (p->name() == name) return p;
+            if (p->name() == name)
+                return p;
         }
         return nullptr;
     }

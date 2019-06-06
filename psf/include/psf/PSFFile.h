@@ -16,7 +16,7 @@ class PSFFile
 public:
     PSFFile(const std::string& name)
     {
-        utils::File f{ name };
+        utils::File f{name};
 
         int fileSize = (int)f.getSize();
 
@@ -31,7 +31,8 @@ public:
             int comprLen = f.read<uint32_t>();
 
             int tagOffset = resLen + comprLen + 16;
-            if (tagOffset > fileSize - 5) return;
+            if (tagOffset > fileSize - 5)
+                return;
 
             f.seek(tagOffset);
             f.read(header, 5);
@@ -46,7 +47,7 @@ public:
 
                 auto lines = utils::split(tagData, "\n");
                 for (const auto& l : lines) {
-                    auto parts = utils::split(l, "=");
+                    auto parts = utils::split(l, '=');
                     if (parts.size() == 2)
                         _tags[utils::toLower(parts[0])] = parts[1];
                 }
@@ -64,7 +65,8 @@ public:
         auto slen = _tags["length"];
         std::vector<std::string> p = utils::split(slen, ":");
         int seconds = -1;
-        if (p.size() == 2) seconds = stol(p[0]) * 60 + stol(p[1]);
+        if (p.size() == 2)
+            seconds = stol(p[0]) * 60 + stol(p[1]);
         return seconds;
     }
 

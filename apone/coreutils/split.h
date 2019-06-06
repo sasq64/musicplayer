@@ -10,7 +10,6 @@
 
 namespace utils {
 
-
 template <typename ITERATOR>
 std::string join(ITERATOR begin, ITERATOR end,
                  const std::string& separator = ", ")
@@ -28,25 +27,28 @@ std::string join(ITERATOR begin, ITERATOR end,
     return ss.str();
 }
 
-template <typename T> std::string my_tos(const T& t) {
+template <typename T> std::string my_tos(const T& t)
+{
     return std::to_string(t);
 }
 
-inline std::string my_tos(const std::string& t) {
+inline std::string my_tos(const std::string& t)
+{
     return t;
 }
 
 template <class... ARGS>
-std::string join(const std::string& sep, const ARGS&... args) {
+std::string join(const std::string& sep, const ARGS&... args)
+{
     std::vector<std::string> v{my_tos(args)...};
     return join(v.begin(), v.end(), sep);
 }
 
-class StringSplit
+template <typename CHAR> class StringSplit
 {
-    std::string source;
-    std::vector<char*> pointers;
-    char* ptr;
+    std::basic_string<CHAR> source;
+    std::vector<CHAR*> pointers;
+    CHAR* ptr;
     const int minSplits = -1;
 
     void split(const char delim)
@@ -74,16 +76,16 @@ class StringSplit
     }
 
 public:
-    template <typename T>
-    StringSplit(T&& text, std::string const& delim, int minSplits = -1)
-        : source(std::forward<T>(text)), ptr(&source[0]), minSplits(minSplits)
+    StringSplit(std::basic_string<CHAR> text,
+                std::basic_string<CHAR> const& delim, int minSplits = -1)
+        : source(std::move(text)), ptr(&source[0]), minSplits(minSplits)
     {
         split(delim.c_str());
     }
 
-    template <typename T>
-    StringSplit(T&& text, const char delim, int minSplits = -1)
-        : source(std::forward<T>(text)), ptr(&source[0]), minSplits(minSplits)
+    StringSplit(std::basic_string<CHAR> text, const char delim,
+                int minSplits = -1)
+        : source(std::move(text)), ptr(&source[0]), minSplits(minSplits)
     {
         split(delim);
     }
@@ -96,25 +98,33 @@ public:
     {
         return n < size() ? pointers[n] : nullptr;
     }
-    std::string getString(unsigned n) const
+    std::basic_string<CHAR> getString(unsigned n) const
     {
         static std::string empty;
-        return n < size() ? std::string(pointers[n]) : empty;
+        return n < size() ? std::basic_string<CHAR>(pointers[n]) : empty;
     }
     operator bool() const { return minSplits < 0 || (int)size() >= minSplits; }
 
-    operator std::vector<std::string>() const
+    operator std::vector<std::basic_string<CHAR>>() const
     {
-        std::vector<std::string> result;
+        std::vector<std::basic_string<CHAR>> result;
         std::copy(pointers.begin(), pointers.end(), std::back_inserter(result));
         return result;
     }
 };
 
-template <typename T, typename S>
-inline StringSplit split(T&& s, S const& delim, int minSplits = -1)
+template <typename CHAR, typename S>
+inline StringSplit<CHAR> split(const CHAR* const& s, S const& delim,
+                               int minSplits = -1)
 {
-    return StringSplit(std::forward<T>(s), delim, minSplits);
+    return StringSplit<CHAR>(std::basic_string<CHAR>(s), delim, minSplits);
+}
+
+template <typename CHAR, typename S>
+inline StringSplit<CHAR> split(std::basic_string<CHAR> const& s, S const& delim,
+                               int minSplits = -1)
+{
+    return StringSplit<CHAR>(s, delim, minSplits);
 }
 
 template <size_t... Is>
@@ -157,28 +167,26 @@ inline URL parse_url(std::string const& input)
     URL url;
     std::vector<std::string> parts = split(input, "://");
 
-    if(parts.size() != 2)
+    if (parts.size() != 2)
         throw std::exception();
 
     url.protocol = parts[0];
 
     auto slash = parts[1].find_first_of('/');
-    if(slash == std::string::npos) {
+    if (slash == std::string::npos) {
         url.hostname = parts[1];
         return url;
     }
-    url.path = parts[1].substr(slash+1);
+    url.path = parts[1].substr(slash + 1);
     url.hostname = parts[1].substr(0, slash);
 
     auto colon = url.hostname.find_last_of(':');
-    if(colon != std::string::npos) {
-        url.port = std::atoi(url.hostname.substr(colon+1).c_str());
+    if (colon != std::string::npos) {
+        url.port = std::atoi(url.hostname.substr(colon + 1).c_str());
         url.hostname = url.hostname.substr(0, colon);
     }
 
     return url;
-
-}   
-
+}
 
 } // namespace utils
