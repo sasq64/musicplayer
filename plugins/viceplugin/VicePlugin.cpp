@@ -37,7 +37,6 @@ int video_disabled_mode = 1;
 
 namespace musix {
 
-using namespace std;
 using namespace utils;
 
 static bool videomode_is_ntsc = false;
@@ -47,20 +46,20 @@ static bool sid_is_forced = true;
 
 namespace {
 
-template <typename T> const T get(const vector<uint8_t>& v, int offset) {}
+template <typename T> const T get(const std::vector<uint8_t>& v, int offset) {}
 
-template <> const uint16_t get(const vector<uint8_t>& v, int offset)
+template <> const uint16_t get(const std::vector<uint8_t>& v, int offset)
 {
     return (v[offset] << 8) | v[offset + 1];
 }
 
-template <> const uint32_t get(const vector<uint8_t>& v, int offset)
+template <> const uint32_t get(const std::vector<uint8_t>& v, int offset)
 {
     return (v[offset] << 24) | (v[offset + 1] << 16) | (v[offset + 2] << 8) |
            v[offset + 3];
 }
 
-template <> const uint64_t get(const vector<uint8_t>& v, int offset)
+template <> const uint64_t get(const std::vector<uint8_t>& v, int offset)
 {
     return ((uint64_t)get<uint32_t>(v, offset) << 32) |
            get<uint32_t>(v, offset + 4);
@@ -85,7 +84,7 @@ enum
 class VicePlayer : public ChipPlayer
 {
 public:
-    vector<uint8_t> calculateMD5(vector<uint8_t> const& data)
+    static std::vector<uint8_t> calculateMD5(std::vector<uint8_t> const& data)
     {
         uint8_t speed = (data[0] == 'R') ? 60 : 0;
         uint16_t version = get<uint16_t>(data, PSID_VERSION);
@@ -98,6 +97,7 @@ public:
 
         MD5 md5;
         md5.add(data, offset);
+        md5.add(initAdr);
         md5.add(playAdr);
         md5.add(songs);
 
@@ -116,7 +116,7 @@ public:
         return md5.get();
     }
 
-    static bool init(const string& c64Dir)
+    static bool init(const std::string& c64Dir)
     {
         maincpu_early_init();
         machine_setup_context();
@@ -125,12 +125,12 @@ public:
         sysfile_init("C64");
         gfxoutput_early_init();
         if (init_resources() < 0) {
-            //archdep_startup_log_error("Failed to init resources");
+            // archdep_startup_log_error("Failed to init resources");
             return false;
         }
 
         if (resources_set_defaults() < 0) {
-            //archdep_startup_log_error("Cannot set defaults.\n");
+            // archdep_startup_log_error("Cannot set defaults.\n");
             return false;
         }
 
@@ -138,7 +138,7 @@ public:
         resources_set_int("VICIIVideoCache", 0);
         resources_set_string("Directory", c64Dir.c_str());
         if (init_main() < 0) {
-            //archdep_startup_log_error("Failed to init main");
+            // archdep_startup_log_error("Failed to init main");
             return false;
         }
 
@@ -171,7 +171,7 @@ public:
         }
     }
 
-    VicePlayer(VicePlugin& plugin, const string& sidFile) : plugin(plugin)
+    VicePlayer(VicePlugin& plugin, const std::string& sidFile) : plugin(plugin)
     {
         int ret = psid_load_file(sidFile.c_str());
         LOGD("Loaded %s -> %d", sidFile, ret);
@@ -185,8 +185,8 @@ public:
         LOGD("MD5: [%02x] %08x", md5, key);
         songLengths = plugin.findLengths(key);
 
-        string realPath = sidFile;
-        if (sidFile.find("C64Music%2f") != string::npos) {
+        std::string realPath = sidFile;
+        if (sidFile.find("C64Music%2f") != std::string::npos) {
             realPath = utils::urldecode(sidFile, ":/\\?;");
         }
 
@@ -201,11 +201,11 @@ public:
             currentLength = songLengths[defaultSong];
         }
         LOGD("Length:%d", currentLength);
-        string msg = "NO STIL INFO";
-        string sub_title;
+        std::string msg = "NO STIL INFO";
+        std::string sub_title;
         auto pos = realPath.find("C64Music/");
         currentInfo = 0;
-        if (pos != string::npos) {
+        if (pos != std::string::npos) {
             auto p = realPath.substr(pos + 8);
             LOGD("SIDFILE:%s", p);
             if (VicePlugin::stilSongs.count(p)) {
@@ -253,8 +253,8 @@ public:
             }
 
             LOGD("Length:%d, SONG %d", currentLength, song);
-            string sub_title;
-            string msg = currentStil.comment;
+            std::string sub_title;
+            std::string msg = currentStil.comment;
             for (int i = 0; i < (int)currentStil.songs.size(); i++) {
                 auto& s = currentStil.songs[i];
                 LOGD("#%d: %s", s.subsong, s.title);
@@ -319,11 +319,11 @@ public:
     VicePlugin::STILSong currentStil;
 };
 
-vector<VicePlugin::LengthEntry> VicePlugin::mainHash;
-vector<uint16_t> VicePlugin::extraLengths;
-unordered_map<string, VicePlugin::STILSong> VicePlugin::stilSongs;
+std::vector<VicePlugin::LengthEntry> VicePlugin::mainHash;
+std::vector<uint16_t> VicePlugin::extraLengths;
+std::unordered_map<std::string, VicePlugin::STILSong> VicePlugin::stilSongs;
 
-VicePlugin::VicePlugin(const string& dataDir) : dataDir(dataDir)
+VicePlugin::VicePlugin(const std::string& dataDir) : dataDir(dataDir)
 {
     VicePlayer::init(dataDir + "/c64");
     initThread = std::thread([=] {
@@ -360,15 +360,15 @@ void VicePlugin::readSTIL()
 {
 
     STIL current;
-    vector<STIL> songs;
+    std::vector<STIL> songs;
     File f = File(dataDir + "/STIL.txt");
     if (!f.exists())
         return;
     // int subsong = -1;
-    string path;
-    string what;
-    string content;
-    string songComment;
+    std::string path;
+    std::string what;
+    std::string content;
+    std::string songComment;
     bool currentSet = false;
     // int seconds = 0;
     // int count = 0;
@@ -439,7 +439,7 @@ void VicePlugin::readSTIL()
                 what = "";
             } else {
                 auto colon = l.find(":");
-                if (colon != string::npos) {
+                if (colon != std::string::npos) {
                     what = lstrip(l.substr(0, colon));
                     content = l.substr(colon + 1);
                     if (what == "TITLE") {
@@ -475,11 +475,12 @@ VicePlugin::~VicePlugin()
         initThread.join();
 }
 
-static const set<string> ext{".sid", ".psid", ".rsid", ".2sid", ".mus"};
+static const std::set<std::string> ext{".sid", ".psid", ".rsid", ".2sid",
+                                       ".mus"};
 
 bool VicePlugin::canHandle(const std::string& name)
 {
-    for (string x : ext) {
+    for (std::string x : ext) {
         if (utils::endsWith(name, x))
             return true;
     }
@@ -514,27 +515,32 @@ template <typename T> T from_hex(const std::string& s)
 
 void VicePlugin::readLengths()
 {
-
+    static_assert(sizeof(LengthEntry) == 10);
     File fp{dataDir + "/Songlengths.txt"};
     if (!fp.exists())
         return;
-    string secs, mins;
-    int ll = 0;
+    std::string secs, mins;
+    uint16_t ll = 0;
+    std::string name;
     extraLengths.reserve(30000);
     for (const auto& l : fp.getLines()) {
         if (stopInitThread)
             return;
-        if (l[0] != ';' && l[0] != '[') {
+        if (l[0] == ';')
+            name = l;
+        else if (l[0] != '[') {
             auto key = from_hex<uint64_t>(l.substr(0, 16));
+            if (name.find("Comic") != std::string::npos)
+                LOGI("%s %x", name, key);
             auto lengths = split(l.substr(33), " ");
             if (lengths.size() == 1) {
                 tie(mins, secs) = splitn<2>(lengths[0], ":");
-                ll = stol(mins) * 60 + stol(secs);
+                ll = stoi(mins) * 60 + stoi(secs);
             } else {
                 ll = extraLengths.size() | 0x8000;
                 for (const auto& sl : lengths) {
                     tie(mins, secs) = splitn<2>(sl, ":");
-                    extraLengths.push_back(stol(mins) * 60 + stol(secs));
+                    extraLengths.push_back(stoi(mins) * 60 + stoi(secs));
                 }
                 extraLengths.back() |= 0x8000;
             }
@@ -548,25 +554,40 @@ void VicePlugin::readLengths()
     }
 }
 
-vector<uint16_t> VicePlugin::findLengths(uint64_t key)
+std::vector<uint16_t> VicePlugin::findLengths(uint64_t key)
 {
+    std::vector<uint16_t> songLengths;
 
-    vector<uint16_t> songLengths;
+    LOGI("Looking for %x", key);
 
     auto it = lower_bound(mainHash.begin(), mainHash.end(), key);
     if (it != mainHash.end()) {
+        if (it->hash != key) {
+            LOGW("Song not found");
+            return {};
+        }
         uint16_t len = it->length;
+        LOGI("LEN %04x", len);
         if ((len & 0x8000) != 0) {
-            len &= 0x7fff;
-            int xl = 0;
-            while ((xl & 0x8000) == 0) {
-                xl = extraLengths[len++];
-                songLengths.push_back(xl & 0x7fff);
+            auto offset = len & 0x7fff;
+            len = 0;
+            while ((len & 0x8000) == 0) {
+                len = extraLengths[offset++];
+                songLengths.push_back(len & 0x7fff);
             }
         } else
             songLengths.push_back(len);
     }
     return songLengths;
+}
+
+uint64_t VicePlugin::calculateMD5(const std::string& fileName)
+{
+    utils::File f{fileName};
+    auto data = f.readAll();
+    auto md5 = VicePlayer::calculateMD5(data);
+    auto key = get<uint64_t>(md5, 0);
+    return key;
 }
 
 } // namespace musix

@@ -51,6 +51,9 @@ public:
 
     static void createPlugins(const std::string& configDir)
     {
+        if (pluginConstructors().empty()) {
+            fprintf(stderr, "No plugins registered!\n");
+        }
         auto& plugins = getPlugins();
         for (const auto& f : pluginConstructors()) {
             plugins.push_back(f(configDir));

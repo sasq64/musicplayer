@@ -1,10 +1,7 @@
 #ifndef CRYPTO_MD5_H
 #define CRYPTO_MD5_H
 
-extern "C"
-{
 #include "solar-md5.h"
-}
 
 #include <cstdint>
 #include <string>

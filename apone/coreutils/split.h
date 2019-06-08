@@ -8,13 +8,48 @@
 #include <utility>
 #include <vector>
 
+using namespace std::string_literals;
+
 namespace utils {
 
-template <typename ITERATOR>
-std::string join(ITERATOR begin, ITERATOR end,
-                 const std::string& separator = ", ")
+template <typename ITERATOR, typename CHAR = char>
+std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end, const CHAR separator)
 {
-    std::ostringstream ss;
+    std::basic_ostringstream<CHAR> ss;
+
+    if (begin != end) {
+        ss << *begin++;
+    }
+
+    while (begin != end) {
+        ss << separator;
+        ss << *begin++;
+    }
+    return ss.str();
+}
+
+template <typename ITERATOR, typename CHAR = char>
+std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end,
+                             std::basic_string<CHAR> const& separator = ", ")
+{
+    std::basic_ostringstream<CHAR> ss;
+
+    if (begin != end) {
+        ss << *begin++;
+    }
+
+    while (begin != end) {
+        ss << separator;
+        ss << *begin++;
+    }
+    return ss.str();
+}
+
+template <typename ITERATOR, typename CHAR = char>
+std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end,
+                             const CHAR* separator)
+{
+    std::basic_ostringstream<CHAR> ss;
 
     if (begin != end) {
         ss << *begin++;
@@ -51,25 +86,16 @@ template <typename CHAR> class StringSplit
     CHAR* ptr;
     const int minSplits = -1;
 
-    void split(const char delim)
+    void split(const std::basic_string<CHAR> delim)
     {
+        const auto dz = delim.length();
         while (true) {
             pointers.push_back(ptr);
-            ptr = strchr(ptr, delim);
-            if (ptr == nullptr)
-                break;
-            *ptr++ = 0;
-        }
-    }
 
-    void split(const char* delim)
-    {
-        const auto dz = strlen(delim);
-        while (true) {
-            pointers.push_back(ptr);
-            ptr = strstr(ptr, delim);
-            if (ptr == nullptr)
+            auto pos = source.find(delim, ptr - &source[0]);
+            if (pos == std::string::npos)
                 break;
+            ptr = &source[pos];
             *ptr = 0;
             ptr += dz;
         }
@@ -80,14 +106,14 @@ public:
                 std::basic_string<CHAR> const& delim, int minSplits = -1)
         : source(std::move(text)), ptr(&source[0]), minSplits(minSplits)
     {
-        split(delim.c_str());
+        split(delim);
     }
 
     StringSplit(std::basic_string<CHAR> text, const char delim,
                 int minSplits = -1)
         : source(std::move(text)), ptr(&source[0]), minSplits(minSplits)
     {
-        split(delim);
+        split(std::string(1, delim));
     }
 
     size_t size() const { return pointers.size(); }
@@ -114,26 +140,26 @@ public:
 };
 
 template <typename CHAR, typename S>
-inline StringSplit<CHAR> split(const CHAR* const& s, S const& delim,
-                               int minSplits = -1)
-{
-    return StringSplit<CHAR>(std::basic_string<CHAR>(s), delim, minSplits);
-}
-
-template <typename CHAR, typename S>
 inline StringSplit<CHAR> split(std::basic_string<CHAR> const& s, S const& delim,
                                int minSplits = -1)
 {
     return StringSplit<CHAR>(s, delim, minSplits);
 }
 
+template <typename CHAR, typename S>
+inline StringSplit<CHAR> split(const CHAR* const& s, S const& delim,
+                               int minSplits = -1)
+{
+    return StringSplit<CHAR>(std::basic_string<CHAR>(s), delim, minSplits);
+}
+
 template <size_t... Is>
-auto gen_tuple_impl(const StringSplit& ss, std::index_sequence<Is...>)
+auto gen_tuple_impl(const StringSplit<char>& ss, std::index_sequence<Is...>)
 {
     return std::make_tuple(ss.getString(Is)...);
 }
 
-template <size_t N> auto gen_tuple(const StringSplit& ss)
+template <size_t N> auto gen_tuple(const StringSplit<char>& ss)
 {
     return gen_tuple_impl(ss, std::make_index_sequence<N>{});
 }
@@ -165,7 +191,7 @@ struct URL
 inline URL parse_url(std::string const& input)
 {
     URL url;
-    std::vector<std::string> parts = split(input, "://");
+    std::vector<std::string> parts = split(input, "://"s);
 
     if (parts.size() != 2)
         throw std::exception();
