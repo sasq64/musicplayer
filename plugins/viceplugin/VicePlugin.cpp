@@ -1,6 +1,9 @@
 #include <coreutils/file.h>
 #include <coreutils/log.h>
 #include <coreutils/split.h>
+#include <coreutils/text.h>
+#include <coreutils/url.h>
+#include <coreutils/utf8.h>
 #include <coreutils/utils.h>
 #include <crypto/md5.h>
 
@@ -361,9 +364,9 @@ void VicePlugin::readSTIL()
 
     STIL current;
     std::vector<STIL> songs;
-    File f = File(dataDir + "/STIL.txt");
-    if (!f.exists())
+    if (!utils::exists(dataDir + "/STIL.txt"))
         return;
+    File f = File(dataDir + "/STIL.txt");
     // int subsong = -1;
     std::string path;
     std::string what;
@@ -372,7 +375,7 @@ void VicePlugin::readSTIL()
     bool currentSet = false;
     // int seconds = 0;
     // int count = 0;
-    for (auto l : f.getLines()) {
+    for (auto l : f.lines()) {
         if (stopInitThread)
             return;
         // LOGD("'%c' : %s", l[0], l);
@@ -515,15 +518,15 @@ template <typename T> T from_hex(const std::string& s)
 
 void VicePlugin::readLengths()
 {
-    static_assert(sizeof(LengthEntry) == 10);
-    File fp{dataDir + "/Songlengths.txt"};
-    if (!fp.exists())
+    static_assert(sizeof(LengthEntry) == 10, "LengthEntry size incorrect");
+    if (!utils::exists(dataDir + "/Songlengths.txt"))
         return;
+    File fp{dataDir + "/Songlengths.txt"};
     std::string secs, mins;
     uint16_t ll = 0;
     std::string name;
     extraLengths.reserve(30000);
-    for (const auto& l : fp.getLines()) {
+    for (const auto& l : fp.lines()) {
         if (stopInitThread)
             return;
         if (l[0] == ';')

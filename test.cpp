@@ -7,6 +7,8 @@
 #include <array>
 #include <coreutils/file.h>
 #include <coreutils/log.h>
+#include <coreutils/path.h>
+#include <coreutils/utils.h>
 #include <numeric>
 #include <string>
 
@@ -20,13 +22,13 @@ int testPlugin(std::string const& dir, std::string const& exclude,
     logging::setLevel(logging::Level::Warning);
     int total = 0;
     int working = 0;
-    for (auto f : utils::File{dir}.listFiles()) {
-        if (exclude != "" && f.getName().find(exclude) != std::string::npos)
+    for (auto f : utils::listFiles(dir, false, false)) {
+        if (exclude != "" && f.string().find(exclude) != std::string::npos)
             continue;
 
         int64_t sum = 0;
-        printf("Trying %s\n", f.getName().c_str());
-        auto* player = plugin.fromFile(f.getName());
+        printf("Trying %s\n", f.string().c_str());
+        auto* player = plugin.fromFile(f.string());
         if (player) {
             // puts("Player created");
             int count = 15;
@@ -53,7 +55,7 @@ int testPlugin(std::string const& dir, std::string const& exclude,
             working++;
         total++;
 
-        printf("#### Playing %s : %s\n", f.getName().c_str(),
+        printf("#### Playing %s : %s\n", f.string().c_str(),
                player ? (madeSound ? "OK" : "NO SOUND") : "FAILED");
     }
     int percent = working * 100 / total;

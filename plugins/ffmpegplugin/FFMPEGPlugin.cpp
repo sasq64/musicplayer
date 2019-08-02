@@ -6,6 +6,7 @@
 #include <coreutils/format.h>
 #include <coreutils/utils.h>
 #include <coreutils/log.h>
+#include <coreutils/exec.h>
 
 #include <set>
 #include <unordered_map>

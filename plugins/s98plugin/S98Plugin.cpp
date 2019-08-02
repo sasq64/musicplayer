@@ -5,6 +5,8 @@
 #include <coreutils/utils.h>
 #include <coreutils/log.h>
 #include <coreutils/split.h>
+#include <coreutils/url.h>
+#include <coreutils/utf8.h>
 
 #include "m_s98.h"
 

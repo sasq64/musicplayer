@@ -1,5 +1,7 @@
 #include <string>
 
+using namespace std::string_literals;
+
 #include <audioplayer/audioplayer.h>
 #include <coreutils/fifo.h>
 #include <coreutils/log.h>
@@ -15,7 +17,7 @@ int main(int argc, const char** argv)
 
     if (argc < 2) return 0;
 
-//    logging::setLevel(logging::Level::Warning);
+    logging::setLevel(logging::Level::Debug);
 
     std::string name = argv[1];
     std::string pluginName;
@@ -24,6 +26,8 @@ int main(int argc, const char** argv)
 
     std::shared_ptr<ChipPlayer> player;
     for (const auto& plugin : ChipPlugin::getPlugins()) {
+                
+        LOGD("Plugin"s + plugin->name());
         if (plugin->canHandle(name)) {
             LOGD("%s can handle", plugin->name());
             if(auto ptr = plugin->fromFile(name)) {

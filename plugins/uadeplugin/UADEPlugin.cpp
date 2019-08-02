@@ -5,27 +5,32 @@
 
 #include <coreutils/file.h>
 #include <coreutils/log.h>
+#include <coreutils/path.h>
 #include <coreutils/utils.h>
+#include <coreutils/url.h>
+
 #include <set>
 #include <thread>
 #include <uade/uade.h>
 #include <unordered_map>
 #ifdef _WIN32
-#include <direct.h>
-#define chdir _chdir
+#    include <direct.h>
+#    define chdir _chdir
 #endif
 
 static std::thread uadeThread;
-extern "C" void uade_run_thread(void (*f)(void*), void* data) {
+extern "C" void uade_run_thread(void (*f)(void*), void* data)
+{
     LOGD("Starting thread");
     try {
         uadeThread = std::thread(f, data);
-    } catch(std::exception e) {
+    } catch (std::exception e) {
         puts(e.what());
     }
 }
 
-extern "C" void uade_wait_thread() {
+extern "C" void uade_wait_thread()
+{
     uadeThread.join();
 }
 
@@ -34,38 +39,42 @@ namespace musix {
 using namespace std;
 using namespace utils;
 
-class UADEPlayer : public ChipPlayer {
+class UADEPlayer : public ChipPlayer
+{
 public:
     UADEPlayer(const std::string& dataDir)
-        : dataDir(dataDir), valid(false), state(nullptr) {}
+        : dataDir(dataDir), valid(false), state(nullptr)
+    {}
 
     static struct uade_file* amigaloader(const char* name,
                                          const char* playerdir, void* context,
-                                         struct uade_state* state) {
+                                         struct uade_state* state)
+    {
         LOGD("Trying to load '%s' from '%s'", name, playerdir);
         UADEPlayer* up = static_cast<UADEPlayer*>(context);
-        string fileName = name;
+        utils::path fileName = name;
 
-        if(endsWith(fileName, "SMPL.set"))
-            fileName =  up->loadDir / "set.smpl";
-        else if(up->uadeFile) {
-            fileName = up->loadDir / up->baseName + "." +
-                       path_prefix(fileName);
+        if (endsWith(fileName, "SMPL.set"))
+            fileName = up->loadDir / "set.smpl";
+        else if (!up->uadeFile.empty()) {
+            fileName =
+                up->loadDir / (up->baseName + "." + path_prefix(fileName));
             LOGD("Translated back to '%s'", fileName);
-        } else if(up->currentFileName.find(fileName) == 0) {
+        } else if (up->currentFileName.find(fileName) == 0) {
             LOGD("Restoring filename %s back to '%s'", fileName,
                  up->currentFileName);
             fileName = up->currentFileName;
         }
 
         struct uade_file* f =
-            uade_load_amiga_file(fileName.c_str(), playerdir, state);
+            uade_load_amiga_file(fileName.string().c_str(), playerdir, state);
         return f;
     }
 
-    bool load(string fileName) {
+    bool load(string fileName)
+    {
 
-		string currDir = File::cwd();
+        string currDir = utils::getCurrentDir();
 
         /* char currdir[2048]; */
         /* if(!getcwd(currdir, sizeof(currdir))) */
@@ -83,26 +92,27 @@ public:
         free(config);
 
         musicStopped = false;
-        loadDir = File{ path_directory(fileName) };
+        loadDir = path_directory(fileName);
         baseName = path_basename(fileName);
 
         uade_set_amiga_loader(UADEPlayer::amigaloader, this, state);
         auto suffix = path_suffix(fileName);
 
-        if(suffix == "mdat") {
-            uadeFile = File::getTempDir() / (suffix + ".music");
-            LOGD("Translated %s to %s", fileName, uadeFile.getName());
-            uadeFile.copyFrom(File{fileName});
-            uadeFile.close();
-            fileName = uadeFile.getName();
+        if (suffix == "mdat") {
+            uadeFile = utils::getTempDir() / (suffix + ".music");
+            LOGD("Translated %s to %s", fileName, uadeFile.string());
+            utils::copy(fileName, uadeFile);
+            //uadeFile.copyFrom(File{fileName});
+            //uadeFile.close();
+            fileName = uadeFile.string();
         }
 
         currentFileName = fileName;
 
-        if(uade_play(fileName.c_str(), -1, state) == 1) {
+        if (uade_play(fileName.c_str(), -1, state) == 1) {
             songInfo = uade_get_song_info(state);
             const char* modname = songInfo->modulename;
-            if(strcmp(modname, "<no songtitle>") == 0)
+            if (strcmp(modname, "<no songtitle>") == 0)
                 modname = "";
             setMeta(
                 "songs", songInfo->subsongs.max - songInfo->subsongs.min + 1,
@@ -116,36 +126,39 @@ public:
 
         return valid;
     }
-    ~UADEPlayer() override {
+    ~UADEPlayer() override
+    {
         uade_cleanup_state(state, 1);
         state = nullptr;
-        if(uadeFile)
-            uadeFile.remove();
+        if (!uadeFile.empty())
+            utils::remove(uadeFile);
     }
 
-    virtual int getSamples(int16_t* target, int noSamples) override {
+    virtual int getSamples(int16_t* target, int noSamples) override
+    {
         ssize_t rc = uade_read(target, noSamples * 2, state);
         struct uade_notification nf;
-        while(uade_read_notification(&nf, state)) {
-            if(nf.type == UADE_NOTIFICATION_SONG_END) {
+        while (uade_read_notification(&nf, state)) {
+            if (nf.type == UADE_NOTIFICATION_SONG_END) {
                 LOGD("UADE SONG END: %d %d %d %s", nf.song_end.happy,
                      nf.song_end.stopnow, nf.song_end.subsong,
                      nf.song_end.reason);
                 setMeta("song", nf.song_end.subsong + 1);
-                if(nf.song_end.stopnow)
+                if (nf.song_end.stopnow)
                     musicStopped = true;
-            } else if(nf.type == UADE_NOTIFICATION_MESSAGE) {
+            } else if (nf.type == UADE_NOTIFICATION_MESSAGE) {
                 LOGD("Amiga message: %s\n", nf.msg);
             } else
                 LOGD("Unknown notification: %d\n", nf.type);
             uade_cleanup_notification(&nf);
         }
-        if(rc > 0)
+        if (rc > 0)
             return rc / 2;
         return rc;
     }
 
-    virtual bool seekTo(int song, int seconds) override {
+    virtual bool seekTo(int song, int seconds) override
+    {
         // if(musicStopped) {
         //	if(uade_play(currentFileName.c_str(), -1, state) == 1) {
         //		songInfo = uade_get_song_info(state);
@@ -158,14 +171,14 @@ public:
     }
 
 private:
-    utils::File uadeFile;
+    utils::path uadeFile;
     string dataDir;
     bool valid;
     struct uade_state* state;
     const struct uade_song_info* songInfo;
     string baseName;
     string currentFileName;
-    utils::File loadDir;
+    utils::path loadDir;
     bool musicStopped;
 };
 
@@ -240,28 +253,28 @@ static const set<string> supported_ext{
     "ym",        "ml",           "mod15_st-iv", "agi",          "tpu",
     "qpa",       "sqt",          "qts",         "ftm",          "sdata"};
 
-bool UADEPlugin::canHandle(const std::string& name) {
-	auto lowerName = toLower(name);
-    if(supported_ext.count(utils::path_extension(lowerName)) > 0)
+bool UADEPlugin::canHandle(const std::string& name)
+{
+    auto lowerName = toLower(name);
+    if (supported_ext.count(utils::path_extension(lowerName)) > 0)
         return true;
     return (supported_ext.count(utils::path_prefix(lowerName)) > 0);
 }
 
-
-std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string &file) {
+std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string& file)
+{
     bool isStarTrekker = (file.find("Startrekker") != string::npos);
 
     // Known music formats with 2 files
     static const std::unordered_map<string, string> fmt_2files = {
-        {"mdat", "smpl"},   // TFMX
-        {"sng", "ins"},     // Richard Joseph
-        {"jpn", "smp"},     // Jason Page PREFIX
-        {"dum", "ins"},     // Rob Hubbard 2
+        {"mdat", "smpl"},    // TFMX
+        {"sng", "ins"},      // Richard Joseph
+        {"jpn", "smp"},      // Jason Page PREFIX
+        {"dum", "ins"},      // Rob Hubbard 2
         {"adsc", "adsc.as"}, // Audio Sculpture
-        {"sdata", "ip"}, // Audio Sculpture
-        {"dns", "smp"} // Dynamic Synthesizer
+        {"sdata", "ip"},     // Audio Sculpture
+        {"dns", "smp"}       // Dynamic Synthesizer
     };
-
 
     string fileName = file;
     string prefix;
@@ -271,46 +284,46 @@ std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string &file) 
     string base = path_basename(file);
 
     auto slash = file.find_last_of("/\\");
-    if(slash != std::string::npos) {
-        fileName = file.substr(slash+1);
+    if (slash != std::string::npos) {
+        fileName = file.substr(slash + 1);
         dot = fileName.find_first_of('.');
-        if(dot != std::string::npos) {
+        if (dot != std::string::npos) {
             prefix = fileName.substr(0, dot);
         }
     }
-    
 
     std::vector<std::string> result;
 
-    LOGD("FILENAME '%s', PREFIX '%s', EXT '%s', BASE '%s'", fileName, prefix, ext, base);
+    LOGD("FILENAME '%s', PREFIX '%s', EXT '%s', BASE '%s'", fileName, prefix,
+         ext, base);
 
-    if(fmt_2files.count(prefix) > 0) {
-        base = fileName.substr(dot+1);
+    if (fmt_2files.count(prefix) > 0) {
+        base = fileName.substr(dot + 1);
         LOGD("Found prefix, base now %s", base);
         result.push_back(fmt_2files.at(prefix) + "." + base);
         return result;
     }
 
     string ext2;
-    if(fmt_2files.count(ext) > 0)
+    if (fmt_2files.count(ext) > 0)
         ext2 = fmt_2files.at(ext);
-    else if(fmt_2files.count(base) > 0) {
+    else if (fmt_2files.count(base) > 0) {
         ext2 = base;
         base = fmt_2files.at(base);
-    } else
-    if(isStarTrekker)
+    } else if (isStarTrekker)
         ext2 = "mod.nt";
-    if(!ext2.empty()) {
+    if (!ext2.empty()) {
         result.push_back(base + "." + ext2);
     }
     return result;
 }
 
-ChipPlayer* UADEPlugin::fromFile(const std::string& fileName) {
+ChipPlayer* UADEPlugin::fromFile(const std::string& fileName)
+{
 
     auto* player = new UADEPlayer(dataDir + "/uade");
     LOGD("UADE data %s", dataDir);
-    if(!player->load(File::resolvePath(fileName))) {
+    if (!player->load(utils::absolute(fileName))) {
         delete player;
         player = nullptr;
     }

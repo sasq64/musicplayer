@@ -7,6 +7,7 @@ extern "C" {
 #include "../../chipplayer.h"
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
+#include <coreutils/utf8.h>
 
 #include <set>
 

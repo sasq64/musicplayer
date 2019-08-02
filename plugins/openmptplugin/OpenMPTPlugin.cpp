@@ -96,6 +96,7 @@ bool OpenMPTPlugin::canHandle(const std::string& n)
 {
     auto name = utils::toLower(n);
     auto ext = utils::path_extension(name);
+    LOGD("Checking ext "s + ext);
     if (ext == "gz" || ext == "rns" || ext == "dtm")
         return false;
     auto prefix = utils::path_prefix(name);

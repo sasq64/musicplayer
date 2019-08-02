@@ -4,6 +4,8 @@
 #include <coreutils/file.h>
 #include <coreutils/utils.h>
 #include <coreutils/log.h>
+#include <coreutils/url.h>
+#include <coreutils/utf8.h>
 extern "C" {
 #include "mdxmini.h"
 }
