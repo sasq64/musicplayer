@@ -42,13 +42,13 @@ FFMPEGPlugin::FFMPEGPlugin() {
 #ifdef _WIN32
     ffmpeg = "bin\\ffmpeg.exe";
 #elif defined __APPLE__
-    auto xd = utils::File::getExeDir();
-	std::string path =
-        utils::File::makePath({xd.resolve(), (xd / ".." / ".." / "bin").resolve(),
-                        (xd / ".." / "Resources" / "bin").resolve()});
-    LOGD("PATH IS '%s'", path);
-    ffmpeg = utils::File::findFile(path, "ffmpeg");
-    if(ffmpeg == "")
+    auto xd = utils::get_exe_dir();
+	std::string search_path =
+        utils::make_search_path({xd, utils::absolute(xd / ".." / ".." / "bin"),
+                        utils::absolute(xd / ".." / "Resources" / "bin")}, false);
+    LOGD("PATH IS '%s'", search_path);
+    ffmpeg = utils::find_path(search_path, "ffmpeg");
+    if(ffmpeg.empty())
         ffmpeg = "ffmpeg";
 #else
     ffmpeg = "ffmpeg";

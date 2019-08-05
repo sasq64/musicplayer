@@ -73,6 +73,7 @@
 #define X_OK 1
 #else
 #include <dirent.h>
+#include <unistd.h>
 #endif
 
 #include "archdep.h"

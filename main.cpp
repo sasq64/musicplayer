@@ -10,6 +10,7 @@
 #include <atomic>
 #include <chrono>
 #include <csignal>
+#include <cstdlib>
 #include <string>
 
 template <typename T, size_t SIZE> struct Ring
@@ -90,7 +91,9 @@ int main(int argc, const char** argv)
             memset(ptr, 0, size * 2);
     });
 
+#ifndef __APPLE__ // _Still_ no quick_exit() in OSX ...
     std::signal(SIGINT, [](int) { std::quick_exit(0); });
+#endif
 
     std::vector<int16_t> temp(1024 * 16);
     while (true) {
