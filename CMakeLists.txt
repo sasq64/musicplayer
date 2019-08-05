@@ -17,6 +17,8 @@ add_subdirectory(external/zlib)
 set(ZLIB_LIBRARIES zlibstatic)
 set(ZLIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/zlib ${CMAKE_BINARY_DIR}/external/zlib)
 
+#add_subdirectory(external/fmt)
+
 add_subdirectory(psf)
 
 set(MUSICPLAYER_PLUGINS
@@ -41,8 +43,8 @@ set(MUSICPLAYER_PLUGINS
     rsnplugin
     s98plugin
     viceplugin
+    mp3plugin
     # MSVC incompatible
-    # mp3plugin
     # Obsolete
     # sidplugin
     # sexypsfplugin

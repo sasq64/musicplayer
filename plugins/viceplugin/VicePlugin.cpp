@@ -185,7 +185,7 @@ public:
         auto data = f.readAll();
         auto md5 = calculateMD5(data);
         auto key = get<uint64_t>(md5, 0);
-        LOGD("MD5: [%02x] %08x", md5, key);
+        //LOGD("MD5: [%02x] %08x", md5, key);
         songLengths = plugin.findLengths(key);
 
         std::string realPath = sidFile;

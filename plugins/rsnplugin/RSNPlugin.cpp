@@ -64,7 +64,7 @@ ChipPlayer* RSNPlugin::fromFile(const string& fileName)
         "dsf", "minidsf", "mini2sf", "minigsf", "mdx",      "s98"};
 
     vector<string> l;
-    utils::path rsnDir = utils::getCacheDir("chipmusic") / ".rsn";
+    utils::path rsnDir = utils::get_cache_dir("chipmusic") / ".rsn";
     utils::create_directory(rsnDir);
     for (auto f : utils::listFiles(rsnDir, false, false))
         utils::remove(f);

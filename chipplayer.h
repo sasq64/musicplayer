@@ -56,10 +56,24 @@ public:
 
     void setMeta()
     {
-        for (const auto& cb : callbacks) {
-            cb(changedMeta, this);
+        if (!changedMeta.empty()) {
+            for (const auto& cb : callbacks) {
+                cb(changedMeta, this);
+            }
+            changedMeta.clear();
         }
-        changedMeta.clear();
+    }
+
+    void addMeta(const std::string& what, std::string const& value)
+    {
+        metaData[what] = value;
+        changedMeta.push_back(what);
+    }
+
+    void addMeta(const std::string& what, int value)
+    {
+        metaData[what] = std::to_string(value);
+        changedMeta.push_back(what);
     }
 
     template <typename... A>

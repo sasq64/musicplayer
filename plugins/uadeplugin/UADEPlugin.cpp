@@ -6,8 +6,8 @@
 #include <coreutils/file.h>
 #include <coreutils/log.h>
 #include <coreutils/path.h>
-#include <coreutils/utils.h>
 #include <coreutils/url.h>
+#include <coreutils/utils.h>
 
 #include <set>
 #include <thread>
@@ -51,19 +51,19 @@ public:
                                          struct uade_state* state)
     {
         LOGD("Trying to load '%s' from '%s'", name, playerdir);
-        UADEPlayer* up = static_cast<UADEPlayer*>(context);
+        UADEPlayer* player = static_cast<UADEPlayer*>(context);
         utils::path fileName = name;
 
-        if (endsWith(fileName, "SMPL.set"))
-            fileName = up->loadDir / "set.smpl";
-        else if (!up->uadeFile.empty()) {
-            fileName =
-                up->loadDir / (up->baseName + "." + path_prefix(fileName));
+        if (endsWith(fileName, "SMPL.set")) {
+            fileName = player->loadDir / "set.smpl";
+        } else if (!player->uadeFile.empty()) {
+            fileName = player->loadDir /
+                       (player->baseName + "." + path_prefix(fileName));
             LOGD("Translated back to '%s'", fileName);
-        } else if (up->currentFileName.find(fileName) == 0) {
+        } else if (player->currentFileName.find(fileName) == 0) {
             LOGD("Restoring filename %s back to '%s'", fileName,
-                 up->currentFileName);
-            fileName = up->currentFileName;
+                 player->currentFileName);
+            fileName = player->currentFileName;
         }
 
         struct uade_file* f =
@@ -74,7 +74,7 @@ public:
     bool load(string fileName)
     {
 
-        string currDir = utils::getCurrentDir();
+        string currDir = utils::get_current_dir();
 
         /* char currdir[2048]; */
         /* if(!getcwd(currdir, sizeof(currdir))) */
@@ -99,11 +99,11 @@ public:
         auto suffix = path_suffix(fileName);
 
         if (suffix == "mdat") {
-            uadeFile = utils::getTempDir() / (suffix + ".music");
+            uadeFile = utils::get_temp_dir() / (suffix + ".music");
             LOGD("Translated %s to %s", fileName, uadeFile.string());
             utils::copy(fileName, uadeFile);
-            //uadeFile.copyFrom(File{fileName});
-            //uadeFile.close();
+            // uadeFile.copyFrom(File{fileName});
+            // uadeFile.close();
             fileName = uadeFile.string();
         }
 
