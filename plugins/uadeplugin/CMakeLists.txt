@@ -69,7 +69,6 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cpuemu.c ${CMAKE_CURRENT_B
     COMMENT "Running gencpu")
 
 add_library(uade OBJECT ${UADE_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/cpuemu.c ${CMAKE_CURRENT_BINARY_DIR}/cpudefs.c ${CMAKE_CURRENT_BINARY_DIR}/cpustbl.c)
-target_link_libraries(uade PRIVATE ws2_32)
 target_compile_definitions(uade PRIVATE -DPART_1 -DPART_2 -DPART_3 -DPART_4 -DPART_5 -DPART_6 -DPART_7 -DPART_8)
 #target_compile_options(uade PRIVATE -Wno-format -Wno-implicit-function-declaration)
 target_include_directories(uade PRIVATE

@@ -7,6 +7,10 @@
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
 
+extern "C" {
+#include "resampler.h"
+}
+
 #include <atomic>
 #include <chrono>
 #include <csignal>
@@ -51,7 +55,7 @@ int main(int argc, const char** argv)
     if (argc < 2)
         return 0;
 
-    logging::setLevel(logging::Level::Debug);
+    //logging::setLevel(logging::Level::Debug);
 
     std::string name = argv[1];
     std::string pluginName;
@@ -84,6 +88,11 @@ int main(int argc, const char** argv)
 
     Ring<int16_t, 32768> fifo;
 
+    auto* r = rs_create();
+    LOGI("Resampler created");
+
+    LOGI("Resampler created");
+
     AudioPlayer ap{44100};
     ap.play([&](int16_t* ptr, int size) {
         int rc = fifo.read(ptr, size);
@@ -97,9 +106,20 @@ int main(int argc, const char** argv)
 
     std::vector<int16_t> temp(1024 * 16);
     while (true) {
+        int hz = player->getHZ();
+        rs_set_rate(r, (float)hz / 44100.0);
         int rc = player->getSamples(&temp[0], temp.size());
-        if (rc > 0)
-            fifo.write(&temp[0], rc);
+        for(int i=0; i<rc/2; i++) {
+            rs_write_sample(r, temp[i*2], temp[i*2+1]);
+            while(rs_get_sample_count(r) > 0) {
+                int16_t lr[2];
+                rs_get_sample(r, &lr[0], &lr[1]);
+                fifo.write(&lr[0], 2);
+                rs_remove_sample(r);
+            }
+        }
+        //if (rc > 0)
+        //    fifo.write(&temp[0], rc);
     }
     return 0;
 }

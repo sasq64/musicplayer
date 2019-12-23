@@ -49,20 +49,20 @@ static bool sid_is_forced = true;
 
 namespace {
 
-template <typename T> const T get(const std::vector<uint8_t>& v, int offset) {}
+template <typename T> T get(const std::vector<uint8_t>& v, int offset) {}
 
-template <> const uint16_t get(const std::vector<uint8_t>& v, int offset)
+template <> uint16_t get(const std::vector<uint8_t>& v, int offset)
 {
-    return (v[offset] << 8) | v[offset + 1];
+    return (v[offset] << 8u) | v[offset + 1];
 }
 
-template <> const uint32_t get(const std::vector<uint8_t>& v, int offset)
+template <> uint32_t get(const std::vector<uint8_t>& v, int offset)
 {
-    return (v[offset] << 24) | (v[offset + 1] << 16) | (v[offset + 2] << 8) |
+    return (v[offset + 0] << 24u) | (v[offset + 1] << 16u) | (v[offset + 2] << 8u) |
            v[offset + 3];
 }
 
-template <> const uint64_t get(const std::vector<uint8_t>& v, int offset)
+template <> uint64_t get(const std::vector<uint8_t>& v, int offset)
 {
     return ((uint64_t)get<uint32_t>(v, offset) << 32) |
            get<uint32_t>(v, offset + 4);
@@ -104,15 +104,15 @@ public:
         md5.add(playAdr);
         md5.add(songs);
 
-        for (int i = 0; i < songs; i++) {
-            if ((speedBits & (1 << i)) != 0) {
+        for (unsigned i = 0; i < songs; i++) {
+            if ((speedBits & (1u << i)) != 0) {
                 md5.add((uint8_t)60);
             } else {
                 md5.add(speed);
             }
         }
 
-        if ((flags & 0x8) != 0) {
+        if ((flags & 0x8u) != 0) {
             md5.add((uint8_t)2);
         }
 
@@ -140,12 +140,7 @@ public:
         resources_set_int("SidResidSampling", 0);
         resources_set_int("VICIIVideoCache", 0);
         resources_set_string("Directory", c64Dir.c_str());
-        if (init_main() < 0) {
-            // archdep_startup_log_error("Failed to init main");
-            return false;
-        }
-
-        return true;
+        return init_main() >= 0;
     }
 
     static void c64_song_init()

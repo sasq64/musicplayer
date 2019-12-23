@@ -29,6 +29,8 @@ public:
     virtual ~ChipPlayer() = default;
     virtual int getSamples(int16_t* target, int size) = 0;
 
+    virtual int getHZ() { return 44100; }
+
     virtual bool setParameter(const std::string& /*name*/, int32_t /*value*/)
     {
         return false;

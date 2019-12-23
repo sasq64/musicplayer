@@ -24,7 +24,7 @@ extern "C" void uade_run_thread(void (*f)(void*), void* data)
     LOGD("Starting thread");
     try {
         uadeThread = std::thread(f, data);
-    } catch (std::exception e) {
+    } catch (std::exception& e) {
         puts(e.what());
     }
 }
@@ -42,7 +42,7 @@ using namespace utils;
 class UADEPlayer : public ChipPlayer
 {
 public:
-    UADEPlayer(const std::string& dataDir)
+    explicit UADEPlayer(const std::string& dataDir)
         : dataDir(dataDir), valid(false), state(nullptr)
     {}
 
@@ -51,7 +51,7 @@ public:
                                          struct uade_state* state)
     {
         LOGD("Trying to load '%s' from '%s'", name, playerdir);
-        UADEPlayer* player = static_cast<UADEPlayer*>(context);
+        auto* player = static_cast<UADEPlayer*>(context);
         utils::path fileName = name;
 
         if (endsWith(fileName, "SMPL.set")) {
@@ -83,15 +83,14 @@ public:
         int ok = chdir(dataDir.c_str());
 
         struct uade_config* config = uade_new_config();
-        uade_config_set_option(config, UC_ONE_SUBSONG, NULL);
-        uade_config_set_option(config, UC_IGNORE_PLAYER_CHECK, NULL);
-        uade_config_set_option(config, UC_NO_EP_END, NULL);
+        uade_config_set_option(config, UC_ONE_SUBSONG, nullptr);
+        uade_config_set_option(config, UC_IGNORE_PLAYER_CHECK, nullptr);
+        uade_config_set_option(config, UC_NO_EP_END, nullptr);
         // uade_config_set_option(config, UC_VERBOSE, "true");
         uade_config_set_option(config, UC_BASE_DIR, ".");
         state = uade_new_state(config, 1);
         free(config);
 
-        musicStopped = false;
         loadDir = path_directory(fileName);
         baseName = path_basename(fileName);
 
@@ -122,7 +121,7 @@ public:
             valid = true;
         }
 
-        ok = chdir(currDir.c_str());
+        chdir(currDir.c_str());
 
         return valid;
     }
@@ -134,18 +133,19 @@ public:
             utils::remove(uadeFile);
     }
 
-    virtual int getSamples(int16_t* target, int noSamples) override
+    int getSamples(int16_t* target, int noSamples) override
     {
-        ssize_t rc = uade_read(target, noSamples * 2, state);
-        struct uade_notification nf;
+        auto rc = uade_read(target, noSamples * 2, state);
+        struct uade_notification nf{};
         while (uade_read_notification(&nf, state)) {
             if (nf.type == UADE_NOTIFICATION_SONG_END) {
                 LOGD("UADE SONG END: %d %d %d %s", nf.song_end.happy,
                      nf.song_end.stopnow, nf.song_end.subsong,
                      nf.song_end.reason);
                 setMeta("song", nf.song_end.subsong + 1);
-                if (nf.song_end.stopnow)
-                    musicStopped = true;
+                //if (nf.song_end.stopnow)
+                  //  musicStopped = true;
+                return 0;
             } else if (nf.type == UADE_NOTIFICATION_MESSAGE) {
                 LOGD("Amiga message: %s\n", nf.msg);
             } else
@@ -157,14 +157,8 @@ public:
         return rc;
     }
 
-    virtual bool seekTo(int song, int seconds) override
+    bool seekTo(int song, int seconds) override
     {
-        // if(musicStopped) {
-        //	if(uade_play(currentFileName.c_str(), -1, state) == 1) {
-        //		songInfo = uade_get_song_info(state);
-        //		musicStopped = false;
-        //	}
-        //}
         uade_seek(UADE_SEEK_SUBSONG_RELATIVE, 0, song + songInfo->subsongs.min,
                   state);
         return true;
@@ -174,12 +168,11 @@ private:
     utils::path uadeFile;
     string dataDir;
     bool valid;
-    struct uade_state* state;
-    const struct uade_song_info* songInfo;
+    struct uade_state* state{};
+    const struct uade_song_info* songInfo{};
     string baseName;
     string currentFileName;
     utils::path loadDir;
-    bool musicStopped;
 };
 
 static const set<string> supported_ext{
@@ -328,6 +321,6 @@ ChipPlayer* UADEPlugin::fromFile(const std::string& fileName)
         player = nullptr;
     }
     return player;
-};
+}
 
 } // namespace musix
