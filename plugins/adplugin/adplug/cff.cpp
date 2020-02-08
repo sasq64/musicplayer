@@ -14,7 +14,7 @@
 
   You should have received a copy of the GNU Lesser General Public
   License along with this library; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
   cff.cpp - BoomTracker loader by Riven the Mage <riven@ok.ru>
 */
@@ -69,17 +69,17 @@ bool CcffLoader::load(const std::string &filename, const CFileProvider &fp)
       if (!unpacker->unpack(packed_module,module))
 	{
 	  delete unpacker;
-	  delete[] packed_module;
-	  delete[] module;
+	  delete [] packed_module;
+	  delete [] module;
 	  return false;
 	}
 
       delete unpacker;
-      delete[] packed_module;
+      delete [] packed_module;
 
       if (memcmp(&module[0x5E1],"CUD-FM-File - SEND A POSTCARD -",31))
 	{
-	  delete[] module;
+	  delete [] module;
 	  return false;
 	}
     }
@@ -379,7 +379,10 @@ long CcffLoader::cff_unpacker::unpack(unsigned char *ibuf, unsigned char *obuf)
 	  }
 
 	  for (unsigned int i=0;i<repeat_counter*repeat_length;i++)
-	    output[output_length++] = output[output_length - repeat_length];
+	  {
+	    output[output_length] = output[output_length - repeat_length];
+	    output_length++;
+	  }
 
 	  code_length = old_code_length;
 

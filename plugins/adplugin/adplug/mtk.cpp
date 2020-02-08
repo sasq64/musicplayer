@@ -14,7 +14,7 @@
  * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * mtk.cpp - MPU-401 Trakker Loader by Simon Peter (dn.tlp@gmx.net)
  */
@@ -123,7 +123,7 @@ bool CmtkLoader::load(const std::string &filename, const CFileProvider &fp)
     strncpy(instname[i],data->instname[i]+1,33);
   memcpy(instr,data->insts,0x80 * 12);
   memcpy(song,data->order,0x80);
-  memcpy(patterns,data->patterns,header.size-6085);
+  memcpy(patterns,data->patterns,header.size-6084);
   for (i=0;i<128;i++) {				// correct instruments
     instr[i][2] ^= (instr[i][2] & 0x40) << 1;
     instr[i][3] ^= (instr[i][3] & 0x40) << 1;

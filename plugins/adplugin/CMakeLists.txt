@@ -12,6 +12,7 @@ set(SOURCE_FILES
         adplug/adl.cpp
         adplug/adlibemu.c
         adplug/adplug.cpp
+        adplug/adlib.cpp
         adplug/adtrack.cpp
         adplug/amd.cpp
         adplug/bam.cpp
@@ -62,9 +63,17 @@ set(SOURCE_FILES
         adplug/u6m.cpp
         adplug/xad.cpp
         adplug/xsm.cpp
+        adplug/mdi.cpp
+        adplug/got.cpp
+        adplug/mus.cpp
+        adplug/vgm.cpp
+        adplug/sop.cpp
+        adplug/herad.cpp
+        adplug/cmfmcsop.cpp
 )
 
 add_library(adplugin ${SOURCE_FILES})
 target_include_directories(adplugin PRIVATE opl libbinio adplug)
+target_compile_definitions(adplugin PRIVATE stricmp=strcasecmp ADPLUG_VERSION="2.3.2-beta")
 target_link_libraries(adplugin PRIVATE coreutils)
 

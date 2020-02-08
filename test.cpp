@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <coreutils/path.h>
 #include "chipplugin.h"
 #include "plugins/plugins.h"
+#include <coreutils/path.h>
 
 #include <array>
 #include <coreutils/file.h>
@@ -16,7 +16,7 @@ static utils::path findProjectDir()
 {
     auto current = utils::absolute(".");
 
-    while(!current.empty()) {
+    while (!current.empty()) {
         if (utils::exists(current / "testmus")) {
             return current;
         }
@@ -33,12 +33,13 @@ inline utils::path projDir()
 
 static auto dataDir = projDir() / "data";
 
-
 template <typename PLUGIN, typename... ARGS>
 int testPlugin(std::string const& dir, std::string const& exclude,
                const ARGS&... args)
 {
     auto realDir = projDir() / dir;
+
+    std::vector<std::string> ex = utils::split(exclude, ";");
 
     std::array<int16_t, 8192> buffer;
     PLUGIN plugin{args...};
@@ -47,7 +48,14 @@ int testPlugin(std::string const& dir, std::string const& exclude,
     int total = 0;
     int working = 0;
     for (auto f : utils::listFiles(realDir, false, false)) {
-        if (exclude != "" && f.string().find(exclude) != std::string::npos)
+        bool play = true;
+        for(auto const& e : ex) {
+            if(f.string().find(e) != std::string::npos) {
+                play = false;
+            }
+        }
+
+        if(!play)
             continue;
 
         int64_t sum = 0;
@@ -82,6 +90,8 @@ int testPlugin(std::string const& dir, std::string const& exclude,
         printf("#### Playing %s : %s\n", f.string().c_str(),
                player ? (madeSound ? "OK" : "NO SOUND") : "FAILED");
     }
+    if(total == 0)
+        return 100;
     int percent = working * 100 / total;
     printf("PERCENT %d\n\n", percent);
     return percent;
@@ -97,7 +107,10 @@ TEST_CASE("gme", "[music]")
 
 TEST_CASE("adlib", "[music]")
 {
-    testPlugin<musix::AdPlugin>("testmus/adlib", "", dataDir);
+    REQUIRE(testPlugin<musix::AdPlugin>("testmus/adlib/working", ".dat;.ins", dataDir) ==
+            100);
+    REQUIRE(testPlugin<musix::AdPlugin>("testmus/adlib/nowork", ".dat;.ins", dataDir) ==
+            0);
 }
 
 TEST_CASE("uade", "[music]")
@@ -143,7 +156,8 @@ TEST_CASE("vicemd5", "[viceplugin]")
     REQUIRE(lengths[0] == 3 * 60 + 9);
     REQUIRE(lengths[1] == 34);
 
-    auto key = musix::VicePlugin::calculateMD5(projDir() / "music" / "C64" / "Comic_Bakery.sid");
+    auto key = musix::VicePlugin::calculateMD5(projDir() / "music" / "C64" /
+                                               "Comic_Bakery.sid");
     LOGI("KEY %x", key);
 
     REQUIRE(key == 0x8ffecb26d6ff34e3);
