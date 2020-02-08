@@ -63,7 +63,7 @@ add_subdirectory(${APONE}/crypto crypto)
 add_subdirectory(${APONE}/audioplayer audioplayer)
 add_subdirectory(${APONE}/archive archive)
 
-add_executable(play main.cpp resampler.c)
+add_executable(play main.cpp resampler.cpp)
 target_link_libraries(play PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
     coreutils audioplayer crypto archive ${THREAD_LIB})
 

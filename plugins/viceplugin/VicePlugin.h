@@ -1,5 +1,4 @@
-#ifndef VICE_PLAYER_H
-#define VICE_PLAYER_H
+#pragma once
 
 #include "../../chipplugin.h"
 
@@ -12,20 +11,19 @@ namespace musix {
 class VicePlugin : public ChipPlugin
 {
 public:
-    virtual std::string name() const override { return "VicePlugin"; }
+    std::string name() const override { return "VicePlugin"; }
     VicePlugin() = default;
-    VicePlugin(const std::string& dataDir);
-    VicePlugin(const unsigned char* data);
-    virtual ~VicePlugin();
-    virtual bool canHandle(const std::string& name) override;
-    virtual ChipPlayer* fromFile(const std::string& fileName) override;
+    explicit VicePlugin(const std::string& dataDir);
+    ~VicePlugin() override;
+    bool canHandle(const std::string& name) override;
+    ChipPlayer* fromFile(const std::string& fileName) override;
 
     friend class VicePlayer;
 
     void setDataDir(std::string const& dd) { dataDir = dd; }
     void readLengths();
     void readSTIL();
-    std::vector<uint16_t> findLengths(uint64_t key);
+    static std::vector<uint16_t> findLengths(uint64_t key);
 
     static uint64_t calculateMD5(const std::string& fileName);
 
@@ -35,7 +33,7 @@ private:
         uint64_t hash;
         uint16_t length;
 
-        LengthEntry() {}
+        LengthEntry() = default;
         LengthEntry(uint64_t h, uint16_t l) : hash(h), length(l) {}
         bool operator<(const LengthEntry& other) const
         {
@@ -64,9 +62,9 @@ private:
 
     struct STILSong
     {
-        STILSong() {}
-        STILSong(const std::vector<STIL> songs, const std::string& c)
-            : songs(songs), comment(c)
+        STILSong() = default;
+        STILSong(const std::vector<STIL>& sngs, const std::string& c)
+            : songs(sngs), comment(c)
         {}
         std::vector<STIL> songs;
         std::string comment;
@@ -79,4 +77,3 @@ private:
 
 } // namespace musix
 
-#endif // VICE_PLAYER_H

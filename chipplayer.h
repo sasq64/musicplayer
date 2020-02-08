@@ -50,10 +50,10 @@ public:
 
     int getMetaInt(const std::string& what)
     {
-        const std::string& data = getMeta(what);
-        if (data == "")
+        const auto& data = getMeta(what);
+        if (data.empty())
             return -1;
-        return atoi(data.c_str());
+        return std::stoi(data);
     };
 
     void setMeta()
