@@ -490,8 +490,6 @@ void VicePlugin::readLengths()
             name = l;
         else if (l[0] != '[') {
             auto key = from_hex<uint64_t>(l.substr(0, 16));
-            if (name.find("Comic") != std::string::npos)
-                LOGI("%s %x", name, key);
             auto lengths = split(l.substr(33), " ");
             if (lengths.size() == 1) {
                 tie(mins, secs) = splitn<2>(lengths[0], ":");

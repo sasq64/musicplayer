@@ -58,12 +58,12 @@ struct resampler
 {
     int write_pos, write_filled;
     int read_pos, read_filled;
-    int phase;
-    int phase_inc;
+    unsigned phase;
+    unsigned phase_inc;
     signed char delay_added;
     signed char delay_removed;
-    short buffer_in[2][resampler_buffer_size * 2];
-    short buffer_out[resampler_buffer_size * 2];
+    int16_t buffer_in[2][resampler_buffer_size * 2];
+    int16_t buffer_out[resampler_buffer_size * 2];
 };
 
 resampler* rs_create()
@@ -92,11 +92,7 @@ void rs_delete(resampler* r)
 resampler* rs_dup(const resampler* r)
 {
     auto* r_out = new resampler;
-    if (!r_out)
-        return 0;
-
     rs_dup_inplace(r_out, r);
-
     return r_out;
 }
 
@@ -155,7 +151,7 @@ void rs_set_rate(resampler* r, double new_factor)
     r->phase_inc = new_factor * RESAMPLER_RESOLUTION;
 }
 
-void rs_write_sample(resampler* r, short ls, short rs)
+void rs_write_sample(resampler* r, int16_t ls, int16_t rs)
 {
     if (r->delay_added < 0) {
         r->delay_added = 0;
@@ -175,21 +171,21 @@ void rs_write_sample(resampler* r, short ls, short rs)
     }
 }
 
-static int rs_run_cubic(resampler* r, short** out_, short const* out_end)
+static int rs_run_cubic(resampler* r, int16_t** out_, int16_t const* out_end)
 {
     int in_size = r->write_filled;
     int in_offset = resampler_buffer_size + r->write_pos - r->write_filled;
-    short const* inl_ = r->buffer_in[0] + in_offset;
-    short const* inr_ = r->buffer_in[1] + in_offset;
+    int16_t const* inl_ = r->buffer_in[0] + in_offset;
+    int16_t const* inr_ = r->buffer_in[1] + in_offset;
     int used = 0;
     in_size -= 4;
     if (in_size > 0) {
-        short* out = *out_;
-        short const* inl = inl_;
-        short const* inr = inr_;
-        short const* const in_end = inl + in_size;
-        int phase = r->phase;
-        int phase_inc = r->phase_inc;
+        int16_t* out = *out_;
+        int16_t const* inl = inl_;
+        int16_t const* inr = inr_;
+        int16_t const* const in_end = inl + in_size;
+        unsigned phase = r->phase;
+        unsigned phase_inc = r->phase_inc;
 
         do {
             int samplel, sampler;
@@ -198,7 +194,7 @@ static int rs_run_cubic(resampler* r, short** out_, short const* out_end)
                 break;
 
             const int16_t* lut =
-                (int16_t*)RESAMPLE_LUT + ((phase & 0xfc00) >> 8);
+                (int16_t*)RESAMPLE_LUT + ((phase & 0xfc00u) >> 8u);
 
             samplel = ((inl[0] * lut[0]) >> 15) + ((inl[1] * lut[1]) >> 15) +
                       ((inl[2] * lut[2]) >> 15) + ((inl[3] * lut[3]) >> 15);
@@ -210,15 +206,15 @@ static int rs_run_cubic(resampler* r, short** out_, short const* out_end)
             if ((sampler + 0x8000) & 0xffff0000)
                 sampler = 0x7fff ^ (sampler >> 31);
 
-            *out++ = (short)samplel;
-            *out++ = (short)sampler;
+            *out++ = (int16_t)samplel;
+            *out++ = (int16_t)sampler;
 
             phase += phase_inc;
 
-            inl += (phase >> 16);
-            inr += (phase >> 16);
+            inl += (phase >> 16u);
+            inr += (phase >> 16u);
 
-            phase &= 0xFFFF;
+            phase &= 0xFFFFu;
         } while (inl < in_end);
 
         r->phase = phase;
@@ -239,7 +235,7 @@ static void rs_fill(resampler* r)
            r->read_filled < resampler_buffer_size) {
         int write_pos = (r->read_pos + r->read_filled) % resampler_buffer_size;
         int write_size = resampler_buffer_size - write_pos;
-        short* out = r->buffer_out + write_pos * 2;
+        int16_t* out = r->buffer_out + write_pos * 2;
         if (write_size > (resampler_buffer_size - r->read_filled))
             write_size = resampler_buffer_size - r->read_filled;
         rs_run_cubic(r, &out, out + write_size * 2);
@@ -265,7 +261,7 @@ int rs_get_sample_count(resampler* r)
     return r->read_filled;
 }
 
-void rs_get_sample(resampler* r, short* ls, short* rs)
+void rs_get_sample(resampler* r, int16_t* ls, int16_t* rs)
 {
     if (r->read_filled < 1 && r->phase_inc)
         rs_fill_and_remove_delay(r);

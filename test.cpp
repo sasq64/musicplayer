@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-//#include "src/modutils.h"
+#include <coreutils/path.h>
 #include "chipplugin.h"
 #include "plugins/plugins.h"
 
@@ -12,17 +12,41 @@
 #include <numeric>
 #include <string>
 
+static utils::path findProjectDir()
+{
+    auto current = utils::absolute(".");
+
+    while(!current.empty()) {
+        if (utils::exists(current / "testmus")) {
+            return current;
+        }
+        current = current.parent_path();
+    }
+    return {};
+}
+
+inline utils::path projDir()
+{
+    static utils::path projectDir = findProjectDir();
+    return projectDir;
+}
+
+static auto dataDir = projDir() / "data";
+
+
 template <typename PLUGIN, typename... ARGS>
 int testPlugin(std::string const& dir, std::string const& exclude,
                const ARGS&... args)
 {
+    auto realDir = projDir() / dir;
+
     std::array<int16_t, 8192> buffer;
     PLUGIN plugin{args...};
     printf("---- %s ----\n", plugin.name().c_str());
     logging::setLevel(logging::Level::Warning);
     int total = 0;
     int working = 0;
-    for (auto f : utils::listFiles(dir, false, false)) {
+    for (auto f : utils::listFiles(realDir, false, false)) {
         if (exclude != "" && f.string().find(exclude) != std::string::npos)
             continue;
 
@@ -73,12 +97,12 @@ TEST_CASE("gme", "[music]")
 
 TEST_CASE("adlib", "[music]")
 {
-    testPlugin<musix::AdPlugin>("testmus/adlib", "", "data");
+    testPlugin<musix::AdPlugin>("testmus/adlib", "", dataDir);
 }
 
 TEST_CASE("uade", "[music]")
 {
-    testPlugin<musix::UADEPlugin>("testmus/uade", "smp", "data");
+    testPlugin<musix::UADEPlugin>("testmus/uade", "smp", dataDir);
 }
 
 TEST_CASE("openmpt", "[music]")
@@ -98,7 +122,7 @@ TEST_CASE("nds", "[music]")
 
 TEST_CASE("psx", "[music]")
 {
-    testPlugin<musix::HEPlugin>("testmus/psx", "lib", "data/hebios.bin");
+    testPlugin<musix::HEPlugin>("testmus/psx", "lib", dataDir / "hebios.bin");
 }
 
 TEST_CASE("zx", "[music]")
@@ -112,14 +136,14 @@ TEST_CASE("vicemd5", "[viceplugin]")
     // 8ffecb26d6ff34e3 947abb1b90e1779b=
     // 3:09 0:34 0:50 0:03 0:03 0:12 0:01 0:01 0:02 0:08 0:01 0:01 0:03 0:01
     musix::VicePlugin plugin;
-    plugin.setDataDir("data");
+    plugin.setDataDir(projDir() / "data");
     plugin.readLengths();
     auto lengths = plugin.findLengths(0x8ffecb26d6ff34e3);
     REQUIRE(lengths.size() == 14);
     REQUIRE(lengths[0] == 3 * 60 + 9);
     REQUIRE(lengths[1] == 34);
 
-    auto key = musix::VicePlugin::calculateMD5("music/C64/Comic_Bakery.sid");
+    auto key = musix::VicePlugin::calculateMD5(projDir() / "music" / "C64" / "Comic_Bakery.sid");
     LOGI("KEY %x", key);
 
     REQUIRE(key == 0x8ffecb26d6ff34e3);

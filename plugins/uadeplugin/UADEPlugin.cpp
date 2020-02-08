@@ -6,7 +6,6 @@
 #include <coreutils/file.h>
 #include <coreutils/log.h>
 #include <coreutils/path.h>
-#include <coreutils/url.h>
 #include <coreutils/utils.h>
 
 #include <set>
@@ -35,9 +34,6 @@ extern "C" void uade_wait_thread()
 }
 
 namespace musix {
-
-using namespace std;
-using namespace utils;
 
 class UADEPlayer : public ChipPlayer
 {
@@ -71,14 +67,10 @@ public:
         return f;
     }
 
-    bool load(string fileName)
+    bool load(std::string fileName)
     {
 
-        string currDir = utils::get_current_dir();
-
-        /* char currdir[2048]; */
-        /* if(!getcwd(currdir, sizeof(currdir))) */
-        /*     return false; */
+        auto currDir = utils::get_current_dir();
 
         int ok = chdir(dataDir.c_str());
 
@@ -91,11 +83,11 @@ public:
         state = uade_new_state(config, 1);
         free(config);
 
-        loadDir = path_directory(fileName);
-        baseName = path_basename(fileName);
+        loadDir = utils::path_directory(fileName);
+        baseName = utils::path_basename(fileName);
 
         uade_set_amiga_loader(UADEPlayer::amigaloader, this, state);
-        auto suffix = path_suffix(fileName);
+        auto suffix = utils::path_suffix(fileName);
 
         if (suffix == "mdat") {
             uadeFile = utils::get_temp_dir() / (suffix + ".music");
@@ -136,15 +128,16 @@ public:
     int getSamples(int16_t* target, int noSamples) override
     {
         auto rc = uade_read(target, noSamples * 2, state);
-        struct uade_notification nf{};
+        struct uade_notification nf
+        {};
         while (uade_read_notification(&nf, state)) {
             if (nf.type == UADE_NOTIFICATION_SONG_END) {
                 LOGD("UADE SONG END: %d %d %d %s", nf.song_end.happy,
                      nf.song_end.stopnow, nf.song_end.subsong,
                      nf.song_end.reason);
                 setMeta("song", nf.song_end.subsong + 1);
-                //if (nf.song_end.stopnow)
-                  //  musicStopped = true;
+                // if (nf.song_end.stopnow)
+                //  musicStopped = true;
                 return 0;
             } else if (nf.type == UADE_NOTIFICATION_MESSAGE) {
                 LOGD("Amiga message: %s\n", nf.msg);
@@ -166,16 +159,16 @@ public:
 
 private:
     utils::path uadeFile;
-    string dataDir;
+    std::string dataDir;
     bool valid;
     struct uade_state* state{};
     const struct uade_song_info* songInfo{};
-    string baseName;
-    string currentFileName;
+    std::string baseName;
+    std::string currentFileName;
     utils::path loadDir;
 };
 
-static const set<string> supported_ext{
+static const std::set<std::string> supported_ext{
     "smod",      "lion",         "okta",        "sid",          "ymst",
     "sps",       "spm",          "jb",          "ast",          "ahx",
     "thx",       "adpcm",        "amc",         "nt",           "abk",
@@ -248,7 +241,7 @@ static const set<string> supported_ext{
 
 bool UADEPlugin::canHandle(const std::string& name)
 {
-    auto lowerName = toLower(name);
+    auto lowerName = utils::toLower(name);
     if (supported_ext.count(utils::path_extension(lowerName)) > 0)
         return true;
     return (supported_ext.count(utils::path_prefix(lowerName)) > 0);
@@ -256,10 +249,10 @@ bool UADEPlugin::canHandle(const std::string& name)
 
 std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string& file)
 {
-    bool isStarTrekker = (file.find("Startrekker") != string::npos);
+    bool isStarTrekker = (file.find("Startrekker") != std::string::npos);
 
     // Known music formats with 2 files
-    static const std::unordered_map<string, string> fmt_2files = {
+    static const std::unordered_map<std::string, std::string> fmt_2files = {
         {"mdat", "smpl"},    // TFMX
         {"sng", "ins"},      // Richard Joseph
         {"jpn", "smp"},      // Jason Page PREFIX
@@ -269,12 +262,12 @@ std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string& file)
         {"dns", "smp"}       // Dynamic Synthesizer
     };
 
-    string fileName = file;
-    string prefix;
+    std::string fileName = file;
+    std::string prefix;
     size_t dot = 0;
 
-    string ext = path_extension(file);
-    string base = path_basename(file);
+    std::string ext = utils::path_extension(file);
+    std::string base = utils::path_basename(file);
 
     auto slash = file.find_last_of("/\\");
     if (slash != std::string::npos) {
@@ -297,7 +290,7 @@ std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string& file)
         return result;
     }
 
-    string ext2;
+    std::string ext2;
     if (fmt_2files.count(ext) > 0)
         ext2 = fmt_2files.at(ext);
     else if (fmt_2files.count(base) > 0) {
