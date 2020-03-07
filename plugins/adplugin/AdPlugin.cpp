@@ -6,6 +6,7 @@
 #include "adplug/emuopl.h"
 #include "libbinio/binfile.h"
 #include "libbinio/binio.h"
+#include <math.h>
 #include "opl/dbemuopl.h"
 #include <cmath>
 
