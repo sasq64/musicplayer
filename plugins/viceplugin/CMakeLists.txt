@@ -143,8 +143,26 @@ set(SOURCE_FILES
 
 #find_package(ZLIB REQUIRED)
 
+if(NOT TARGET apone::coreutils)
+    add_subdirectory(${APONE}/coreutils coreutils)
+endif()
+
+if(NOT TARGET apone::crypto)
+    add_subdirectory(${APONE}/crypto crypto)
+endif()
+
+if(NOT TARGET fmt::fmt)
+    add_subdirectory(../../external/fmt)
+endif()
+
+if(NOT TARGET ZLIB::ZLIB)
+    find_package(ZLIB)
+endif()
+
+
+
 add_library(viceplugin ${SOURCE_FILES})
-target_link_libraries(viceplugin PRIVATE coreutils crypto ${ZLIB_LIBRARIES})
+target_link_libraries(viceplugin PRIVATE apone::coreutils apone::crypto ZLIB::ZLIB)
 include_directories(viceplugin PRIVATE
     .
     common
@@ -164,6 +182,5 @@ include_directories(viceplugin PRIVATE
     vice/vdrive
     vice/vicii
     vice/rtc
-    ${ZLIB_INCLUDE_DIRS}
 )
 

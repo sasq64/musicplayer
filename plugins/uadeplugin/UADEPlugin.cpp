@@ -70,7 +70,7 @@ public:
     bool load(std::string fileName)
     {
 
-        auto currDir = utils::get_current_dir();
+        auto currDir = utils::getCurrentDir();
 
         int ok = chdir(dataDir.c_str());
 
@@ -90,7 +90,7 @@ public:
         auto suffix = utils::path_suffix(fileName);
 
         if (suffix == "mdat") {
-            uadeFile = utils::get_temp_dir() / (suffix + ".music");
+            uadeFile = utils::getTempDir() / (suffix + ".music");
             LOGD("Translated %s to %s", fileName, uadeFile.string());
             utils::copy(fileName, uadeFile);
             // uadeFile.copyFrom(File{fileName});

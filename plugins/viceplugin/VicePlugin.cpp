@@ -474,8 +474,8 @@ template <typename T> T from_hex(const std::string& s)
 
 void VicePlugin::readLengths()
 {
-    utils::path dd{dataDir};
     static_assert(sizeof(LengthEntry) == 10, "LengthEntry size incorrect");
+    utils::path dd{dataDir};
     if (!utils::exists(dd / "Songlengths.txt"))
         return;
     File fp{dd / "Songlengths.txt"};

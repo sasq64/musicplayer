@@ -47,7 +47,7 @@ int testPlugin(std::string const& dir, std::string const& exclude,
     logging::setLevel(logging::Level::Warning);
     int total = 0;
     int working = 0;
-    for (auto f : utils::listFiles(realDir, false, false)) {
+    for (auto f : utils::listFiles(realDir)) {
         bool play = true;
         for(auto const& e : ex) {
             if(f.string().find(e) != std::string::npos) {

@@ -66,7 +66,7 @@ ChipPlayer* RSNPlugin::fromFile(const string& fileName)
     vector<string> l;
     utils::path rsnDir = utils::get_cache_dir("chipmusic") / ".rsn";
     utils::create_directory(rsnDir);
-    for (auto f : utils::listFiles(rsnDir, false, false))
+    for (auto f : utils::listRecursive(rsnDir, false))
         utils::remove(f);
 
     if (!utils::exists(fileName))
@@ -74,12 +74,11 @@ ChipPlayer* RSNPlugin::fromFile(const string& fileName)
 
     try {
         auto* a = Archive::open(fileName, rsnDir, Archive::TYPE_RAR);
-        for (auto s : *a) {
-            LOGD("Archive:"s + s);
-            a->extract(s);
-            if (song_formats.count(path_extension(s)) > 0) {
-                LOGD("Found %s", s);
-                l.push_back(rsnDir / s);
+        a->extractAll(rsnDir);
+        for (auto f : utils::listRecursive(rsnDir, false)) {
+            if (song_formats.count(path_extension(f)) > 0) {
+                LOGD("Found %s", f.string());
+                l.push_back(f);
             }
         };
         delete a;
@@ -87,8 +86,6 @@ ChipPlayer* RSNPlugin::fromFile(const string& fileName)
         LOGW("Archive fail");
         return nullptr;
     }
-
-    LOGI("Sort");
 
     sort(l.begin(), l.end());
 

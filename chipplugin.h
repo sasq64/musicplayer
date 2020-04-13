@@ -57,6 +57,7 @@ public:
         auto& plugins = getPlugins();
         for (const auto& f : pluginConstructors()) {
             plugins.push_back(f(configDir));
+            printf("Plugin %s\n", plugins.back()->name().c_str());
         }
 
         std::sort(plugins.begin(), plugins.end(),

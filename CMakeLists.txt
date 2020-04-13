@@ -8,16 +8,24 @@ if(CCACHE_PROGRAM)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
 endif()
 
-set(APONE apone)
+set(APONE ../apone-cpp)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(external/zlib)
 set(ZLIB_LIBRARIES zlibstatic)
 set(ZLIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/zlib ${CMAKE_BINARY_DIR}/external/zlib)
+add_library(_zlib INTERFACE)
+target_link_libraries(_zlib INTERFACE ${ZLIB_LIBRARIES})
+target_include_directories(_zlib INTERFACE ${ZLIB_INCLUDE_DIRS})
+add_library(ZLIB::ZLIB ALIAS _zlib)
 
-#add_subdirectory(external/fmt)
+add_subdirectory(external/fmt)
+add_subdirectory(${APONE}/coreutils coreutils)
+add_subdirectory(${APONE}/crypto crypto)
+add_subdirectory(${APONE}/audioplayer audioplayer)
+add_subdirectory(${APONE}/archive archive)
 
 add_subdirectory(psf)
 
@@ -58,14 +66,10 @@ endif()
 
 add_subdirectory(plugins)
 
-add_subdirectory(${APONE}/coreutils coreutils)
-add_subdirectory(${APONE}/crypto crypto)
-add_subdirectory(${APONE}/audioplayer audioplayer)
-add_subdirectory(${APONE}/archive archive)
 
 add_executable(play main.cpp resampler.cpp)
 target_link_libraries(play PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
-    coreutils audioplayer crypto archive ${THREAD_LIB})
+    apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
 
 add_library(musix STATIC lib.cpp)
 target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
