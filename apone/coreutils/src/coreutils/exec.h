@@ -2,7 +2,10 @@
 
 #include "log.h"
 
+#include "utils.h" 
+
 #include <cstdint>
+#include <unistd.h>
 #include <string>
 
 namespace utils {

@@ -2,33 +2,38 @@
 #include "FFMPEGPlugin.h"
 #include "../../chipplayer.h"
 
-#include <coreutils/file.h>
-#include <coreutils/format.h>
-#include <coreutils/utils.h>
-#include <coreutils/log.h>
 #include <coreutils/exec.h>
+#include <coreutils/log.h>
+#include <coreutils/utils.h>
+
+#include <filesystem>
+namespace fs = std::filesystem;
 
 #include <set>
 #include <unordered_map>
 
 namespace musix {
 
-class FFMPEGPlayer : public ChipPlayer {
+class FFMPEGPlayer : public ChipPlayer
+{
 public:
-    FFMPEGPlayer(const std::string &ffmpeg) {}
+    explicit FFMPEGPlayer(const std::string& /*ffmpeg*/) {}
 
-    FFMPEGPlayer(const std::string &fileName, const std::string &ffmpeg) {
+    FFMPEGPlayer(const std::string& fileName, const std::string& ffmpeg)
+    {
         pipe = std::move(utils::execPipe(
-            utils::format("%s -i \"%s\" -v error -ac 2 -ar 44100 -f s16le -",
-                          ffmpeg, fileName)));
+            fmt::format("{} -i \"{}\" -v error -ac 2 -ar 44100 -f s16le -",
+                        ffmpeg, fileName)));
     }
 
     ~FFMPEGPlayer() override { pipe.Kill(); }
 
-    virtual int getSamples(int16_t *target, int noSamples) override {
-        int rc = pipe.read(reinterpret_cast<uint8_t *>(target), noSamples * 2);
-        if(rc == -1)
+     int getSamples(int16_t* target, int noSamples) override
+    {
+        int rc = pipe.read(reinterpret_cast<uint8_t*>(target), noSamples * 2);
+        if (rc == -1) {
             return 0;
+}
         return rc / 2;
     }
 
@@ -38,17 +43,19 @@ private:
     utils::ExecPipe pipe;
 };
 
-FFMPEGPlugin::FFMPEGPlugin() {
+FFMPEGPlugin::FFMPEGPlugin()
+{
 #ifdef _WIN32
     ffmpeg = "bin\\ffmpeg.exe";
 #elif defined __APPLE__
     auto xd = utils::get_exe_dir();
-	std::string search_path =
-        utils::make_search_path({xd, utils::absolute(xd / ".." / ".." / "bin"),
-                        utils::absolute(xd / ".." / "Resources" / "bin")}, false);
+    std::string search_path = utils::make_search_path(
+        {xd, fs::absolute(xd / ".." / ".." / "bin"),
+         fs::absolute(xd / ".." / "Resources" / "bin")},
+        false);
     LOGD("PATH IS '%s'", search_path);
     ffmpeg = utils::find_path(search_path, "ffmpeg");
-    if(ffmpeg.empty())
+    if (ffmpeg.empty())
         ffmpeg = "ffmpeg";
 #else
     ffmpeg = "ffmpeg";
@@ -56,17 +63,19 @@ FFMPEGPlugin::FFMPEGPlugin() {
     LOGD("FFMPEG IS '%s'", ffmpeg);
 }
 
-bool FFMPEGPlugin::canHandle(const std::string &name) {
+bool FFMPEGPlugin::canHandle(const std::string& name)
+{
     auto ext = utils::path_extension(name);
     return ext == "m4a" || ext == "aac";
 }
 
-ChipPlayer *FFMPEGPlugin::fromFile(const std::string &fileName) {
+ChipPlayer* FFMPEGPlugin::fromFile(const std::string& fileName)
+{
     return new FFMPEGPlayer{fileName, ffmpeg};
 };
 
-ChipPlayer *
-FFMPEGPlugin::fromStream(std::shared_ptr<utils::Fifo<uint8_t>> fifo) {
+ChipPlayer* FFMPEGPlugin::fromStream(std::shared_ptr<utils::Fifo<uint8_t>> fifo)
+{
     return new FFMPEGPlayer(ffmpeg);
 }
 } // namespace musix

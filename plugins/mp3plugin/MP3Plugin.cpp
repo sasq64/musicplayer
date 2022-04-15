@@ -3,11 +3,10 @@
 #include "../../chipplayer.h"
 
 #include <coreutils/fifo.h>
-#include <coreutils/file.h>
 #include <coreutils/split.h>
-#include <coreutils/utils.h>
 #include <coreutils/url.h>
 #include <coreutils/utf8.h>
+#include <coreutils/utils.h>
 
 #include <mpg123.h>
 
@@ -25,22 +24,17 @@ long int random()
 }
 #endif
 
-using namespace std;
-using namespace utils;
-
 namespace musix {
 
 class MP3Player : public ChipPlayer
 {
 public:
-    MP3Player(std::shared_ptr<utils::Fifo<uint8_t>> fifo) : fifo(fifo)
+    explicit MP3Player(std::shared_ptr<utils::Fifo<uint8_t>> fifo)
+        : fifo(fifo), bytesPut(0), streamDone(false), totalSize(0)
     {
         int err = mpg123_init();
-        mp3 = mpg123_new(NULL, &err);
+        mp3 = mpg123_new(nullptr, &err);
         mpg123_param(mp3, MPG123_ADD_FLAGS, MPG123_QUIET, 0);
-        bytesPut = 0;
-        streamDone = false;
-        totalSize = 0;
     }
 
     int getHZ() override { return rate * channels / 2; }
@@ -48,8 +42,9 @@ public:
     bool setParameter(const std::string& param, int32_t v) override
     {
         if (!opened) {
-            if (mpg123_open_feed(mp3) != MPG123_OK)
+            if (mpg123_open_feed(mp3) != MPG123_OK) {
                 throw player_exception("Could open MP3");
+            }
             opened = true;
         }
         if (param == "icy-interval") {
@@ -66,18 +61,20 @@ public:
         return false;
     }
 
-    MP3Player(const std::string& fileName)
+    explicit MP3Player(const std::string& fileName)
     {
         int err = mpg123_init();
-        mp3 = mpg123_new(NULL, &err);
+        mp3 = mpg123_new(nullptr, &err);
         mpg123_param(mp3, MPG123_ADD_FLAGS, MPG123_QUIET, 0);
 
-        if (mpg123_open(mp3, fileName.c_str()) != MPG123_OK)
+        if (mpg123_open(mp3, fileName.c_str()) != MPG123_OK) {
             throw player_exception("Could open MP3");
+        }
         bytesPut = 1;
         int encoding = 0;
-        if (mpg123_getformat(mp3, &rate, &channels, &encoding) != MPG123_OK)
+        if (mpg123_getformat(mp3, &rate, &channels, &encoding) != MPG123_OK) {
             throw player_exception("Could not get format");
+        }
         printf("%d %d %d", rate, channels, encoding);
         mpg123_format_none(mp3);
 
@@ -130,20 +127,20 @@ public:
 
             if (v2 && v2->title) {
 
-                string msg;
+                std::string msg;
                 for (int i = 0; i < (int)v2->comments; i++) {
                     if (msg.length())
                         msg = msg + " ";
                     msg = msg + v2->comment_list[i].text.p;
                 }
 
-                setMeta("title", htmldecode(v2->title->p), "composer",
-                        v2->artist ? htmldecode(v2->artist->p) : "", "message",
-                        msg, "format", "MP3", "length", length, "channels",
-                        channels);
+                setMeta("title", utils::htmldecode(v2->title->p), "composer",
+                        v2->artist ? utils::htmldecode(v2->artist->p) : "",
+                        "message", msg, "format", "MP3", "length", length,
+                        "channels", channels);
             } else if (v1) {
-                setMeta("title", htmldecode(v1->title), "composer",
-                        htmldecode(v1->artist), "message", v1->comment,
+                setMeta("title", utils::htmldecode(v1->title), "composer",
+                        utils::htmldecode(v1->artist), "message", v1->comment,
                         "format", "MP3", "length", length, "channels",
                         channels);
             } else {
@@ -151,8 +148,9 @@ public:
                         channels);
             }
         }
-        if (meta)
+        if (meta) {
             mpg123_meta_free(mp3);
+        }
     }
 
     std::shared_ptr<utils::Fifo<uint8_t>> fifo;
@@ -162,13 +160,15 @@ public:
         long buffered = 0;
         {
             if (!opened) {
-                if (mpg123_open_feed(mp3) != MPG123_OK)
+                if (mpg123_open_feed(mp3) != MPG123_OK) {
                     throw player_exception("Could not open MP3");
+                }
                 opened = true;
             }
-            if (!source) {
-                if (size <= 0)
+            if (source == nullptr) {
+                if (size <= 0) {
                     streamDone = true;
+                }
                 // else
                 //	mpg123_set_filesize(mp3, size);
                 return;
@@ -184,8 +184,9 @@ public:
 
                     LOGV("METASIZE %d at offset %d", metaSize, pos);
 
-                    if (pos > 0)
+                    if (pos > 0) {
                         mpg123_feed(mp3, source, pos);
+                    }
                     source += (pos + 1);
                     size -= (pos + 1);
                     bytesPut += (pos + 1);
@@ -209,14 +210,14 @@ public:
                         LOGD("META: %s", icyData);
                         icyPtr = icyData;
 
-                        auto parts = split(string(icyData), ";");
+                        auto parts = utils::split(std::string(icyData), ";");
                         for (const auto& p : parts) {
-                            std::vector<std::string> data = split(p, "=", 2);
+                            std::vector<std::string> data = utils::split(p, "=", 2);
                             if (data.size() == 2) {
                                 if (data[0] == "StreamTitle") {
                                     auto title =
                                         data[1].substr(1, data[1].length() - 2);
-                                    setMeta("sub_title", utf8_encode(title));
+                                    setMeta("sub_title", utils::utf8_encode(title));
                                 }
                             }
                         }
@@ -308,19 +309,19 @@ private:
     // thread httpThread;
     bool gotLength = false;
     bool gotMeta = false;
-    int length;
+    int length{};
     int bytesPut;
-    bool streamDone;
+    bool streamDone{};
     bool opened = false;
     int metaInterval = -1;
     int metaSize = 0;
     int metaCounter = 0;
-    char icyData[16 * 256 + 1];
-    char* icyPtr;
+    char icyData[16 * 256 + 1]{};
+    char* icyPtr{};
     int64_t fileSize = 0;
 
     double totalSeconds = 0;
-    std::atomic<uint64_t> totalSize;
+    std::atomic<uint64_t> totalSize{};
     float bitRate = 0;
 };
 

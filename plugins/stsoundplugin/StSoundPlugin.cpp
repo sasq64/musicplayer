@@ -3,36 +3,37 @@
 #include "../../chipplayer.h"
 #include "StSoundLibrary/StSoundLibrary.h"
 
-#include <coreutils/file.h>
-#include <coreutils/utils.h>
 #include <coreutils/log.h>
+#include <coreutils/utils.h>
 #include <set>
 //#include <unordered_map>
 
-using namespace std;
-
 namespace musix {
 
-class StSoundPlayer : public ChipPlayer {
+class StSoundPlayer : public ChipPlayer
+{
 public:
-    StSoundPlayer(vector<uint8_t> data) {
+    explicit StSoundPlayer(std::vector<uint8_t> data) : ymMusic(ymMusicCreate())
+    {
 
-        ymMusic = ymMusicCreate();
+        
         ymMusicLoadMemory(ymMusic, &data[0], data.size());
 
         ymMusicInfo_t info;
         ymMusicGetInfo(ymMusic, &info);
 
-        string name = info.pSongName;
-        string author = info.pSongAuthor;
-        if(name == "Unknown")
+        std::string name = info.pSongName;
+        std::string author = info.pSongAuthor;
+        if (name == "Unknown") {
             name = "";
-        if(author == "Unknown")
+        }
+        if (author == "Unknown") {
             author = "";
+        }
 
         setMeta("title", name, "composer", author, "length",
                 info.musicTimeInSec, "format", info.pSongType);
-        LOGD("TYPE %s PLAYER %s", info.pSongType, info.pSongPlayer);
+        LOGD("TYPE {} PLAYER {}", info.pSongType, info.pSongPlayer);
         // printf("Name.....: %s\n",info.pSongName);
         // printf("Author...: %s\n",info.pSongAuthor);
         // printf("Comment..: %s\n",info.pSongComment);
@@ -45,25 +46,29 @@ public:
         // setMetaData("length", ModPlug_GetLength(mod) / 1000);
         // ymMusicStop(ymMusic);
     }
-    ~StSoundPlayer() override {
-        if(ymMusic)
+    ~StSoundPlayer() override
+    {
+        if (ymMusic != nullptr) {
             ymMusicDestroy(ymMusic);
+        }
         ymMusic = nullptr;
     }
 
-    virtual int getSamples(int16_t* target, int noSamples) override {
+    int getSamples(int16_t* target, int noSamples) override
+    {
 
         noSamples /= 2;
         ymMusicCompute(ymMusic, target, noSamples);
         // Mono to stereo
-        for(int i = noSamples - 1; i >= 0; i--) {
+        for (int i = noSamples - 1; i >= 0; i--) {
             target[i * 2] = target[i];
             target[i * 2 + 1] = target[i];
         }
         return noSamples * 2;
     }
 
-    virtual bool seekTo(int song, int seconds) override {
+    bool seekTo(int /*song*/, int seconds) override
+    {
         // if(mod)
         //	ModPlug_Seek(mod, seconds * 1000);
         ymMusicSeek(ymMusic, seconds * 1000);
@@ -74,15 +79,16 @@ private:
     YMMUSIC* ymMusic;
 };
 
-static const set<string> supported_ext{"ym", "mix"};
+static const std::set<std::string> supported_ext{"ym", "mix"};
 
-bool StSoundPlugin::canHandle(const std::string& name) {
+bool StSoundPlugin::canHandle(const std::string& name)
+{
     return supported_ext.count(utils::path_extension(name)) > 0;
 }
 
-ChipPlayer* StSoundPlugin::fromFile(const std::string& fileName) {
-    utils::File file{fileName};
-    return new StSoundPlayer{file.readAll()};
+ChipPlayer* StSoundPlugin::fromFile(const std::string& fileName)
+{
+    return new StSoundPlayer{utils::read_file(fileName)};
 };
 
 } // namespace musix

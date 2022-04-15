@@ -33,25 +33,25 @@ set(MUSICPLAYER_PLUGINS
     adplugin
     aoplugin
     ayflyplugin
-#    ffmpegplugin
+    ffmpegplugin
     gmeplugin
-#    gsfplugin
+    gsfplugin
     heplugin
     hivelyplugin
     htplugin
-#    mdxplugin
-#    ndsplugin
+    mdxplugin
+    ndsplugin
     openmptplugin
     sc68plugin
-#    stsoundplugin
-#    tedplugin
+    stsoundplugin
+    tedplugin
     uadeplugin
     v2plugin
     usfplugin
     rsnplugin
     s98plugin
     viceplugin
-#    mp3plugin
+    mp3plugin
     # MSVC incompatible
     # Obsolete
     # sidplugin
