@@ -5,12 +5,13 @@
 
 namespace musix {
 
-class HivelyPlugin : public ChipPlugin {
+class HivelyPlugin : public ChipPlugin
+{
 public:
     HivelyPlugin();
-    virtual std::string name() const override { return "HivelyPlugin"; }
-    virtual bool canHandle(const std::string& name) override;
-    virtual ChipPlayer* fromFile(const std::string& fileName) override;
+    std::string name() const override { return "HivelyPlugin"; }
+    bool canHandle(const std::string& name) override;
+    ChipPlayer* fromFile(const std::string& fileName) override;
 };
 
 } // namespace musix

@@ -1,6 +1,0 @@
-[submodule "apone/coreutils"]
-	path = apone/coreutils
-	url = git@github.com:apone-cpp/coreutils
-[submodule "apone/audioplayer"]
-	path = apone/audioplayer
-	url = git@github.com:apone-cpp/audioplayer

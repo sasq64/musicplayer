@@ -1,4 +1,5 @@
-extern "C" {
+extern "C"
+{
 #include "hvl_replay.h"
 }
 
@@ -6,26 +7,26 @@ extern "C" {
 
 #include "../../chipplayer.h"
 #include <coreutils/log.h>
-#include <coreutils/utils.h>
 #include <coreutils/utf8.h>
+#include <coreutils/utils.h>
 
 #include <set>
 
-using namespace std;
-
 namespace musix {
 
-class HivelyPlayer : public ChipPlayer {
+class HivelyPlayer : public ChipPlayer
+{
 public:
-    HivelyPlayer(const string& fileName) {
+    explicit HivelyPlayer(std::string const& fileName)
+        : tune(hvl_LoadTune(fileName.c_str(), 44100, 0))
+    {
 
-        tune = hvl_LoadTune(fileName.c_str(), 44100, 0);
-
-        if(!tune)
+        if (tune == nullptr) {
             throw player_exception();
-        string msg;
-        for(int i = 1; i < tune->ht_InstrumentNr; i++) {
-            char* name = tune->ht_Instruments[i].ins_Name;
+        }
+        std::string msg;
+        for (int i = 1; i < tune->ht_InstrumentNr; i++) {
+            auto const* name = tune->ht_Instruments[i].ins_Name;
             msg = msg + utils::utf8_encode(name) + " ";
         }
 
@@ -33,18 +34,21 @@ public:
                 tune->ht_Channels, "length", tune->ht_PlayingTime, "format",
                 tune->ht_Version == 0xAA ? "AHX" : "Hively");
     }
-    ~HivelyPlayer() override {
+
+    ~HivelyPlayer() override
+    {
         hvl_FreeTune(tune);
         tune = nullptr;
     }
 
-    int getSamples(int16_t* target, int noSamples) override {
+    int getSamples(int16_t* target, int noSamples) override
+    {
 
         const int frameSize = ((44100 * 2) / 50);
 
-        int8_t* ptr = (int8_t*)target;
+        auto* ptr = reinterpret_cast<int8_t*>(target);
         int len = 0;
-        while(len < noSamples - frameSize) {
+        while (len < noSamples - frameSize) {
             hvl_DecodeFrame(tune, ptr, ptr + 2, 4);
             ptr += frameSize * 2;
             len += frameSize;
@@ -52,26 +56,29 @@ public:
         return len;
     }
 
-    virtual bool seekTo(int song, int seconds) override { return true; }
+    bool seekTo(int /*song*/, int /*seconds*/) override { return true; }
 
 private:
     struct hvl_tune* tune;
 };
 
-static const set<string> supported_ext = {"ahx", "hvl"};
+static const std::set<std::string> supported_ext = {"ahx", "hvl"};
 
-HivelyPlugin::HivelyPlugin() {
+HivelyPlugin::HivelyPlugin()
+{
     hvl_InitReplayer();
 }
 
-bool HivelyPlugin::canHandle(const std::string& name) {
+bool HivelyPlugin::canHandle(const std::string& name)
+{
     return supported_ext.count(utils::path_extension(name)) > 0;
 }
 
-ChipPlayer* HivelyPlugin::fromFile(const std::string& name) {
+ChipPlayer* HivelyPlugin::fromFile(const std::string& name)
+{
     try {
         return new HivelyPlayer{name};
-    } catch(player_exception& e) {
+    } catch (player_exception const& e) {
         return nullptr;
     }
 };

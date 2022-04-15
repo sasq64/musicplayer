@@ -14,7 +14,6 @@
 #endif
 
 #include <coreutils/utils.h>
-#include <coreutils/file.h>
 #include <coreutils/log.h>
 
 static void * psf_file_fopen( const char * uri );
