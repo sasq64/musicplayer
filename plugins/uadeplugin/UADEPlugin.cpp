@@ -95,6 +95,9 @@ public:
         if (suffix == "mdat") {
             uadeFile = utils::getTempDir() / (suffix + ".music");
             LOGD("Translated {} to {}", fileName, uadeFile.string());
+            if (fs::exists(uadeFile)) {
+                fs::remove(uadeFile);
+            }
             fs::copy(fileName, uadeFile);
             // uadeFile.copyFrom(File{fileName});
             // uadeFile.close();
@@ -106,14 +109,12 @@ public:
         if (uade_play(fileName.c_str(), -1, state) == 1) {
             songInfo = uade_get_song_info(state);
             const char* modname = songInfo->modulename;
-            if (strcmp(modname, "<no songtitle>") == 0) {
-                modname = "";
-            }
+            if (strcmp(modname, "<no songtitle>") == 0) { modname = ""; }
             setMeta(
                 "songs", songInfo->subsongs.max - songInfo->subsongs.min + 1,
                 "startsong", songInfo->subsongs.def - songInfo->subsongs.min,
-                "length", (int)songInfo->duration, "title", modname, "format",
-                songInfo->playername);
+                "length", static_cast<int>(songInfo->duration), "title",
+                modname, "format", songInfo->playername);
             valid = true;
         }
 
@@ -125,9 +126,7 @@ public:
     {
         uade_cleanup_state(state, 1);
         state = nullptr;
-        if (!uadeFile.empty()) {
-            fs::remove(uadeFile);
-        }
+        if (!uadeFile.empty()) { fs::remove(uadeFile); }
     }
 
     int getSamples(int16_t* target, int noSamples) override
@@ -152,13 +151,11 @@ public:
             }
             uade_cleanup_notification(&nf);
         }
-        if (rc > 0) {
-            return rc / 2;
-        }
+        if (rc > 0) { return rc / 2; }
         return rc;
     }
 
-    bool seekTo(int song, int  /*seconds*/) override
+    bool seekTo(int song, int /*seconds*/) override
     {
         uade_seek(UADE_SEEK_SUBSONG_RELATIVE, 0, song + songInfo->subsongs.min,
                   state);
@@ -282,9 +279,7 @@ std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string& file)
     if (slash != std::string::npos) {
         fileName = file.substr(slash + 1);
         dot = fileName.find_first_of('.');
-        if (dot != std::string::npos) {
-            prefix = fileName.substr(0, dot);
-        }
+        if (dot != std::string::npos) { prefix = fileName.substr(0, dot); }
     }
 
     std::vector<std::string> result;
@@ -308,9 +303,7 @@ std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string& file)
     } else if (isStarTrekker) {
         ext2 = "mod.nt";
     }
-    if (!ext2.empty()) {
-        result.push_back(base + "." + ext2);
-    }
+    if (!ext2.empty()) { result.push_back(base + "." + ext2); }
     return result;
 }
 

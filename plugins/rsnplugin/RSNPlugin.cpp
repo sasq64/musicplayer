@@ -12,10 +12,10 @@ class RSNPlayer : public ChipPlayer
 {
 public:
     RSNPlayer(const std::vector<std::string>& l,
-              std::shared_ptr<ChipPlugin> plugin)
+              const std::shared_ptr<ChipPlugin>& plugin)
         : songs(l), plugin(plugin)
     {
-        LOGD("Playing with %s", plugin->name());
+        LOGD("Playing with {}", plugin->name());
         player = std::shared_ptr<ChipPlayer>(plugin->fromFile(l[0]));
         if (player == nullptr) {
             throw player_exception();

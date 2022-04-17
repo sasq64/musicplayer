@@ -352,6 +352,8 @@ inline std::vector<uint8_t> read_file(fs::path const& fileName)
 
 inline void copyFileToFrom(fs::path const& target, fs::path const& source)
 {
+    using namespace std::string_literals;
+
     fs::remove(target);
     std::ifstream src(source, std::ios::binary);
     if (src.is_open()) {

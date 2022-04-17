@@ -8,8 +8,6 @@
 #include <utility>
 #include <vector>
 
-using namespace std::string_literals;
-
 namespace utils {
 
 template <typename ITERATOR, typename Char = char>
@@ -17,9 +15,7 @@ std::basic_string<Char> join(ITERATOR begin, ITERATOR end, const Char separator)
 {
     std::basic_ostringstream<Char> ss;
 
-    if (begin != end) {
-        ss << *begin++;
-    }
+    if (begin != end) { ss << *begin++; }
 
     while (begin != end) {
         ss << separator;
@@ -34,9 +30,7 @@ std::basic_string<Char> join(ITERATOR begin, ITERATOR end,
 {
     std::basic_ostringstream<Char> ss;
 
-    if (begin != end) {
-        ss << *begin++;
-    }
+    if (begin != end) { ss << *begin++; }
 
     while (begin != end) {
         ss << separator;
@@ -51,9 +45,7 @@ std::basic_string<Char> join(ITERATOR begin, ITERATOR end,
 {
     std::basic_ostringstream<Char> ss;
 
-    if (begin != end) {
-        ss << *begin++;
-    }
+    if (begin != end) { ss << *begin++; }
 
     while (begin != end) {
         ss << separator;
@@ -93,8 +85,7 @@ template <typename Char> class StringSplit
             pointers.push_back(ptr);
 
             auto pos = source.find(delim, ptr - &source[0]);
-            if (pos == std::string::npos)
-                break;
+            if (pos == std::string::npos) { break; }
             ptr = &source[pos];
             *ptr = 0;
             ptr += dz;
@@ -173,8 +164,7 @@ auto splitn(const std::string& text, const T& sep)
 template <typename T> std::pair<T, T> split2(const T& text, const T& sep)
 {
     auto it = std::search(begin(text), end(text), begin(sep), end(sep));
-    if (it == end(text))
-        return std::make_pair(text, T());
+    if (it == end(text)) { return std::make_pair(text, T()); }
     auto it2 = it;
     std::advance(it2, std::distance(begin(sep), end(sep)));
     return std::make_pair(T(begin(text), it), std::string(it2, end(text)));
@@ -190,11 +180,11 @@ struct URL
 
 inline URL parse_url(std::string const& input)
 {
+    using namespace std::string_literals;
     URL url;
     std::vector<std::string> parts = split(input, "://"s);
 
-    if (parts.size() != 2)
-        throw std::exception();
+    if (parts.size() != 2) { throw std::exception(); }
 
     url.protocol = parts[0];
 

@@ -57,7 +57,7 @@ inline uint32_t decode(uint32_t* state, uint32_t* codep, uint32_t byte)
 
     uint32_t type = utf8d[byte];
 
-    *codep = (*state != UTF8_ACCEPT) ? (byte & 0x3fu) | (*codep << 6)
+    *codep = (*state != UTF8_ACCEPT) ? (byte & 0x3fU) | (*codep << 6)
                                      : (0xff >> type) & (byte);
 
     *state = utf8d[256 + *state * 16 + type];
@@ -66,30 +66,30 @@ inline uint32_t decode(uint32_t* state, uint32_t* codep, uint32_t byte)
 
 inline int utf8_decode(const std::string& utf8, uint32_t* target)
 {
-    uint32_t codepoint;
+    uint32_t codepoint = 0;
     uint32_t state = 0;
     auto* ptr = target;
 
     for (auto s : utf8) {
-        if (!decode(&state, &codepoint, s)) {
-            if (codepoint <= 0xffff)
-                *ptr++ = codepoint;
+        if (decode(&state, &codepoint, s) == 0) {
+            if (codepoint <= 0xffff) { *ptr++ = codepoint; }
         }
     }
-    return ptr - target;
+    return static_cast<int>(ptr - target);
 }
 
 inline std::wstring utf8_decode(const std::string& txt)
 {
     std::wstring result;
 
-    uint32_t codepoint;
+    uint32_t codepoint = 0;
     uint32_t state = 0;
 
     for (auto s : txt) {
-        if (!decode(&state, &codepoint, s)) {
-            if (codepoint <= 0xffff)
-                result.push_back(codepoint);
+        if (decode(&state, &codepoint, s) == 0) {
+            if (codepoint <= 0xffff) {
+                result.push_back(static_cast<wchar_t>(codepoint));
+            }
         }
     }
     return result;
@@ -98,14 +98,13 @@ inline std::wstring utf8_decode(const std::string& txt)
 inline std::string utf8_encode(const std::string& txt)
 {
     std::string out;
-    const uint8_t* s = (uint8_t*)txt.c_str();
-    for (size_t i = 0; i < txt.length(); i++) {
-        uint8_t c = s[i];
-        if (c <= 0x7f)
+    for (char c : txt) {
+        uint8_t u = c;
+        if (u <= 0x7f) {
             out.push_back(c);
-        else {
-            out.push_back(0xC0 | (c >> 6));
-            out.push_back(0x80 | (c & 0x3F));
+        } else {
+            out.push_back(static_cast<char>(0xC0 | (u >> 6)));
+            out.push_back(static_cast<char>(0x80 | (u & 0x3F)));
         }
     }
     return out;

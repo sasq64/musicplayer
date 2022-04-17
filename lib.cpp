@@ -11,9 +11,9 @@
 #include "chipplugin.h"
 
 #ifdef _WIN32
-#define API __declspec(dllexport)
+#    define API __declspec(dllexport)
 #else
-#define API
+#    define API
 #endif
 
 extern "C" API int musix_create(const char* dataDir)
@@ -27,14 +27,13 @@ extern "C" API void* musix_find_plugin(const char* fileName)
     using namespace musix;
 
     for (const auto& plugin : ChipPlugin::getPlugins()) {
-        if (plugin->canHandle(fileName)) {
-            return plugin.get();
-        }
+        if (plugin->canHandle(fileName)) { return plugin.get(); }
     }
     return nullptr;
 }
 
-extern "C" API void* musix_plugin_create_player(void* plugin, const char* fileName)
+extern "C" API void* musix_plugin_create_player(void* plugin,
+                                                const char* fileName)
 {
     using namespace musix;
     auto* chipPlugin = static_cast<ChipPlugin*>(plugin);
@@ -47,7 +46,8 @@ extern "C" API void musix_player_destroy(void* player)
     delete static_cast<ChipPlayer*>(player);
 }
 
-extern "C" API int musix_player_get_samples(void* player, int16_t* target, int size)
+extern "C" API int musix_player_get_samples(void* player, int16_t* target,
+                                            int size)
 {
     using namespace musix;
     auto* chipPlayer = static_cast<ChipPlayer*>(player);

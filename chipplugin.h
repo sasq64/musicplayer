@@ -18,7 +18,6 @@ class ChipPlugin
 {
 public:
     virtual ~ChipPlugin() = default;
-    ;
 
     // Must be implemented
     virtual std::string name() const = 0;
@@ -26,7 +25,7 @@ public:
     virtual ChipPlayer* fromFile(const std::string& fileName) = 0;
 
     virtual ChipPlayer*
-        fromStream(std::shared_ptr<utils::Fifo<uint8_t>> /*unused*/)
+    fromStream(std::shared_ptr<utils::Fifo<uint8_t>> /*unused*/)
     {
         return nullptr;
     }
@@ -39,9 +38,10 @@ public:
     // Return other files required for playing the provided file. The returned
     // files should normally not contain a path if it assumed they recide in
     // the same directory.
-    virtual std::vector<std::string> getSecondaryFiles(const std::string& file)
+    virtual std::vector<std::string>
+    getSecondaryFiles(const std::string& /*file*/)
     {
-        return std::vector<std::string>();
+        return {};
     }
 
     // Plugin registration stuff
@@ -51,50 +51,49 @@ public:
 
     static void createPlugins(const std::string& configDir)
     {
-        if (pluginConstructors().empty()) {
+        if (constructors.empty()) {
             fprintf(stderr, "No plugins registered!\n");
         }
         auto& plugins = getPlugins();
-        for (const auto& f : pluginConstructors()) {
+        for (const auto& f : constructors) {
             plugins.push_back(f(configDir));
-            printf("Plugin %s\n", plugins.back()->name().c_str());
         }
 
         std::sort(plugins.begin(), plugins.end(),
-                  [](std::shared_ptr<ChipPlugin> a,
-                     std::shared_ptr<ChipPlugin> b) -> bool {
+                  [](std::shared_ptr<ChipPlugin> const& a,
+                     std::shared_ptr<ChipPlugin> const& b) -> bool {
                       return a->priority() > b->priority();
                   });
-        pluginConstructors().clear();
+        constructors.clear();
     }
 
-    static void addPlugin(std::shared_ptr<ChipPlugin> plugin, bool first)
+    static void addPlugin(const std::shared_ptr<ChipPlugin>& plugin, bool first)
     {
-        if (first)
+        if (first) {
             getPlugins().insert(getPlugins().begin(), plugin);
-        else
+        } else {
             getPlugins().push_back(plugin);
+        }
     }
 
     static std::shared_ptr<ChipPlugin> getPlugin(const std::string& name)
     {
         for (auto& p : getPlugins()) {
-            if (p->name() == name)
-                return p;
+            if (p->name() == name) { return p; }
         }
         return nullptr;
     }
 
-    static void addPluginConstructor(PluginConstructor pc)
+    static void addPluginConstructor(PluginConstructor const& pc)
     {
-        pluginConstructors().push_back(pc);
+        constructors.push_back(pc);
     }
 
     // Static instances of this struct is used for automatic registration of
     // linked plugins
     struct RegisterMe
     {
-        RegisterMe(PluginConstructor f)
+        explicit RegisterMe(PluginConstructor const& f)
         {
             ChipPlugin::addPluginConstructor(f);
         };
@@ -107,12 +106,7 @@ public:
     }
 
 private:
-    // Small trick to put a static variable in an h-file only
-    static std::vector<PluginConstructor>& pluginConstructors()
-    {
-        static std::vector<PluginConstructor> constructors;
-        return constructors;
-    };
+    static inline std::vector<PluginConstructor> constructors;
 };
 
 } // namespace musix

@@ -65,7 +65,7 @@ namespace musix {
 
 class GSFPlayer : public ChipPlayer {
 public:
-    GSFPlayer(const std::string& fileName) : fifo(512 * 1024), psf{fileName} {
+    explicit GSFPlayer(const std::string& fileName) : fifo(512 * 1024), psf{fileName} {
 
         decode_pos_ms = 0;
         TrailingSilence = 1000;
@@ -86,12 +86,12 @@ public:
                     seconds);
         }
 
-        LOGD("GSF:%s", fileName.c_str());
+        LOGD("GSF:{}", fileName.c_str());
 
-        int r = GSFRun((char*)fileName.c_str());
+        int r = GSFRun(fileName.c_str());
     }
 
-    ~GSFPlayer() { GSFClose(); }
+    ~GSFPlayer() override { GSFClose(); }
 
     virtual int getSamples(int16_t* target, int noSamples) override {
         int lastTL = TrackLength;

@@ -13,13 +13,16 @@ extern "C"
 class MD5
 {
 public:
-    MD5(int flags = 0);
+    explicit MD5(int flags = 0);
 
     static uint64_t hash(const std::string& text);
     static std::vector<uint8_t> calculate(std::vector<uint8_t>& data);
     void add(std::vector<uint8_t> const& data, int offset = 0);
 
-    template <typename T> void add(T const& b) { solMD5_Update(&ctx, &b, sizeof(T)); }
+    template <typename T> void add(T const& b)
+    {
+        solMD5_Update(&ctx, &b, sizeof(T));
+    }
 
     std::vector<uint8_t> get();
 

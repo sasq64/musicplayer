@@ -15,8 +15,6 @@ class StSoundPlayer : public ChipPlayer
 public:
     explicit StSoundPlayer(std::vector<uint8_t> data) : ymMusic(ymMusicCreate())
     {
-
-        
         ymMusicLoadMemory(ymMusic, &data[0], data.size());
 
         ymMusicInfo_t info;

@@ -15,7 +15,6 @@
 #include <cstdlib>
 #include <string>
 
-
 using namespace std::string_literals;
 
 int main(int argc, const char** argv)
@@ -23,10 +22,9 @@ int main(int argc, const char** argv)
     using musix::ChipPlayer;
     using musix::ChipPlugin;
 
-    if (argc < 2)
-        return 0;
+    if (argc < 2) { return 0; }
 
-    // logging::setLevel(logging::Level::Debug);
+    logging::setLevel(logging::Level::Debug);
 
     std::string name = argv[1];
     std::string pluginName;
@@ -37,7 +35,7 @@ int main(int argc, const char** argv)
 
     for (const auto& plugin : ChipPlugin::getPlugins()) {
         if (plugin->canHandle(name)) {
-            if (auto ptr = plugin->fromFile(name)) {
+            if (auto* ptr = plugin->fromFile(name)) {
                 player = std::shared_ptr<ChipPlayer>(ptr);
                 pluginName = plugin->name();
                 break;
@@ -50,8 +48,7 @@ int main(int argc, const char** argv)
     }
     auto len = player->getMetaInt("length");
     auto title = player->getMeta("title");
-    if (title.empty())
-        title = utils::path_basename(name);
+    if (title.empty()) { title = utils::path_basename(name); }
 
     auto format = player->getMeta("format");
     printf("Playing: %s [%s/%s] (%02d:%02d)\n", title.c_str(),
@@ -60,9 +57,8 @@ int main(int argc, const char** argv)
     Resampler<32768> fifo{44100};
     AudioPlayer ap{44100};
     ap.play([&](int16_t* ptr, int size) {
-        int rc = fifo.read(ptr, size);
-        if (rc <= 0)
-            memset(ptr, 0, size * 2);
+        auto rc = fifo.read(ptr, size);
+        if (rc <= 0) { memset(ptr, 0, size * 2); }
     });
 
 #ifndef __APPLE__ // _Still_ no quick_exit() in OSX ...
@@ -72,9 +68,8 @@ int main(int argc, const char** argv)
     std::vector<int16_t> temp(1024 * 16);
     while (true) {
         fifo.setHz(player->getHZ());
-        int rc = player->getSamples(&temp[0], temp.size());
-        if (rc < 0)
-            break;
+        auto rc = player->getSamples(&temp[0], static_cast<int>(temp.size()));
+        if (rc < 0) { break; }
         fifo.write(&temp[0], &temp[1], rc);
     }
     return 0;
