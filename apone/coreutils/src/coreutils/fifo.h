@@ -20,9 +20,7 @@ public:
     {
         bufSize = size;
         buffer = nullptr;
-        if (size > 0) {
-            buffer = new T[size];
-        }
+        if (size > 0) { buffer = new T[size]; }
         bufPtr.store(buffer.load());
         wantToWrite = 0;
     }
@@ -30,8 +28,7 @@ public:
     void resize(int size)
     {
         bufSize = size;
-        if (buffer)
-            delete[] buffer;
+        if (buffer) delete[] buffer;
         buffer = new T[size];
         bufPtr.store(buffer.load());
         wantToWrite = 0;
@@ -83,21 +80,18 @@ public:
     void insert(const T* source, int count)
     {
         using namespace std::chrono_literals;
-        if (quitting)
-            return;
+        if (quitting) return;
 
         std::unique_lock<std::mutex> lock(m);
         while (left() < count && !quitting) {
-            if (wantToWrite == 0)
-                wantToWrite = count;
+            if (wantToWrite == 0) wantToWrite = count;
             cv.wait_for(lock, 100ms,
                         [=] { return left() >= count || quitting; });
         }
         wantToWrite = 0;
-        if (quitting)
-            return;
+        if (quitting) return;
 
-        memmove(buffer + count, buffer, sizeof(T) * filled()); 
+        memmove(buffer + count, buffer, sizeof(T) * filled());
         memcpy(buffer, source, sizeof(T) * count);
         bufPtr += count;
     }
@@ -105,22 +99,18 @@ public:
     void put(const T* source, int count)
     {
         using namespace std::chrono_literals;
-        if (quitting)
-            return;
+        if (quitting) return;
 
         std::unique_lock<std::mutex> lock(m);
         while (left() < count && !quitting) {
-            if (wantToWrite == 0)
-                wantToWrite = count;
+            if (wantToWrite == 0) wantToWrite = count;
             cv.wait_for(lock, 100ms,
                         [=] { return left() >= count || quitting; });
         }
         wantToWrite = 0;
-        if (quitting)
-            return;
+        if (quitting) return;
 
-        if (source)
-            memcpy(bufPtr, source, sizeof(T) * count);
+        if (source) memcpy(bufPtr, source, sizeof(T) * count);
         bufPtr += count;
     }
 
@@ -133,19 +123,16 @@ public:
     template <typename FN> void put(int count, const FN& f)
     {
         using namespace std::chrono_literals;
-        if (quitting)
-            return;
+        if (quitting) return;
 
         std::unique_lock<std::mutex> lock(m);
         while (left() < count && !quitting) {
-            if (wantToWrite == 0)
-                wantToWrite = count;
+            if (wantToWrite == 0) wantToWrite = count;
             cv.wait_for(lock, 100ms,
                         [=] { return left() >= count || quitting; });
         }
         wantToWrite = 0;
-        if (quitting)
-            return;
+        if (quitting) return;
 
         f(bufPtr);
         bufPtr += count;
@@ -153,14 +140,12 @@ public:
 
     int get(T* target, int count)
     {
-        if (quitting)
-            return -1;
+        if (quitting) return -1;
 
         {
             std::unique_lock<std::mutex> lock(m);
             int f = filled();
-            if (count > f)
-                count = f;
+            if (count > f) count = f;
 
             memcpy(target, buffer, count * sizeof(T));
             if (f > count)
@@ -168,22 +153,19 @@ public:
             bufPtr = &buffer[f - count];
         }
 
-        if (left() >= wantToWrite)
-            cv.notify_all();
+        if (left() >= wantToWrite) cv.notify_all();
 
         return count;
     }
 
     template <typename FN> int get(int count, const FN& fn)
     {
-        if (quitting)
-            return -1;
+        if (quitting) return -1;
 
         {
             std::unique_lock<std::mutex> lock(m);
             int f = filled();
-            if (count > f)
-                count = f;
+            if (count > f) count = f;
 
             count = fn(buffer, count);
             if (f > count)
@@ -191,8 +173,7 @@ public:
             bufPtr = &buffer[f - count];
         }
 
-        if (left() >= wantToWrite)
-            cv.notify_all();
+        if (left() >= wantToWrite) cv.notify_all();
 
         return count;
     }
@@ -231,8 +212,7 @@ public:
 
         for (int i = 0; i < count; i++) {
             short s = samples[i];
-            if (s > 16 || s < -16)
-                soundPos = i;
+            if (s > 16 || s < -16) soundPos = i;
         }
 
         if (volume != 1.0) {
@@ -241,8 +221,7 @@ public:
             }
         }
 
-        if (soundPos >= 0)
-            lastSoundPos = position + soundPos;
+        if (soundPos >= 0) lastSoundPos = position + soundPos;
 
         position += count;
     }
@@ -282,23 +261,22 @@ template <typename T, size_t SIZE> struct Ring
         while (write_pos + n - read_pos > SIZE) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-        for (size_t i = 0; i < n; i++)
+        for (size_t i = 0; i < n; i++) {
             data[(write_pos + i) % SIZE] = source[i];
+        }
         write_pos += n;
     }
 
     size_t read(T* target, size_t n)
     {
         auto left = write_pos - read_pos;
-        if (left < n)
-            n = left;
-        for (size_t i = 0; i < n; i++)
+        if (left < n) { n = left; }
+        for (size_t i = 0; i < n; i++) {
             target[i] = data[(read_pos + i) % SIZE];
+        }
         read_pos += n;
         return n;
     }
 };
 
-
 } // namespace utils
-

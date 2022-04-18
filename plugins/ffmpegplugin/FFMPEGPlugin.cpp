@@ -48,9 +48,9 @@ FFMPEGPlugin::FFMPEGPlugin()
         utils::make_search_path({xd, fs::absolute(xd / ".." / ".." / "bin"),
                                  fs::absolute(xd / ".." / "Resources" / "bin")},
                                 false);
-    LOGD("PATH IS '%s'", search_path);
+    LOGD("PATH IS '{}'", search_path);
     ffmpeg = utils::find_path(search_path, "ffmpeg");
-    if (ffmpeg.empty()) ffmpeg = "ffmpeg";
+    if (ffmpeg.empty()) { ffmpeg = "ffmpeg"; }
 #else
     ffmpeg = "ffmpeg";
 #endif

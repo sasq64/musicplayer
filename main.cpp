@@ -3,17 +3,15 @@
 #include "chipplugin.h"
 
 #include <audioplayer/audioplayer.h>
-#include <coreutils/fifo.h>
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
 
 #include "resampler.h"
 
 #include <atomic>
-#include <chrono>
 #include <csignal>
-#include <cstdlib>
 #include <string>
+#include <fmt/format.h>
 
 using namespace std::string_literals;
 
@@ -55,14 +53,19 @@ int main(int argc, const char** argv)
            pluginName.c_str(), format.c_str(), len / 60, len % 60);
 
     Resampler<32768> fifo{44100};
-    AudioPlayer ap{44100};
-    ap.play([&](int16_t* ptr, int size) {
-        auto rc = fifo.read(ptr, size);
-        if (rc <= 0) { memset(ptr, 0, size * 2); }
+    AudioPlayer audioPlayer{44100};
+    audioPlayer.play([&](int16_t* ptr, int size) {
+        auto count = fifo.read(ptr, size);
+        fmt::print("{} vs {}\n", count, size);
+        if (count <= 0) {
+            memset(ptr, 0, size * 2);
+        }
     });
 
 #ifndef __APPLE__ // _Still_ no quick_exit() in OSX ...
     std::signal(SIGINT, [](int) { std::quick_exit(0); });
+#else
+    std::signal(SIGINT, [](int) { std::exit(0); });
 #endif
 
     std::vector<int16_t> temp(1024 * 16);

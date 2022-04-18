@@ -68,6 +68,8 @@ public:
         auto* player = static_cast<InternalPlayer*>(ptr);
         if (player->callback) {
             player->callback(target, static_cast<int>(count));
+        } else {
+            memset(target, 0, count * 2);
         }
 
         OSStatus status = AudioQueueEnqueueBuffer(aQueue, buf, 0, nullptr);

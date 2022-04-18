@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <coreutils/fifo.h>
 
 struct resampler;
@@ -22,18 +23,17 @@ template <int SIZE> struct Resampler
 {
     int targetHz;
     bool active = false;
-    resampler* r;
+    resampler* samp;
     utils::Ring<int16_t, SIZE> fifo;
-    explicit Resampler(int hz = 44100) : targetHz(hz)
+    explicit Resampler(int hz = 44100) : targetHz(hz), samp(rs_create())
     {
-        r = rs_create();
         setHz(hz);
     }
 
     void setHz(int hz)
     {
         active = hz != targetHz;
-        rs_set_rate(r, (float)hz / targetHz);
+        rs_set_rate(samp, static_cast<float>(hz) / targetHz);
     }
 
     void write(int16_t* left, int16_t* right, size_t size, int stride = 2)
@@ -43,12 +43,12 @@ template <int SIZE> struct Resampler
             return;
         }
         for (int i = 0; i < size; i += stride) {
-            rs_write_sample(r, left[i], right[i]);
-            while (rs_get_sample_count(r) > 0) {
-                int16_t lr[2];
-                rs_get_sample(r, &lr[0], &lr[1]);
+            rs_write_sample(samp, left[i], right[i]);
+            while (rs_get_sample_count(samp) > 0) {
+                std::array<int16_t, 2> lr;
+                rs_get_sample(samp, &lr[0], &lr[1]);
                 fifo.write(&lr[0], 2);
-                rs_remove_sample(r);
+                rs_remove_sample(samp);
             }
         }
     }
