@@ -5,6 +5,7 @@
 #include "split.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <chrono>
 #include <cstddef>
@@ -81,8 +82,7 @@ inline bool endsWith(const std::string& name, const std::string& ext)
 
 inline bool startsWith(const std::string& name, const std::string& pref)
 {
-    if (pref.empty())
-        return true;
+    if (pref.empty()) return true;
     return name.find(pref) == 0;
 }
 
@@ -143,8 +143,7 @@ inline std::string path_filename(const std::string& name)
 inline std::string path_extension(const std::string& name)
 {
     auto ext = fs::path(name).extension();
-    if (ext.empty())
-        return "";
+    if (ext.empty()) return "";
     // if (ext[0] == '.')
     //     return ext.substr(1);
     return ext.string().substr(1);
@@ -159,8 +158,7 @@ inline std::string path_prefix(const std::string& name)
 {
     auto file_name = path_filename(name);
     auto dotPos = file_name.find('.');
-    if (dotPos == std::string::npos)
-        return "";
+    if (dotPos == std::string::npos) return "";
     return file_name.substr(0, dotPos);
 }
 
@@ -254,10 +252,8 @@ inline fs::path getTempDir()
         throw io_exception{"Could not get temporary directory"};
 #else
     const char* tmpdir = getenv("TMPDIR");
-    if (!tmpdir)
-        tmpdir = P_tmpdir;
-    if (!tmpdir)
-        tmpdir = "/tmp/";
+    if (!tmpdir) tmpdir = P_tmpdir;
+    if (!tmpdir) tmpdir = "/tmp/";
     strcpy(buffer, tmpdir);
 #endif
     return {buffer};
@@ -266,8 +262,7 @@ inline fs::path getTempDir()
 inline void replace_char(char* s, char c, char r)
 {
     while (*s) {
-        if (*s == c)
-            *s = r;
+        if (*s == c) *s = r;
         s++;
     }
 }
@@ -285,8 +280,7 @@ inline fs::path get_cache_dir(std::string const& appName)
 #endif
     auto d = home / ".cache" / appName;
     // LOGD("CACHE: %s", d);
-    if (!exists(d))
-        fs::create_directories(d);
+    if (!exists(d)) fs::create_directories(d);
     return d;
 }
 
@@ -332,12 +326,10 @@ inline std::string make_search_path(std::vector<fs::path> path_list,
 inline fs::path find_path(const std::string& search_path,
                           const std::string name)
 {
-    if (name.empty())
-        return "";
+    if (name.empty()) return "";
     for (std::string part : split(search_path, PathSeparator)) {
         auto f = fs::path(part) / name;
-        if (exists(f))
-            return f;
+        if (exists(f)) return f;
     }
     return "";
 }
@@ -463,9 +455,7 @@ inline void listFiles(const fs::path& root, std::vector<fs::path>& result,
             continue;
         }
         if (entry.is_directory()) {
-            if (includeDirs) {
-                result.push_back(entry.path());
-            }
+            if (includeDirs) { result.push_back(entry.path()); }
             if (recurse) {
                 listFiles(entry.path(), result, includeDirs, recurse);
             }

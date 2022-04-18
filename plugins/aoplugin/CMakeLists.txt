@@ -1,6 +1,5 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.0)
 project(cpp-mods.musicplayer.aoplugin)
-
 
 set(SOURCE_FILES
     aosdk/eng_qsf/eng_qsf.c
@@ -35,5 +34,4 @@ set(SOURCE_FILES
 
 add_library(aoplugin AOPlugin.cpp ${SOURCE_FILES})
 target_include_directories(aoplugin PRIVATE aosdk/eng_ssf aosdk ${ZLIB_INCLUDE_DIRS})
-#target_compile_options(aoplugin PRIVATE -Wno-format -Wno-implicit-function-declaration)
 target_link_libraries(aoplugin PRIVATE coreutils ${ZLIB_LIBRARIES})

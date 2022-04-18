@@ -2,7 +2,6 @@
 #include "AOPlugin.h"
 #include "../../chipplayer.h"
 
-#include <coreutils/log.h>
 #include <coreutils/split.h>
 #include <coreutils/utils.h>
 
@@ -148,7 +147,6 @@ public:
         if (rc == AO_SUCCESS) {
             std::string title = info.info[1];
             std::string composer = info.info[3];
-            LOGD("LEN: %s", info.info[6]);
             int len = 0;
             auto p = utils::split(std::string(info.info[6]), ":");
             if (p.size() == 2) {
@@ -185,7 +183,6 @@ public:
             t -= n;
         }
 
-        // LOGD("%d %d", noSamples, rc);
         return noSamples;
     }
 

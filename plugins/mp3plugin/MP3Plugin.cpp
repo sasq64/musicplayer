@@ -7,6 +7,7 @@
 #include <coreutils/url.h>
 #include <coreutils/utf8.h>
 #include <coreutils/utils.h>
+#include <coreutils/log.h>
 
 #include <mpg123.h>
 
@@ -49,7 +50,7 @@ public:
             opened = true;
         }
         if (param == "icy-interval") {
-            LOGD("ICY INTERVAL {}", v);
+            //LOGD("ICY INTERVAL {}", v);
             // mpg123_param(mp3, MPG123_ICY_INTERVAL, v, 0);
             metaInterval = v;
             return true;
@@ -89,7 +90,8 @@ public:
     ~MP3Player() override
     {
         // delete [] buffer;
-        LOGD("Destroying MP3Player");
+        //LOGD("Destroying MP3Player");
+
         if (mp3 != nullptr) {
             mpg123_close(mp3);
             mpg123_delete(mp3);
@@ -103,11 +105,11 @@ public:
         if (!gotLength && fileSize > 0) {
             length = mpg123_length(mp3);
             if (length > 0) {
-                LOGD("L {} T {} S {}", length, mpg123_tpf(mp3),
-                     mpg123_spf(mp3));
+                //LOGD("L {} T {} S {}", length, mpg123_tpf(mp3),
+                //     mpg123_spf(mp3));
                 length = length / mpg123_spf(mp3) * mpg123_tpf(mp3);
                 gotLength = true;
-                LOGD("MP3 LENGTH {}s", length);
+                //LOGD("MP3 LENGTH {}s", length);
                 setMeta("length", length);
             }
         }
@@ -118,13 +120,13 @@ public:
         if ((meta & MPG123_ICY) != 0) {
             char* icydata = nullptr;
             if (mpg123_icy(mp3, &icydata) == MPG123_OK) {
-                LOGD("ICY:{}", icydata);
+                //LOGD("ICY:{}", icydata);
             }
         }
         if (((meta & MPG123_NEW_ID3) != 0) &&
             mpg123_id3(mp3, &v1, &v2) == MPG123_OK) {
 
-            LOGV("New metadata");
+            //LOGV("New metadata");
 
             if ((v2 != nullptr) && (v2->title != nullptr)) {
 
@@ -177,7 +179,7 @@ public:
                 int pos = metaInterval - metaCounter;
                 metaSize = source[pos] * 16;
 
-                LOGV("METASIZE %d at offset %d", metaSize, pos);
+                //LOGV("METASIZE %d at offset %d", metaSize, pos);
 
                 if (pos > 0) { mpg123_feed(mp3, source, pos); }
                 source += (pos + 1);
@@ -189,7 +191,7 @@ public:
 
             if (metaSize > 0) {
                 int metaBytes = size > metaSize ? metaSize : size;
-                LOGD("Metabytes %d", metaBytes);
+                //LOGD("Metabytes %d", metaBytes);
 
                 memcpy(icyPtr, source, metaBytes);
                 icyPtr += metaBytes;
@@ -200,7 +202,7 @@ public:
                 metaSize -= metaBytes;
 
                 if (metaSize <= 0) {
-                    LOGD("META: %s", icyData.data());
+                    //LOGD("META: %s", icyData.data());
                     icyPtr = icyData.data();
 
                     auto parts = utils::split(std::string(icyData.data()), ";");
@@ -270,7 +272,7 @@ public:
             setMeta("bitrate", static_cast<int>(bitRate));
         }
 
-        if (err != 0 && err != MPG123_NEED_MORE) { LOGD("MP3 Error %d", err); }
+        //if (err != 0 && err != MPG123_NEED_MORE) { LOGD("MP3 Error %d", err); }
 
         if (err == MPG123_NEW_FORMAT) { return static_cast<int>(done) / 2; }
         if (err == MPG123_NEED_MORE) {
