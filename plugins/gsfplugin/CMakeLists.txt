@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.0)
 project(cpp-mods.musicplayer.gsfplugin)
 
 
@@ -13,7 +13,7 @@ set(SOURCE_FILES
 	playgsf/VBA/memgzio.c
 	playgsf/VBA/snd_interp.cpp
 	playgsf/VBA/unzip.cpp
-	playgsf/VBA/psftag
+	playgsf/VBA/psftag.c
 	playgsf/libresample-0.1.3/src/resample.c
 	playgsf/libresample-0.1.3/src/resamplesubs.c
 	playgsf/libresample-0.1.3/src/filterkit.c
@@ -31,7 +31,7 @@ endif()
 
 #find_package(ZLIB REQUIRED)
 
-add_library(gsfplugin ${SOURCE_FILES})
+add_library(gsfplugin STATIC ${SOURCE_FILES})
 target_compile_definitions(gsfplugin PRIVATE -DLINUX -DC_CORE)
 target_include_directories(gsfplugin PRIVATE ${ZLIB_INCLUDE_DIRS} playgsf playgsf/libresample-0.1.3/include ..)
 target_link_libraries(gsfplugin PRIVATE psf coreutils ${ZLIB_LIBRARIES})

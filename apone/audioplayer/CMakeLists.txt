@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.0)
 project(cpp-mods.audioplayer)
 
 set(SOURCE_FILES audioplayer.cpp)

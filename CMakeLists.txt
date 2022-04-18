@@ -13,7 +13,7 @@ set(APONE apone)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -Wno-register")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
 
 add_subdirectory(external/zlib)
@@ -79,8 +79,9 @@ target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive ${THREAD_LIB})
 
 if(NOT WIN32)
-add_executable(testing testmain.cpp test.cpp)
-target_link_libraries(testing plugin_register fmt::fmt ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
+add_executable(musixtest testmain.cpp test.cpp)
+target_link_libraries(musixtest plugin_register fmt::fmt ${MUSICPLAYER_PLUGINS}
+    coreutils crypto archive)
 endif()
 
 install(TARGETS musix DESTINATION .)
