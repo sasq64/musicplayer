@@ -1,6 +1,6 @@
 // Z80 CPU emulator
 
-// Game_Music_Emu 0.6.0
+// Game_Music_Emu https://bitbucket.org/mpyne/game-music-emu/
 #ifndef KSS_CPU_H
 #define KSS_CPU_H
 
@@ -15,8 +15,6 @@ void kss_cpu_write( class Kss_Cpu*, unsigned addr, int data );
 
 class Kss_Cpu {
 public:
-	typedef BOOST::uint8_t uint8_t;
-	
 	// Clear registers and map all pages to unmapped
 	void reset( void* unmapped_write, void const* unmapped_read );
 	
@@ -39,14 +37,12 @@ public:
 	void set_time( cpu_time_t t )       { state->time = t - state->base; }
 	void adjust_time( int delta )       { state->time += delta; }
 	
-	typedef BOOST::uint16_t uint16_t;
-	
 	#if BLARGG_BIG_ENDIAN
 		struct regs_t { uint8_t b, c, d, e, h, l, flags, a; };
 	#else
 		struct regs_t { uint8_t c, b, e, d, l, h, a, flags; };
 	#endif
-	BOOST_STATIC_ASSERT( sizeof (regs_t) == 8 );
+	static_assert( sizeof (regs_t) == 8, "Invalid registers size, padding issue?" );
 	
 	struct pairs_t { uint16_t bc, de, hl, fa; };
 	
@@ -104,12 +100,12 @@ public:
 	#define KSS_CPU_PAGE_OFFSET( addr ) ((addr) & (page_size - 1))
 #endif
 
-inline BOOST::uint8_t* Kss_Cpu::write( unsigned addr )
+inline uint8_t* Kss_Cpu::write( unsigned addr )
 {
 	return state->write [addr >> page_shift] + KSS_CPU_PAGE_OFFSET( addr );
 }
 
-inline BOOST::uint8_t const* Kss_Cpu::read( unsigned addr )
+inline uint8_t const* Kss_Cpu::read( unsigned addr )
 {
 	return state->read [addr >> page_shift] + KSS_CPU_PAGE_OFFSET( addr );
 }

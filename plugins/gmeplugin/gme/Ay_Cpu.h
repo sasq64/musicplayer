@@ -1,6 +1,6 @@
 // Z80 CPU emulator
 
-// Game_Music_Emu 0.6.0
+// Game_Music_Emu https://bitbucket.org/mpyne/game-music-emu/
 #ifndef AY_CPU_H
 #define AY_CPU_H
 
@@ -28,15 +28,12 @@ public:
 	void set_time( cpu_time_t t )       { state->time = t - state->base; }
 	void adjust_time( int delta )       { state->time += delta; }
 	
-	typedef BOOST::uint8_t uint8_t;
-	typedef BOOST::uint16_t uint16_t;
-	
 	#if BLARGG_BIG_ENDIAN
 		struct regs_t { uint8_t b, c, d, e, h, l, flags, a; };
 	#else
 		struct regs_t { uint8_t c, b, e, d, l, h, a, flags; };
 	#endif
-	BOOST_STATIC_ASSERT( sizeof (regs_t) == 8 );
+	static_assert( sizeof (regs_t) == 8, "Invalid register size, padding issue?" );
 	
 	struct pairs_t { uint16_t bc, de, hl, fa; };
 	

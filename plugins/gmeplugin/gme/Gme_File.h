@@ -1,6 +1,6 @@
 // Common interface to game music file loading and information
 
-// Game_Music_Emu 0.6.0
+// Game_Music_Emu https://bitbucket.org/mpyne/game-music-emu/
 #ifndef GME_FILE_H
 #define GME_FILE_H
 
@@ -32,6 +32,7 @@ struct track_info_t
 	long length;
 	long intro_length;
 	long loop_length;
+	long fade_length;
 	
 	/* empty string if not available */
 	char system    [256];
@@ -98,6 +99,9 @@ public:
 	// clear it. Passes user_data to cleanup function.
 	void set_user_cleanup( gme_user_cleanup_t func ) { user_cleanup_ = func; }
 	
+	bool is_archive = false;
+	virtual blargg_err_t load_archive( const char* ) { return gme_wrong_file_type; }
+	
 public:
 	// deprecated
 	int error_count() const; // use warning()
@@ -105,7 +109,7 @@ public:
 	Gme_File();
 	virtual ~Gme_File();
 	BLARGG_DISABLE_NOTHROW
-	typedef BOOST::uint8_t byte;
+	typedef uint8_t byte;
 protected:
 	// Services
 	void set_track_count( int n )       { track_count_ = raw_track_count_ = n; }
@@ -147,18 +151,14 @@ public:
 	static void copy_field_( char* out, const char* in );
 	static void copy_field_( char* out, const char* in, int len );
 };
-	
+
 Music_Emu* gme_new_( Music_Emu*, long sample_rate );
 
 #define GME_COPY_FIELD( in, out, name ) \
 	{ Gme_File::copy_field_( out->name, in.name, sizeof in.name ); }
 
 #ifndef GME_FILE_READER
-	#ifdef HAVE_ZLIB_H
-		#define GME_FILE_READER Gzip_File_Reader
-	#else
-		#define GME_FILE_READER Std_File_Reader
-	#endif
+	#define GME_FILE_READER Std_File_Reader
 #elif defined (GME_FILE_READER_INCLUDE)
 	#include GME_FILE_READER_INCLUDE
 #endif

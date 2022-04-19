@@ -1,9 +1,10 @@
-// Game_Music_Emu 0.6.0. http://www.slack.net/~ant/
+// Game_Music_Emu https://bitbucket.org/mpyne/game-music-emu/
 
 #include "Sap_Emu.h"
 
 #include "blargg_endian.h"
 #include <string.h>
+#include <algorithm>
 
 /* Copyright (C) 2006 Shay Green. This module is free software; you
 can redistribute it and/or modify it under the terms of the GNU Lesser
@@ -19,6 +20,9 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA */
 #include "blargg_source.h"
 
 long const base_scanline_period = 114;
+
+using std::min;
+using std::max;
 
 Sap_Emu::Sap_Emu()
 {
@@ -104,8 +108,7 @@ static blargg_err_t parse_info( byte const* in, long size, Sap_Emu::info_t* out 
 	out->author    [0] = 0;
 	out->name      [0] = 0;
 	out->copyright [0] = 0;
-	out->length = 0;
-
+	
 	if ( size < 16 || memcmp( in, "SAP\x0D\x0A", 5 ) )
 		return gme_wrong_file_type;
 	
@@ -189,12 +192,6 @@ static blargg_err_t parse_info( byte const* in, long size, Sap_Emu::info_t* out 
 		{
 			parse_string( in, line_end, sizeof out->copyright, out->copyright );
 		}
-		else if ( !strncmp( "TIME", tag, tag_len ) )
-		{
-			int mins  = from_dec( in, in+2 );
-			int secs  = from_dec( in+3, in+5 ) + mins * 60;
-			out->length = secs * 1000;
-		}
 		
 		in = line_end + 2;
 	}
@@ -211,7 +208,6 @@ static void copy_sap_fields( Sap_Emu::info_t const& in, track_info_t* out )
 	Gme_File::copy_field_( out->game,      in.name );
 	Gme_File::copy_field_( out->author,    in.author );
 	Gme_File::copy_field_( out->copyright, in.copyright );
-	out->length = in.length;
 }
 
 blargg_err_t Sap_Emu::track_info_( track_info_t* out, int ) const
@@ -244,8 +240,7 @@ static Music_Emu* new_sap_emu () { return BLARGG_NEW Sap_Emu ; }
 static Music_Emu* new_sap_file() { return BLARGG_NEW Sap_File; }
 
 static gme_type_t_ const gme_sap_type_ = { "Atari XL", 0, &new_sap_emu, &new_sap_file, "SAP", 1 };
-gme_type_t const gme_sap_type = &gme_sap_type_;
-
+extern gme_type_t const gme_sap_type = &gme_sap_type_;
 
 // Setup
 
