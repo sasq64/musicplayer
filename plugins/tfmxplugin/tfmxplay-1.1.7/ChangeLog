@@ -1,0 +1,147 @@
+(Very spotty) change log for tfmx-play
+
+ + means feature added.
+ * means bug squashed.
+ - means feature removed.
+
+Changes in tfmx-play/SDL 1.1.7 (work-in-progress)
+ + rewrote sound buffer handling to avoid cracking/stalling audio output
+
+Changes in tfmx-play/SDL 1.1.6 (work-in-progress)
+ + tfmx-play now supports DOS-style named files
+   (foobar.tfx + foobar.sam), but not for the single-file format
+
+Changes in tfmx-play/SDL 1.1.5 (work-in-progress)
+ * partially fixed looping (also inverted semantics of -l0
+   and -l1, thanks to Sven Janssen for the bugfix)
+ * finite loops are not supported, only non-repeat and
+   infinite loops (non-looping songs never loop)
+
+Changes in tfmx-play/SDL 1.1.4 (work-in-progress)
+ * reverted some cleanups which broke -b0
+   (thanks to Sven Janssen for reporting this bug)
+
+Changes in tfmx-play/SDL 1.1.2 (work-in-progress)
+ * fixed missing OpenSSL includes
+
+Changes in tfmx-play/SDL 1.1.1 (work-in-progress)
+ * OpenSSL is now properly detected
+
+Changes in tfmx-play/SDL 1.1 (work-in-progress)
+ + ported to autoconf/automake
+ * discovered positive impact of the recent code cleanup:
+   the Mac OS X version no longer segfaults when a certain
+   flavor of the Z-Out theme is played, it enters an endless
+   loop instead (a comparison of the cleaned-up version
+   with the old one might give a hint on how to squash this bug
+   once and for all)
+ * corrected small cleanup errors
+
+Changes in tfmx-play/SDL 1.0 (work-in-progress)
+ + ported to SDL, so it should work with no or minor modifications on
+   all Un*x-like systems and probably some others as well
+   (currently builds and runs on Linux-x86 and MacOSX/Darwin)
+ * fixed tempo of Oops-Up for two different rips
+ + added warning when a crash-prone Z-Out Theme mdat is played on
+   MacOS-X
+ + added TFMX format detection code from UADE (thanks to Michael Doering)
+ + added support for the single-file TFMX format (mdat+smpl in one file,
+   also thanks to Michael Doering)
+ + cleaned up virtually all compiler warnings gcc 3.3 is able to throw at you
+ + simplified platform detection for integration into KDevelop projects
+
+Changes in tfmx-play 0.9
+ + uses the OpenSSL library to compare the MD5 hash of the mdat-file
+   with hardcoded hashes of problematic "GemX"/"Danger Freak" mdats
+   (if one of these is detected, the respective hacks are activated
+   automatically - for other tunes they can still be forced with -G/-D)
+
+Changes in tfmx-play 0.8
+ * added hack to improve the Danger Freak titletune (-D)
+ * fixed slight volume level overflows (0x41 instead of 0x40,
+   thanks to Michael Schwendt for the bugreports)
+ * improved Makefile
+ + officially documented JHP's (also incomplete) GemX-hack (-G)
+
+Changes in tfmx-play 0.7
+ * fixed bug in subsong info that prevented some subsongs from being shown
+   (thanks to Stefan Ohlsson for the hint!)
+
+Changes in tfmx-play 0.6
+ * added patches for NetBSD (thanks to Thomas Klausner)
+
+Changes in tfmx-play 0.5
+ * fixed problem when writing to a file (thanks to Stefan Ohlsson)
+ * fixed problem with Turrican 2 World 2 Song 0 and others (also thanks to
+   Stefan Ohlsson)
+
+Changes in tfmx-play 0.4
+ + maximum pathname-length has been extended to 1023 bytes
+ * fixed three buffer-overflows that could happen when pathnames
+   longer than PATHNAME_LENGTH-1 bytes were used (strncpy is now used
+   instead of strcpy)
+
+Changes in tfmx-play 0.35
+ * mono- and 8-bit modes were partially broken in ALSA-hack, fixed
+
+Changes in tfmx-play 0.3
+ + yesss! it finally works with the OSS-emulation layer of ALSA :)
+
+Changes in tfmx-play 0.2
+ + linear oversampling code contributed to tfmx-play
+
+Changes in tfmx-play 0.17
+ - Dumped realtime-scheduling, because it was too insecure and
+   not really useful (on a P133 or faster machine "top" thinks the player
+   process is idle, that should explain it).
+ + Added "make install" rule to Makefile (path is user configurable).
+
+Changes in tfmx-play 0.16
+ * Stupid bugs in DmaOn/DmaOff commands which screwed up everything.
+ * Fixed mixer to more accurately reflect Amiga behavior for WaitOnDma
+   commands.
+ + Since the above two bugs were fixed, we can sorta play older mods now!
+
+Changes in tfmx-play 0.15
+ + Takes advantage of sched_setscheduler to get real-time (available only
+   with libc 5.3 and newer kernels) support.  This is an attempt to reduce
+   the skipping that normally occurs when the system gets busy.
+
+   Once enabled in the Makefile, it can be disabled with the -S option or by
+   running it as someone other than root.  Note that the included executable
+   _is_ built with real-time support and may (but shouldn't) cause problems
+   on systems whose kernels do not support real-time scheduling.
+
+   ALSO, please note that to use the real-time scheduling option, this
+   program must be run as root.  !!!!DO NOT SET THIS PROGRAM UP AS SETUID
+   ROOT!!!!.  It is trivial to create a "song" that copies bytes from
+   a sample file (which could be linked to /etc/shadow!) directly to the
+   output (which could be placed anywhere on the drive).  The next version
+   _may_ drop privileges once the scheduler is set up, but this one does
+   NOT.
+
+Changes in tfmx-play 0.14
+ * Stupid little problem with full stereo split mode (forgot to put in a
+   for loop.  Geez....)
+ + Added simple weighted-sum low-pass filtering.
+
+Changes in tfmx-play 0.13
+ ? Changed the sound handling massively.  Now allows the creation of lots of
+   audio data (128k to be exact) and has a sort of FIFO ring for input and
+   output.  Might help skipping a little bit.  Next task: making the create
+   routine use smaller blocks than the play routine.
+ + Try oversampling with the -v option and tell me how you hate it.  Note
+   that it sucks big CPU power and only works well on a DX4/100 or better!
+   (Actually, it's not _really_ oversampling; it's just 14-bit interpolation.
+   It may spontaneously become proper oversampling as soon as I can get a
+   good algorithm worked out.)
+
+Changes in tfmx-play 0.12
+ * Infinite loops containing finite loops.
+ * Portamento might work this time =:^)
+ + Added blend function (instead of -s for stereo, -b## for stereo blend, on
+   a scale of 0=stereo to 128=mono.  Sounds great through headphones!)
+
+Changes in tfmx-play 0.11
+
+ + First real public release.

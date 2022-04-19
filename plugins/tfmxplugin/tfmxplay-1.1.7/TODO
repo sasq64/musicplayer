@@ -1,0 +1,4 @@
+- fix Monkey Island bugs
+- fix bug in MacOSX SDL version when playing the packed? Z-Out theme
+- fix bugs playing various tunes (BMWi, MasterBlazer Ingame,...)
+- port to more architectures (SUN, SGI, Playstation2, ... ;-)
