@@ -496,7 +496,7 @@ foo_interpolate * get_filter(int which)
 	case 3:
 		return new foo_fir;
 	case 4:
-		return new foo_libresample;
+        return new foo_libresample;
 	}
 }
 

@@ -554,11 +554,6 @@ extern "C"
 }
 }
 
-#ifdef LINUX
-	#include "../types.h"
-#else
-	#include <windows.h>
-#endif
 
 /*void DisplayError (char * Message, ...) {
 	char Msg[400];
@@ -623,7 +618,7 @@ GSF_FILE decompressGSF(const char * file, int libnum=1)
 	f=fopen(file,"rb");
 	 
      if(f==NULL) {
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 		 perror("fopen");
 #endif
 		  return gsffile;
@@ -633,7 +628,7 @@ GSF_FILE decompressGSF(const char * file, int libnum=1)
 	  if((filesize<0x10)||(filesize>0x4000000))
 	  {
 		  fclose(f);
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 			  printf("Bad file size\n");
 #endif
 		  return gsffile;
@@ -644,7 +639,7 @@ GSF_FILE decompressGSF(const char * file, int libnum=1)
 	  if(header!=0x22465350)
 	  {
 		  fclose(f);
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 			  printf("Bad header\n");
 #endif
 		  return gsffile;
@@ -659,7 +654,7 @@ GSF_FILE decompressGSF(const char * file, int libnum=1)
 	  if((reserved+program+16)>filesize)
 	  {
 		  fclose(f);
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 			  printf("Incoherant sizes\n");
 #endif
 		  return gsffile;
@@ -671,7 +666,7 @@ GSF_FILE decompressGSF(const char * file, int libnum=1)
 		  if(gsffile.reserved==NULL)
 		  {
 			  fclose(f);
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 			  printf("1: Malloc failed %d\n", reserved);
 #endif
 			  return gsffile;
@@ -685,7 +680,7 @@ GSF_FILE decompressGSF(const char * file, int libnum=1)
 			if(compbuf==NULL)
 			{
 				fclose(f);
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 			  printf("2: Malloc failed %d\n", program);
 #endif
 				return gsffile;
@@ -698,7 +693,7 @@ GSF_FILE decompressGSF(const char * file, int libnum=1)
 			{
 				fclose(f);
 				free(compbuf);
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 			  printf("Bad crc\n");
 #endif
 				return gsffile;
@@ -708,14 +703,14 @@ GSF_FILE decompressGSF(const char * file, int libnum=1)
 			{
 				fclose(f);
 				free(compbuf);
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 			  printf("3: Malloc failed %ld\n", decompsize);
 #endif
 				return gsffile;
 			}
 			if(uncompress(uncompbuf,&decompsize,compbuf,program)!=Z_BUF_ERROR)
 			{
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 			  printf("uncompression error\n");
 #endif
 				fclose(f);
@@ -736,7 +731,7 @@ GSF_FILE decompressGSF(const char * file, int libnum=1)
 			{
 				fclose(f);
 				free(compbuf);
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 				perror("malloc");
 			  printf("4: Malloc failed %ld\n", decompsize);
 #endif
@@ -749,7 +744,7 @@ GSF_FILE decompressGSF(const char * file, int libnum=1)
 				fclose(f);
 				free(compbuf);
 				free(uncompbuf);
-#ifdef LINUX
+#ifdef PRINT_ERRORS
 			  printf("uncompress error\n");
 #endif
 				return gsffile;

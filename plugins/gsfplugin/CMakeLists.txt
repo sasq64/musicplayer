@@ -14,9 +14,9 @@ set(SOURCE_FILES
 	playgsf/VBA/snd_interp.cpp
 	playgsf/VBA/unzip.cpp
 	playgsf/VBA/psftag.c
-	playgsf/libresample-0.1.3/src/resample.c
-	playgsf/libresample-0.1.3/src/resamplesubs.c
-	playgsf/libresample-0.1.3/src/filterkit.c
+    playgsf/libresample-0.1.3/src/resample.c
+    playgsf/libresample-0.1.3/src/resamplesubs.c
+    playgsf/libresample-0.1.3/src/filterkit.c
 )
 
 if(APPLE) # Apple clang chokes on this file with optimization on
@@ -32,6 +32,7 @@ endif()
 #find_package(ZLIB REQUIRED)
 
 add_library(gsfplugin STATIC ${SOURCE_FILES})
-target_compile_definitions(gsfplugin PRIVATE -DLINUX -DC_CORE)
+target_compile_definitions(gsfplugin PRIVATE LINUX C_CORE)
+#NO_INTERPOLATION)
 target_include_directories(gsfplugin PRIVATE ${ZLIB_INCLUDE_DIRS} playgsf playgsf/libresample-0.1.3/include ..)
 target_link_libraries(gsfplugin PRIVATE psf coreutils ${ZLIB_LIBRARIES})

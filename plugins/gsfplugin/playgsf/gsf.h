@@ -1,10 +1,11 @@
 
+#include <cstdint>
 //extern void DisplayError (char *, ...);
 
-extern BOOL IsTagPresent (BYTE *);
-extern BOOL IsValidGSF (BYTE *);
-extern void setupSound(void);
+extern bool IsTagPresent (uint8_t *);
+extern bool IsValidGSF (uint8_t *);
+extern void setupSound();
 extern int GSFRun(const char *);
-extern void GSFClose(void) ;
-extern BOOL EmulationLoop(void);
+extern void GSFClose() ;
+extern bool EmulationLoop();
 
