@@ -33,6 +33,7 @@ add_subdirectory(${APONE}/archive archive)
 add_subdirectory(psf)
 
 set(MUSICPLAYER_PLUGINS
+#    tfmxplugin
     adplugin
     aoplugin
     ayflyplugin

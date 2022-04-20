@@ -14,11 +14,11 @@
 	#include "machine/endian.h"
 #endif
 
-#ifdef _SDL_Framework
-        #include <SDL/SDL.h>
-#else
-        #include "SDL.h"
-#endif
+//#ifdef _SDL_Framework
+//        #include <SDL/SDL.h>
+//#else
+//        #include "SDL.h"
+//#endif
 
 #define NOTSUPPORTED fprintf(stderr,"Found code %08x at step %04x in macro %02x",\
 				x.l,c->MacroStep-1,c->MacroNum)
@@ -36,9 +36,14 @@ struct Cdb cdb[16];
 struct Pdblk pdb;
 struct Idb idb;
 
-extern struct Hdr hdr;
+struct Hdr hdr;
 
-extern int startPat,gemx,loops,dangerFreakHack,oopsUpHack,monkeyHack;
+int startPat = -1;
+int gemx=0;
+int loops=1;
+int dangerFreakHack=0;
+int oopsUpHack=0;
+int monkeyHack=0;
 
 S8 tempVol;
 

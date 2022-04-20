@@ -7,7 +7,7 @@
 #ifndef __TFMX_H
 #define __TFMX_H
 
-#include "config.h"
+//#include "config.h"
 
 #define PATHNAME_LENGTH 1024
 

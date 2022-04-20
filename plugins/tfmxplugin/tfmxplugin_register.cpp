@@ -1,7 +1,7 @@
-#include "HivelyPlugin.h"
+#include "TFMXPlugin.h"
 namespace musix {
 static ChipPlugin::RegisterMe
     registerMe([](const std::string& configDir) -> std::shared_ptr<ChipPlugin> {
-        return std::make_shared<HivelyPlugin>();
+        return std::make_shared<TFMXPlugin>();
     });
 }

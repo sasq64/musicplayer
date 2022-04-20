@@ -15,13 +15,14 @@
 #include "player.h"
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <openssl/evp.h>
 
-#ifdef _SDL_Framework
-        #include <SDL/SDL.h>
-#else
-        #include "SDL.h"
-#endif
+//#include <openssl/evp.h>
+//
+//#ifdef _SDL_Framework
+//        #include <SDL/SDL.h>
+//#else
+//        #include "SDL.h"
+//#endif
 
 /* external functions */
 void open_sndfile();
@@ -40,35 +41,34 @@ int load_tfmx(char *mfn, char *sfn);
 void do_debug(void);
 
 /* MD5 digests for TFMX songs that need special treatment... */
-unsigned const char* md5GemxTitle="\xf4\xa1\xd6\x04\xc4\xdf\xb3\x0f\x91\x0f\xd8\xac\x4b\x96\xe3\x06";
-unsigned const char* md5DfreakTitle="\x9c\xf1\x72\x34\xbc\xe1\x0d\x21\xe2\x90\x11\x72\xeb\x1a\x2a\xcc";
-unsigned const char* md5OopsUpBroken="\x79\x41\x33\xe1\xf1\x13\x1b\x23\xc0\x9c\xd7\x29\xe8\xa6\x2a\x4e";
-unsigned const char* md5OopsUp="\x9a\x19\x78\x84\xa8\x15\x5e\xdd\x02\x90\x23\x57\xfa\xf2\x4e\x4e";
+unsigned const char md5GemxTitle[32]={ 0xf4, 0xa1, 0xd6, 0x04, 0xc4, 0xdf, 0xb3, 0x0f, 0x91, 0x0f, 0xd8, 0xac, 0x4b, 0x96, 0xe3, 0x06 } ;
+unsigned const char md5DfreakTitle[32] = { 0x9c, 0xf1, 0x72, 0x34, 0xbc, 0xe1, 0x0d, 0x21, 0xe2, 0x90, 0x11, 0x72, 0xeb, 0x1a, 0x2a, 0xcc };
+unsigned const char md5OopsUpBroken[32] = { 0x79, 0x41, 0x33, 0xe1, 0xf1, 0x13, 0x1b, 0x23, 0xc0, 0x9c, 0xd7, 0x29, 0xe8, 0xa6, 0x2a, 0x4e};
+unsigned const char md5OopsUp[32] = { 0x9a, 0x19, 0x78, 0x84, 0xa8, 0x15, 0x5e, 0xdd, 0x02, 0x90, 0x23, 0x57, 0xfa, 0xf2, 0x4e, 0x4e };
 
-unsigned const char*
-md5Monkey="\xc9\x5a\xa4\xf4\x44\xe8\x9a\x3f\x61\x4d\xfd\xe4\x20\x29\x96\x2a";
+unsigned const char
+md5Monkey[32] = { 0xc9, 0x5a, 0xa4, 0xf4, 0x44, 0xe8, 0x9a, 0x3f, 0x61, 0x4d, 0xfd, 0xe4, 0x20, 0x29, 0x96, 0x2a };
 
 /* this is the MDAT that causes a segfault and other errors on MacOS-X */
-unsigned const char* md5WeirdZoutThm="\xb2\x7c\xa7\x9c\x14\x69\x63\x87\xc1\x9c\x01\xf6\x5e\x15\x3e\xff";
+unsigned const char md5WeirdZoutThm[32] = { 0xb2, 0x7c, 0xa7, 0x9c, 0x14, 0x69, 0x63, 0x87, 0xc1, 0x9c, 0x01, 0xf6, 0x5e, 0x15, 0x3e, 0xff};
 
 int weirdZoutThm=0;
-int dangerFreakHack=0;
-int oopsUpHack=0;
-int monkeyHack=0;
+
+extern int dangerFreakHack,oopsUpHack,monkeyHack;
 
 /* do we have a single-file TFMX (mdat+smpl in one file) ? */
 int singleFile=0;
 /* are DOS extensions used? (.tfx/.sam) */
 int dosExt=0;
 /* header data for single-file TFMX */
-uint nTFhd_offset=0;
-uint nTFhd_mdatsize=0;
-uint nTFhd_smplsize=0;
+unsigned nTFhd_offset=0;
+unsigned nTFhd_mdatsize=0;
+unsigned nTFhd_smplsize=0;
 
 U32 outRate=44100;
 extern int force8;
 
-struct Hdr hdr;
+extern struct Hdr hdr;
 extern struct Hdb hdb[8];
 extern struct Pdblk pdb;
 extern int LoopOff();
@@ -76,7 +76,7 @@ extern struct Mdb mdb;
 
 extern char act[8];
 
-int toOutFile=0;
+int toOutFile=1;
 char outf[PATHNAME_LENGTH]="/dev/null";
 unsigned int mlen;
 U32 editbuf[16384];
@@ -90,9 +90,10 @@ int num_ts,num_pat,num_mac;
 int songnum=0;
 int gubed=0;
 int printinfo=0;
-int startPat=-1;
-int gemx=0;
-int loops=1;
+extern int startPat;
+extern int gemx;
+extern int loops;
+
 extern int blend,filt,over;
 
 /* misc vars for TFMX format test */
@@ -203,6 +204,7 @@ static int tfmxtest(unsigned char *buf, int filesize, char *pre)
 }
 
 
+# if 0
 void check_md5_and_headers(char *mfile)
 {
 	EVP_MD_CTX mdctx;
@@ -357,7 +359,7 @@ May cause crashes/hangups on big-endian CPUs!\n");
 	free(fdat);
 	return;
 }
-
+#endif
 void usage(char *x)
 {
 	fprintf(stderr,"tfmxplay v1.1.7/SDL by Jon Pickard <marxmarv@antigates.com>,\n"
@@ -515,7 +517,7 @@ int load_tfmx(char *mfn, char *sfn)
 	if (singleFile==1)
 	{
 	        /* jump to smpl start */
-	        uint nSmplPos=nTFhd_offset+nTFhd_mdatsize;
+	        unsigned nSmplPos=nTFhd_offset+nTFhd_mdatsize;
 		fseek(gfd, nSmplPos, SEEK_SET);
                 /* allocate mem */
 		if (!(smplbuf=(void *)malloc(nTFhd_smplsize)))
@@ -753,7 +755,8 @@ void do_debug()
 	}
 }
 
-int main(int argc, char **argv)
+#if 0
+int tfmx_main(int argc, char **argv)
 {
 	char* tfxloc=0;
 
@@ -912,7 +915,7 @@ int main(int argc, char **argv)
 
 /* ------- do all that MD5, magic and single-file header stuff ----------- */
 
-	check_md5_and_headers(mfn);
+	// check_md5_and_headers(mfn);
 
 /* ----------------------------------------------------------------------- */
 
@@ -974,3 +977,4 @@ pattern and macro data. The routines that use the data do it for themselves.*/
 	TfmxTakedown();
 	return(0);
 }
+#endif

@@ -56,7 +56,6 @@ int main(int argc, const char** argv)
     AudioPlayer audioPlayer{44100};
     audioPlayer.play([&](int16_t* ptr, int size) {
         auto count = fifo.read(ptr, size);
-        fmt::print("{} vs {}\n", count, size);
         if (count <= 0) {
             memset(ptr, 0, size * 2);
         }
