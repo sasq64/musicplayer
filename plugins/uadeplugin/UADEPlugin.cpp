@@ -317,7 +317,7 @@ ChipPlayer* UADEPlugin::fromFile(const std::string& fileName)
     auto realName = fs::absolute(fileName);
     auto* player = new UADEPlayer(dataDir + "/uade");
     LOGD("UADE data {}", dataDir);
-    if (!player->load(realName)) {
+    if (!player->load(realName.string())) {
         delete player;
         player = nullptr;
     }
