@@ -8,11 +8,6 @@
 
 #include <uade/uade.h>
 
-#ifdef _WIN32
-#    include <direct.h>
-#    define chdir _chdir
-#endif
-
 #include <filesystem>
 #include <set>
 #include <thread>
@@ -43,7 +38,13 @@ class UADEPlayer : public ChipPlayer
 public:
     explicit UADEPlayer(const std::string& dataDir)
         : dataDir(dataDir), valid(false)
-    {}
+    {
+
+        currDir = utils::getCurrentDir();
+        fs::current_path(dataDir);
+        LOGD("CP: {}", fs::current_path().string());
+
+    }
 
     static struct uade_file* amigaloader(const char* name,
                                          const char* playerdir, void* context,
@@ -52,10 +53,11 @@ public:
         LOGD("Trying to load '{}' from '{}'", name, playerdir);
         auto* player = static_cast<UADEPlayer*>(context);
 
-
         fs::path fileName = name;
 
-        if (utils::startsWith(name, "smpl.")) {
+        if (utils::startsWith(name, "Env:")) {
+            fileName = fs::path(playerdir) / "ENV" / &name[4];
+        } else if (utils::startsWith(name, "smpl.")) {
             fileName = player->loadDir / (player->baseName + ".smpl");
         } else if (utils::endsWith(fileName.string(), "SMPL.set")) {
             fileName = player->loadDir / "set.smpl";
@@ -69,6 +71,8 @@ public:
             fileName = player->currentFileName;
         }
 
+
+        LOGD("Acutally loading {}", fileName.string());
         struct uade_file* f =
             uade_load_amiga_file(fileName.string().c_str(), playerdir, state);
         return f;
@@ -76,10 +80,6 @@ public:
 
     bool load(std::string fileName)
     {
-
-        auto currDir = utils::getCurrentDir();
-
-        chdir(dataDir.c_str());
 
         struct uade_config* config = uade_new_config();
         uade_config_set_option(config, UC_ONE_SUBSONG, nullptr);
@@ -110,6 +110,8 @@ public:
 
         currentFileName = fileName;
 
+
+        LOGD("UADE FILE {}", fileName);
         if (uade_play(fileName.c_str(), -1, state) == 1) {
             songInfo = uade_get_song_info(state);
             const char* modname = songInfo->modulename;
@@ -121,10 +123,6 @@ public:
                 modname, "format", songInfo->playername);
             valid = true;
         }
-        
-        fs::current_path(currDir);
-        //chdir(currDir.c_str());
-
         return valid;
     }
     ~UADEPlayer() override
@@ -132,6 +130,7 @@ public:
         uade_cleanup_state(state, 1);
         state = nullptr;
         if (!uadeFile.empty()) { fs::remove(uadeFile); }
+        fs::current_path(currDir);
     }
 
     int getSamples(int16_t* target, int noSamples) override
@@ -168,6 +167,7 @@ public:
     }
 
 private:
+    fs::path currDir;
     fs::path uadeFile;
     std::string dataDir;
     bool valid;
@@ -314,10 +314,10 @@ std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string& file)
 
 ChipPlayer* UADEPlugin::fromFile(const std::string& fileName)
 {
-
+    auto realName = fs::absolute(fileName);
     auto* player = new UADEPlayer(dataDir + "/uade");
     LOGD("UADE data {}", dataDir);
-    if (!player->load(fileName)) {
+    if (!player->load(realName)) {
         delete player;
         player = nullptr;
     }

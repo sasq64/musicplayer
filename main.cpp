@@ -20,12 +20,12 @@ int main(int argc, const char** argv)
     using musix::ChipPlayer;
     using musix::ChipPlugin;
 
-    //if (argc < 2) { return 0; }
+    if (argc < 2) { return 0; }
 
     logging::setLevel(logging::Level::Debug);
 
-    //std::string name = argv[1];
-    std::string name = "c:\\Demos\\turrican.mdat";
+    std::string name = argv[1];
+    //std::string name = "c:\\Demos\\turrican.mdat";
 
     std::string pluginName;
 
