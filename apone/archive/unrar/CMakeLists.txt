@@ -50,7 +50,7 @@ if(WIN32)
 endif()
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-logical-op-parentheses -Wno-dangling-else -Wno-switch")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-logical-op-parentheses -Wno-dangling-else -Wno-switch")
 
 add_definitions(-DSILENT -DRARDLL -DLITTLE_ENDIAN)
 add_library(unrar ${SOURCE_FILES})

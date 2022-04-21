@@ -20,6 +20,10 @@
 #include <string>
 #include <unordered_map>
 
+#ifdef min
+#undef min
+#endif
+
 namespace musix {
 
 class AdPlugPlayer : public ChipPlayer

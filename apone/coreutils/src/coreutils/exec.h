@@ -6,7 +6,11 @@
 
 #include <cstdint>
 #include <string>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 namespace utils {
 
@@ -270,7 +274,7 @@ inline ExecPipe::operator std::string()
 
 inline int shellExec(const std::string& cmd, const std::string& binDir)
 {
-#ifdef _WIN32
+#ifdef _WIN32X
     auto cmdLine = utils::format("/C %s", cmd);
     SHELLEXECUTEINFO ShExecInfo = {0};
     ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);

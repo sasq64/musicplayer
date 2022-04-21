@@ -76,12 +76,12 @@ ChipPlayer* RSNPlugin::fromFile(const std::string& fileName)
 
     try {
         auto* a =
-            utils::Archive::open(fileName, rsnDir, utils::Archive::TYPE_RAR);
-        a->extractAll(rsnDir);
+            utils::Archive::open(fileName, rsnDir.string(), utils::Archive::TYPE_RAR);
+        a->extractAll(rsnDir.string());
         for (auto const& f : utils::listFiles(rsnDir, false, true)) {
-            if (song_formats.count(utils::path_extension(f)) > 0) {
+            if (song_formats.count(utils::path_extension(f.string())) > 0) {
                 LOGD("Found {}", f.string());
-                l.push_back(f);
+                l.push_back(f.string());
             }
         };
         delete a;

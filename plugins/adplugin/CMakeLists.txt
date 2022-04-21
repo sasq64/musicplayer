@@ -74,6 +74,6 @@ set(SOURCE_FILES
 
 add_library(adplugin ${SOURCE_FILES})
 target_include_directories(adplugin PRIVATE opl libbinio adplug)
-target_compile_definitions(adplugin PRIVATE stricmp=strcasecmp ADPLUG_VERSION="2.3.2-beta")
+target_compile_definitions(adplugin PRIVATE ADPLUG_VERSION="2.3.2-beta")
 target_link_libraries(adplugin PRIVATE coreutils)
 

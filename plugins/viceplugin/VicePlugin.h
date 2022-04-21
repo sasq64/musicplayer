@@ -28,6 +28,7 @@ public:
     static uint64_t calculateMD5(const std::string& fileName);
 
 private:
+    #pragma pack(push, 1)
     struct LengthEntry
     {
         uint64_t hash;
@@ -40,7 +41,8 @@ private:
             return hash < other.hash;
         }
         bool operator<(uint64_t other) const { return hash < other; }
-    } __attribute__((packed));
+    }; //__attribute__((packed));
+    #pragma pack(pop)
 
     static std::vector<LengthEntry> mainHash;
     static std::vector<uint16_t> extraLengths;

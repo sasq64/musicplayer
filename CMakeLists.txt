@@ -13,8 +13,8 @@ set(APONE apone)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
 
 add_subdirectory(external/zlib)
 set(ZLIB_LIBRARIES zlibstatic)
@@ -55,7 +55,7 @@ set(MUSICPLAYER_PLUGINS
     rsnplugin
     s98plugin
     viceplugin
-    mp3plugin
+    # mp3plugin
     # MSVC incompatible
     # Obsolete
     # sidplugin

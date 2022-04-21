@@ -25,7 +25,6 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
-#include <unistd.h>
 #ifdef __APPLE__
 #    include <mach-o/dyld.h>
 #endif
@@ -33,6 +32,8 @@ namespace fs = std::filesystem;
 #ifdef _WIN32
 #    define WIN32_LEAN_AND_MEAN
 #    include <windows.h>
+#else
+#   include <unistd.h>
 #endif
 
 namespace utils {
@@ -127,17 +128,17 @@ inline std::string toLower(const std::string& s)
 
 inline std::string path_basename(const std::string& name)
 {
-    return fs::path(name).stem();
+    return fs::path(name).stem().string();
 }
 
 inline std::string path_directory(const std::string& name)
 {
-    return fs::path(name).parent_path();
+    return fs::path(name).parent_path().string();
 }
 
 inline std::string path_filename(const std::string& name)
 {
-    return fs::path(name).filename();
+    return fs::path(name).filename().string();
 }
 
 inline std::string path_extension(const std::string& name)
@@ -208,9 +209,7 @@ inline uint64_t currentTime()
 
 inline fs::path get_current_dir()
 {
-    std::array<char, 16384> buf;
-    ::getcwd(buf.data(), buf.size());
-    return {buf.data()};
+    return fs::current_path();
 }
 
 inline fs::path get_home_dir()
@@ -228,9 +227,9 @@ inline fs::path get_home_dir()
             return "";
         }
 
-        homeDir = path(homeDrive + homePath);
+        homeDir = fs::path(std::string(homeDrive) + homePath);
     } else
-        homeDir = path(userProfile);
+        homeDir = fs::path(userProfile);
 #else
     homeDir = fs::path(getenv("HOME"));
 #endif
@@ -239,9 +238,7 @@ inline fs::path get_home_dir()
 
 inline fs::path getCurrentDir()
 {
-    std::array<char, 16384> buf;
-    ::getcwd(buf.data(), buf.size());
-    return {buf.data()};
+    return fs::current_path();
 }
 
 inline fs::path getTempDir()
@@ -433,7 +430,7 @@ template <typename T> inline T clamp(T x, T a0, T a1)
 {
     return std::min(std::max(x, a0), a1);
 }
-
+#if 0
 template <typename T> constexpr T bswap(T const& t) {}
 
 template <> constexpr uint32_t bswap(uint32_t const& t)
@@ -445,12 +442,13 @@ template <> constexpr uint64_t bswap(uint64_t const& t)
 {
     return __builtin_bswap64(t);
 }
+#endif
 
 inline void listFiles(const fs::path& root, std::vector<fs::path>& result,
                       bool includeDirs, bool recurse)
 {
     for (const auto& entry : fs::directory_iterator(root)) {
-        const char* p = entry.path().c_str();
+        auto p = entry.path().string();
         if (p[0] == '.' && (p[1] == 0 || (p[1] == '.' && p[2] == 0))) {
             continue;
         }

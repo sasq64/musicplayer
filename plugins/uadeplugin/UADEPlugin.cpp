@@ -51,15 +51,19 @@ public:
     {
         LOGD("Trying to load '{}' from '{}'", name, playerdir);
         auto* player = static_cast<UADEPlayer*>(context);
+
+
         fs::path fileName = name;
 
-        if (utils::endsWith(fileName, "SMPL.set")) {
+        if (utils::startsWith(name, "smpl.")) {
+            fileName = player->loadDir / (player->baseName + ".smpl");
+        } else if (utils::endsWith(fileName.string(), "SMPL.set")) {
             fileName = player->loadDir / "set.smpl";
         } else if (!player->uadeFile.empty()) {
             fileName = player->loadDir /
-                       (player->baseName + "." + utils::path_prefix(fileName));
+                       (player->baseName + "." + utils::path_prefix(fileName.string()));
             LOGD("Translated back to '{}'", fileName.string());
-        } else if (player->currentFileName.find(fileName) == 0) {
+        } else if (player->currentFileName.find(fileName.string()) == 0) {
             LOGD("Restoring filename {} back to '{}'", fileName.string(),
                  player->currentFileName);
             fileName = player->currentFileName;
@@ -117,8 +121,9 @@ public:
                 modname, "format", songInfo->playername);
             valid = true;
         }
-
-        chdir(currDir.c_str());
+        
+        fs::current_path(currDir);
+        //chdir(currDir.c_str());
 
         return valid;
     }
@@ -312,7 +317,7 @@ ChipPlayer* UADEPlugin::fromFile(const std::string& fileName)
 
     auto* player = new UADEPlayer(dataDir + "/uade");
     LOGD("UADE data {}", dataDir);
-    if (!player->load(fs::absolute(fileName))) {
+    if (!player->load(fileName)) {
         delete player;
         player = nullptr;
     }

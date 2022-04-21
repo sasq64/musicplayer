@@ -2933,8 +2933,9 @@ static inline uint16_t decode(const std::string& symbol)
 
 inline std::string htmldecode(const std::string& s, bool stripTags = false)
 {
-    char target[s.length() + 1];
-    auto* ptr = (unsigned char*)target;
+    //char target[s.length() + 1];
+    std::vector<char> target(s.length() + 1);
+    auto* ptr = (unsigned char*)target.data();
     char symbol[32];
     char* sptr;
     bool inTag = false;
@@ -2981,13 +2982,14 @@ inline std::string htmldecode(const std::string& s, bool stripTags = false)
         *ptr++ = c;
     }
     *ptr = 0;
-    return std::string(target);
+    return std::string(target.data());
 }
 
 inline std::string urlencode(const std::string& s, const std::string& chars)
 {
-    char target[s.length() * 3 + 1];
-    char* ptr = target;
+    std::vector<char> target(s.length() * 3 + 1);
+    auto* ptr = target.data();
+
     for (unsigned i = 0; i < s.length(); i++) {
         auto c = s[i];
         if (chars.find(c) != std::string::npos) {
@@ -2997,13 +2999,13 @@ inline std::string urlencode(const std::string& s, const std::string& chars)
             *ptr++ = c;
     }
     *ptr = 0;
-    return std::string(target);
+    return std::string(target.data());
 }
 
 inline std::string urldecode(const std::string& s, const std::string& chars)
 {
-    char target[s.length() + 1];
-    char* ptr = target;
+    std::vector<char> target(s.length() + 1);
+    auto* ptr = target.data();
     for (unsigned i = 0; i < s.length(); i++) {
         auto c = s[i];
         if (c == '%') {
@@ -3013,7 +3015,7 @@ inline std::string urldecode(const std::string& s, const std::string& chars)
             *ptr++ = c;
     }
     *ptr = 0;
-    return std::string(target);
+    return std::string(target.data());
 }
 
 } // namespace utils
