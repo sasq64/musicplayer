@@ -8,7 +8,7 @@ extern "C"
     void StartSong(int, int);
     int available_sound_data();
     int try_to_makeblock();
-    void open_sndfile();
+    void init_audio();
     extern struct Hdb hdb[8];
     extern int LoopOff(/* struct Hdb *hw */);
     int read_data(int16_t* target, int size);
@@ -42,7 +42,7 @@ public:
         TfmxInit();
         int songnum = 0;
         StartSong(songnum, 0);
-        open_sndfile();
+        init_audio();
         hdb[0] = (struct Hdb){0,
                               0x1C01,
                               0x3200,

@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
+
 #include "tfmxsong.h"
 #include "player.h"
 #include <sys/stat.h>
@@ -25,7 +27,7 @@
 //#endif
 
 /* external functions */
-void open_sndfile();
+void init_audio();
 void open_snddev();
 void TfmxInit();
 void StartSong();
@@ -520,7 +522,7 @@ int load_tfmx(char *mfn, char *sfn)
 	        unsigned nSmplPos=nTFhd_offset+nTFhd_mdatsize;
 		fseek(gfd, nSmplPos, SEEK_SET);
                 /* allocate mem */
-		if (!(smplbuf=(void *)malloc(nTFhd_smplsize)))
+		if (!(smplbuf=malloc(nTFhd_smplsize)))
 		{
 			perror("malloc");
 			fclose(gfd);

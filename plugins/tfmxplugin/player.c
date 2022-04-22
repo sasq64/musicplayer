@@ -5,6 +5,7 @@
  ***************************************************************************/
 
 #include <stdio.h>
+
 #include "player.h"
 #include "tfmxsong.h"
 
@@ -13,12 +14,6 @@
 #else
 	#include "machine/endian.h"
 #endif
-
-//#ifdef _SDL_Framework
-//        #include <SDL/SDL.h>
-//#else
-//        #include "SDL.h"
-//#endif
 
 #define NOTSUPPORTED fprintf(stderr,"Found code %08x at step %04x in macro %02x",\
 				x.l,c->MacroStep-1,c->MacroNum)
@@ -73,9 +68,9 @@ void StartSong(int song, int mode);
 void NotePort(U32 i)
 {
 	UNI x;
-	struct Cdb *c;
 	x.l=i;
-	c=&cdb[x.b.b2&(multimode?7:3)];
+
+	struct Cdb *c=&cdb[x.b.b2&(multimode?7:3)];
 	if (x.b.b0==0xFC)
 	{ /* lock */
 		c->SfxFlag=x.b.b1;
@@ -980,15 +975,13 @@ void AllOff()
 
 void TfmxInit()
 {
-	int x;
 	AllOff();
-	for (x=0;x<8;x++) {
+	for (int x=0;x<8;x++) {
 		hdb[x].c=&cdb[x];
 		pdb.p[x].PNum=0xFF;
 		pdb.p[x].PAddr=0;
 		ChannelOff(x);
 	}
-	return;
 }
 
 void StartSong(int song, int mode)
