@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2015 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2021 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2009-2014 VICE Project
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2000 Simon White
@@ -21,8 +21,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef MOS6526_H
-#define MOS6526_H
+#ifndef MOS652X_H
+#define MOS652X_H
 
 #include <memory>
 
@@ -41,7 +41,7 @@ class EventContext;
 namespace libsidplayfp
 {
 
-class MOS6526;
+class MOS652X;
 
 /**
  * This is the timer A of this CIA.
@@ -63,7 +63,7 @@ public:
     /**
      * Create timer A.
      */
-    TimerA(EventScheduler &scheduler, MOS6526 &parent) :
+    TimerA(EventScheduler &scheduler, MOS652X &parent) :
         Timer("CIA Timer A", scheduler, parent) {}
 };
 
@@ -82,7 +82,7 @@ public:
     /**
      * Create timer B.
      */
-    TimerB(EventScheduler &scheduler, MOS6526 &parent) :
+    TimerB(EventScheduler &scheduler, MOS652X &parent) :
         Timer("CIA Timer B", scheduler, parent) {}
 
     /**
@@ -107,21 +107,24 @@ public:
 /**
  * InterruptSource that acts like new CIA
  */
-class InterruptSource6526A final : public InterruptSource
+class InterruptSource8521 final : public InterruptSource
 {
+protected:
+    void triggerInterrupt() override
+    {
+        idr |= INTERRUPT_REQUEST;
+        idrTemp |= INTERRUPT_REQUEST;
+
+        if (ack0())
+            scheduleIrq();
+    }
+
 public:
-    InterruptSource6526A(EventScheduler &scheduler, MOS6526 &parent) :
+    InterruptSource8521(EventScheduler &scheduler, MOS652X &parent) :
         InterruptSource(scheduler, parent)
     {}
 
     void trigger(uint8_t interruptMask) override;
-
-    uint8_t clear() override;
-
-    void event() override
-    {
-        throw "6526A event called unexpectedly";
-    }
 };
 
 /**
@@ -129,53 +132,39 @@ public:
  */
 class InterruptSource6526 final : public InterruptSource
 {
-private:
-    /// Have we already scheduled CIA->CPU interrupt transition?
-    bool scheduled;
-
-private:
-    /**
-     * Schedules an IRQ asserting state transition for next cycle.
-     */
-    void schedule()
-    {
-        if (!scheduled)
-        {
-            eventScheduler.schedule(*this, 1, EVENT_CLOCK_PHI1);
-            scheduled = true;
-        }
-    }
+protected:
+    void triggerInterrupt() override { idr |= INTERRUPT_REQUEST; }
 
 public:
-    InterruptSource6526(EventScheduler &scheduler, MOS6526 &parent) :
+    InterruptSource6526(EventScheduler &scheduler, MOS652X &parent) :
         InterruptSource(scheduler, parent)
     {}
 
     void trigger(uint8_t interruptMask) override;
 
     uint8_t clear() override;
-
-    /**
-     * Signal interrupt to CPU.
-     */
-    void event() override;
-
-    void reset() override;
 };
 
 /**
  * This class is heavily based on the ciacore/ciatimer source code from VICE.
  * The CIA state machine is lifted as-is. Big thanks to VICE project!
- *
- * @author alankila
+ * The Serial Port emulation is based on Denise emu code.
  */
-class MOS6526
+class MOS652X
 {
-    friend class InterruptSource6526;
-    friend class InterruptSource6526A;
+    friend class InterruptSource;
+    friend class SerialPort;
     friend class TimerA;
     friend class TimerB;
     friend class Tod;
+
+public:
+    typedef enum
+    {
+        MOS6526 = 0     ///< Old CIA model, interrupts are delayed by 1 clock
+        ,MOS8521        ///< New CIA model
+        ,MOS6526W4485   ///< A batch of old CIA model with unique serial port behavior
+    } model_t;
 
 private:
     static const char *credit;
@@ -207,12 +196,9 @@ protected:
     /// Serial Data Registers
     SerialPort serialPort;
 
-    /// Have we already scheduled CIA->CPU interrupt transition?
-    bool triggerScheduled;
-
     /// Events
     //@{
-    EventCallback<MOS6526> bTickEvent;
+    EventCallback<MOS652X> bTickEvent;
     //@}
 
 private:
@@ -220,6 +206,11 @@ private:
      * Trigger an interrupt from TOD.
      */
     void todInterrupt();
+
+    /**
+     * Trigger an interrupt from Serial Port.
+     */
+    void spInterrupt();
 
     /**
      * This event exists solely to break the ambiguity of what scheduling on
@@ -254,8 +245,7 @@ protected:
      *
      * @param context the event context
      */
-    MOS6526(EventScheduler &scheduler);
-    ~MOS6526() {}
+    MOS652X(EventScheduler &scheduler);
 
     /**
      * Signal interrupt.
@@ -267,6 +257,11 @@ protected:
 
     virtual void portA() {}
     virtual void portB() {}
+
+     /**
+      * Timers can appear on the port.
+      */
+     uint8_t adjustDataPort(uint8_t data);
 
     /**
      * Read CIA register.
@@ -287,6 +282,13 @@ protected:
     void write(uint_least8_t addr, uint8_t data);
 
 public:
+    /**
+     * Select chip model.
+     *
+     * @param model
+     */
+    void setModel(model_t model);
+
     /**
      * Reset CIA.
      */

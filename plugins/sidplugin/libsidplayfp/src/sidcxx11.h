@@ -30,6 +30,12 @@
 #  define override
 #  define final
 #  define unique_ptr auto_ptr
+#  define DEFAULT {}
+#  define DELETE {}
+#else
+#  define DEFAULT = default
+#  define DELETE  = delete
 #endif
+
 
 #endif

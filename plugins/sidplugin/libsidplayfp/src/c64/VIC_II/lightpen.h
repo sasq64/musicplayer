@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2015 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2021 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2009-2014 VICE Project
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2001 Simon White
@@ -49,6 +49,29 @@ private:
     /// Has light pen IRQ been triggered in this frame already?
     bool isTriggered;
 
+private:
+    /**
+     * Transform line cycle into x coordinate.
+     *
+     * @param lineCycle
+     * @return x position divided by two
+     */
+    uint8_t getXpos(unsigned int lineCycle) const
+    {
+        if (lineCycle < 13)
+            lineCycle += cyclesPerLine;
+
+        lineCycle -= 13;
+
+        // On NTSC the xpos is not incremented at lineCycle 61
+        if ((cyclesPerLine == 65) && (lineCycle > (61 - 13)))
+        {
+            lineCycle--;
+        }
+
+        return lineCycle << 2;
+    }
+
 public:
     /**
      * Set VIC screen size.
@@ -89,9 +112,13 @@ public:
      * @param rasterY current y raster position
      * @return true if an IRQ should be triggered
      */
-    bool retrigger(unsigned int lineCycle, unsigned int rasterY)
+    bool retrigger()
     {
-        const bool triggered = trigger(lineCycle, rasterY);
+        if (isTriggered)
+            return false;
+
+        isTriggered = true;
+
         switch (cyclesPerLine)
         {
         case 63:
@@ -102,7 +129,10 @@ public:
             lpx = 0xd5;
             break;
         }
-        return triggered;
+
+        lpy = 0;
+
+        return true;
     }
 
     /**
@@ -114,21 +144,24 @@ public:
      */
     bool trigger(unsigned int lineCycle, unsigned int rasterY)
     {
-        if (!isTriggered)
+        if (isTriggered)
+            return false;
+
+        isTriggered = true;
+
+        // don't latch on the last line, except on the first cycle
+        if ((rasterY == lastLine) && (lineCycle > 0))
         {
-            // don't trigger on the last line, except on the first cycle
-            if ((rasterY == lastLine) && (lineCycle > 0)) {
-                return false;
-            }
-
-            isTriggered = true;
-
-            // Latch current coordinates
-            lpx = (lineCycle << 2) + 2;
-            lpy = rasterY;
-            return true;
+            return false;
         }
-        return false;
+
+        // Latch current coordinates
+        lpx = getXpos(lineCycle) + 2; // + 1 for MOS 85XX
+        lpy = rasterY;
+
+        // On 6569R1 and 6567R56A the interrupt is triggered only
+        // when the line is low on the first cycle of the frame.
+        return true; // false for old chip revisions
     }
 
     /**

@@ -22,13 +22,13 @@ public:
     {
         auto data = utils::read_file(fileName);
 
-        int version = CheckV2MVersion(&data[0], static_cast<int>(data.size()));
+        int version = CheckV2MVersion(data.data(), static_cast<int>(data.size()));
         if (version < 0) {
             throw player_exception("Illegal version");
         }
 
         int converted_length = 0;
-        ConvertV2M(&data[0], static_cast<int>(data.size()), &converted,
+        ConvertV2M(data.data(), static_cast<int>(data.size()), &converted,
                    &converted_length);
         if (converted == nullptr) {
             throw player_exception("Could not convert");

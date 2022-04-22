@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2016 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2021 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2000-2001 Simon White
  *
@@ -35,7 +35,7 @@
 const char ERR_DATABASE_CORRUPT[]        = "SID DATABASE ERROR: Database seems to be corrupt.";
 const char ERR_NO_DATABASE_LOADED[]      = "SID DATABASE ERROR: Songlength database not loaded.";
 const char ERR_NO_SELECTED_SONG[]        = "SID DATABASE ERROR: No song selected for retrieving song length.";
-const char ERR_UNABLE_TO_LOAD_DATABASE[] = "SID DATABASE ERROR: Unable to load the songlegnth database.";
+const char ERR_UNABLE_TO_LOAD_DATABASE[] = "SID DATABASE ERROR: Unable to load the songlength database.";
 
 class parseError {};
 
@@ -49,7 +49,17 @@ SidDatabase::~SidDatabase()
     // Needed to delete auto_ptr with complete type
 }
 
-const char *parseTime(const char *str, long &result)
+// mm:ss[.SSS]
+//
+// Examples of song length values:
+//
+// 1:02
+//
+// 1:02.5
+//
+// 1:02.500
+//
+const char *parseTime(const char *str, int_least32_t &result)
 {
     char *end;
     const long minutes = strtol(str, &end, 10);
@@ -61,9 +71,26 @@ const char *parseTime(const char *str, long &result)
 
     end++;
     const long seconds = strtol(end, &end, 10);
-    result = (minutes * 60) + seconds;
+    result = ((minutes * 60) + seconds) * 1000;
 
-    while (!isspace(*end))
+    if (*end == '.')
+    {
+        char *start = end + 1;
+        long milliseconds = strtol(start, &end, 10);
+        switch (end - start)
+        {
+        case 1: milliseconds *= 100; break;
+        case 2: milliseconds *= 10; break;
+        case 3: break;
+        default: throw parseError();
+        }
+        if (milliseconds<0 || milliseconds>=1000)
+            throw parseError();
+
+        result += milliseconds;
+    }
+
+    while ((*end != 0) && !isspace(*end))
     {
         end++;
     }
@@ -74,7 +101,8 @@ const char *parseTime(const char *str, long &result)
 
 bool SidDatabase::open(const char *filename)
 {
-    m_parser.reset(new libsidplayfp::iniParser());
+    delete m_parser;
+    m_parser = new libsidplayfp::iniParser();
 
     if (!m_parser->open(filename))
     {
@@ -86,9 +114,27 @@ bool SidDatabase::open(const char *filename)
     return true;
 }
 
+#ifdef _WIN32
+bool SidDatabase::open(const wchar_t* filename)
+{
+    delete m_parser;
+    m_parser = new libsidplayfp::iniParser();
+
+    if (!m_parser->open(filename))
+    {
+        close();
+        errorString = ERR_UNABLE_TO_LOAD_DATABASE;
+        return false;
+    }
+
+    return true;
+}
+#endif
+
 void SidDatabase::close()
 {
-    m_parser.reset(nullptr);
+    delete m_parser;
+    m_parser = nullptr;
 }
 
 int_least32_t SidDatabase::length(SidTune &tune)
@@ -103,12 +149,32 @@ int_least32_t SidDatabase::length(SidTune &tune)
 
     char md5[SidTune::MD5_LENGTH + 1];
     tune.createMD5(md5);
-    return length(md5, song);
+    return lengthMs(md5, song) / 1000;
+}
+
+int_least32_t SidDatabase::lengthMs(SidTune &tune)
+{
+    const unsigned int song = tune.getInfo()->currentSong();
+
+    if (!song)
+    {
+        errorString = ERR_NO_SELECTED_SONG;
+        return -1;
+    }
+
+    char md5[SidTune::MD5_LENGTH + 1];
+    tune.createMD5New(md5);
+    return lengthMs(md5, song);
 }
 
 int_least32_t SidDatabase::length(const char *md5, unsigned int song)
 {
-    if (m_parser.get() == nullptr)
+    return lengthMs(md5, song) / 1000;
+}
+
+int_least32_t SidDatabase::lengthMs(const char *md5, unsigned int song)
+{
+    if (m_parser == nullptr)
     {
         errorString = ERR_NO_DATABASE_LOADED;
         return -1;
@@ -131,7 +197,7 @@ int_least32_t SidDatabase::length(const char *md5, unsigned int song)
     }
 
     const char *str = timeStamp;
-    long  time = 0;
+    int_least32_t time = 0;
 
     for (unsigned int i = 0; i < song; i++)
     {

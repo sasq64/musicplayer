@@ -32,6 +32,7 @@ class SidPlayer : public ChipPlayer
 public:
     SidPlayer(const string& fileName)
     {
+
         engine.setRoms(nullptr, nullptr, nullptr);
 
         rs = new ReSIDfpBuilder("musix");
@@ -116,7 +117,7 @@ private:
 
 static const set<string> supported_ext = {"sid"};
 
-SidPlugin::SidPlugin(std::string const& condifDir) {}
+SidPlugin::SidPlugin(std::string const& configDir) {}
 
 bool SidPlugin::canHandle(const std::string& name)
 {

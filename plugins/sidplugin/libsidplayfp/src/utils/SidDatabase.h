@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2015 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2020 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2000-2001 Simon White
  *
@@ -24,7 +24,6 @@
 #define SIDDATABASE_H
 
 #include <stdint.h>
-#include <memory>
 
 #include "sidplayfp/siddefs.h"
 
@@ -42,7 +41,7 @@ class iniParser;
 class SID_EXTERN SidDatabase
 {
 private:
-    std::auto_ptr<libsidplayfp::iniParser> m_parser;
+    libsidplayfp::iniParser* m_parser;
 
     const char *errorString;
 
@@ -57,6 +56,9 @@ public:
      * @return false in case of errors, true otherwise.
      */
     bool open(const char *filename);
+#ifdef _WIN32
+    bool open(const wchar_t* filename);
+#endif
 
     /**
      * Close the songlength DataBase.
@@ -65,8 +67,9 @@ public:
 
     /**
      * Get the length of the current subtune.
+     * The hash is obtained with a specific MD5 calculation (old format).
      *
-     * @param tune
+     * @param tune the SID tune
      * @return tune length in seconds, -1 in case of errors.
      */
     int_least32_t length(SidTune &tune);
@@ -79,6 +82,24 @@ public:
      * @return tune length in seconds, -1 in case of errors.
      */
     int_least32_t length(const char *md5, unsigned int song);
+
+    /**
+     * Get the length of the current subtune.
+     * The hash is based on the full content (new format).
+     *
+     * @param tune the SID tune
+     * @return tune length in milliseconds, -1 in case of errors.
+     */
+    int_least32_t lengthMs(SidTune &tune);
+
+    /**
+     * Get the length of the selected subtune.
+     *
+     * @param md5 the md5 hash of the tune.
+     * @param song the subtune.
+     * @return tune length in milliseconds, -1 in case of errors.
+     */
+    int_least32_t lengthMs(const char *md5, unsigned int song);
 
     /**
      * Get descriptive error message.

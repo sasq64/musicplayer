@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2013 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2022 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2004, 2010 Dag Lem <resid@nimrod.no>
  *
@@ -20,11 +20,22 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef INTEGRATOR_H
-#define INTEGRATOR_H
+#ifndef INTEGRATOR6581_H
+#define INTEGRATOR6581_H
+
+#include "FilterModelConfig6581.h"
 
 #include <stdint.h>
 #include <cassert>
+
+// uncomment to enable use of the slope factor
+// in the EKV model
+// actually produces worse results, needs investigation
+//#define SLOPE_FACTOR
+
+#ifdef SLOPE_FACTOR
+#  include <cmath>
+#endif
 
 #include "siddefs-fp.h"
 
@@ -37,11 +48,11 @@ namespace reSIDfp
  *
  * A circuit diagram of a MOS 6581 integrator is shown below.
  *
- *                    ---C---
+ *                   +---C---+
  *                   |       |
- *     vi -----Rw-------[A>----- vo
+ *     vi --o--Rw--o-o--[A>--o-- vo
  *          |      | vx
- *           --Rs--
+ *          +--Rs--+
  *
  * From Kirchoff's current law it follows that
  *
@@ -67,11 +78,11 @@ namespace reSIDfp
  * be written as follows:
  *
  *     Ids = 0                          , Vgst < 0               (subthreshold mode)
- *     Ids = K/2*W/L*(2*Vgst - Vds)*Vds , Vgst >= 0, Vds < Vgst  (triode mode)
- *     Ids = K/2*W/L*Vgst^2             , Vgst >= 0, Vds >= Vgst (saturation mode)
+ *     Ids = K*W/L*(2*Vgst - Vds)*Vds   , Vgst >= 0, Vds < Vgst  (triode mode)
+ *     Ids = K*W/L*Vgst^2               , Vgst >= 0, Vds >= Vgst (saturation mode)
  *
  * where
- *     K   = u*Cox (conductance)
+ *     K   = u*Cox/2 (transconductance coefficient)
  *     W/L = ratio between substrate width and length
  *     Vgst = Vg - Vs - Vt (overdrive voltage)
  *
@@ -84,9 +95,9 @@ namespace reSIDfp
  *     Vds = Vgst - (Vgst - Vds) = Vgst - Vgdt
  *
  *     Ids = K*W/L*(2*Vgst - Vds)*Vds
- *     = K*W/L*(2*Vgst - (Vgst - Vgdt)*(Vgst - Vgdt)
- *     = K*W/L*(Vgst + Vgdt)*(Vgst - Vgdt)
- *     = K*W/L*(Vgst^2 - Vgdt^2)
+ *         = K*W/L*(2*Vgst - (Vgst - Vgdt)*(Vgst - Vgdt)
+ *         = K*W/L*(Vgst + Vgdt)*(Vgst - Vgdt)
+ *         = K*W/L*(Vgst^2 - Vgdt^2)
  *
  * This turns out to be a general equation which covers both the triode
  * and saturation modes (where the second term is 0 in saturation mode).
@@ -96,7 +107,10 @@ namespace reSIDfp
  *
  * FIXME: Subthreshold as function of Vgs, Vgd.
  *
- *     Ids = I0*e^(Vgst/(n*VT))       , Vgst < 0               (subthreshold mode)
+ *     Ids = I0*W/L*e^(Vgst/(Ut/k))   , Vgst < 0               (subthreshold mode)
+ *
+ * where
+ *     I0 = (2 * uCox * Ut^2) / k
  *
  * The remaining problem with the textbook model is that the transition
  * from subthreshold the triode/saturation is not continuous.
@@ -109,8 +123,8 @@ namespace reSIDfp
  * The EKV model (Enz, Krummenacher and Vittoz) essentially performs this
  * blending using an elegant mathematical formulation:
  *
- *     Ids = Is*(if - ir)
- *     Is = 2*u*Cox*Ut^2/k*W/L
+ *     Ids = Is * (if - ir)
+ *     Is = ((2 * u*Cox * Ut^2)/k) * W/L
  *     if = ln^2(1 + e^((k*(Vg - Vt) - Vs)/(2*Ut))
  *     ir = ln^2(1 + e^((k*(Vg - Vt) - Vd)/(2*Ut))
  *
@@ -125,17 +139,17 @@ namespace reSIDfp
  * Rw in the circuit diagram above is a VCR (voltage controlled resistor),
  * as shown in the circuit diagram below.
  *
- *                      Vw
- *     
- *                      |
- *              Vdd     |
- *                 |---|
+ *
+ *                        Vdd
+ *                           |
+ *              Vdd         _|_
+ *                 |    +---+ +---- Vw
  *                _|_   |
- *              --    --| Vg
+ *             +--+ +---o Vg
  *             |      __|__
  *             |      -----  Rw
  *             |      |   |
- *     vi ------------     -------- vo
+ *     vi -----o------+   +-------- vo
  *
  *
  * In order to calculalate the current through the VCR, its gate voltage
@@ -144,41 +158,50 @@ namespace reSIDfp
  * Assuming triode mode and applying Kirchoff's current law, we get the
  * following equation for Vg:
  *
- *     u*Cox/2*W/L*((Vddt - Vg)^2 - (Vddt - vi)^2 + (Vddt - Vg)^2 - (Vddt - Vw)^2) = 0
- *     2*(Vddt - Vg)^2 - (Vddt - vi)^2 - (Vddt - Vw)^2 = 0
- *     (Vddt - Vg) = sqrt(((Vddt - vi)^2 + (Vddt - Vw)^2)/2)
+ *     u*Cox/2*W/L*((nVddt - Vg)^2 - (nVddt - vi)^2 + (nVddt - Vg)^2 - (nVddt - Vw)^2) = 0
+ *     2*(nVddt - Vg)^2 - (nVddt - vi)^2 - (nVddt - Vw)^2 = 0
+ *     (nVddt - Vg) = sqrt(((nVddt - vi)^2 + (nVddt - Vw)^2)/2)
  *
- *     Vg = Vddt - sqrt(((Vddt - vi)^2 + (Vddt - Vw)^2)/2)
+ *     Vg = nVddt - sqrt(((nVddt - vi)^2 + (nVddt - Vw)^2)/2)
  */
-class Integrator
+class Integrator6581
 {
 private:
-    const unsigned short* vcr_kVg;
-    const unsigned short* vcr_n_Ids_term;
-    const unsigned short* opamp_rev;
+    unsigned int nVddt_Vw_2;
+    mutable int vx;
+    mutable int vc;
 
-    unsigned int Vddt_Vw_2;
-    int vx;
-    int vc;
+#ifdef SLOPE_FACTOR
+    // Slope factor n = 1/k
+    // where k is the gate coupling coefficient
+    // k = Cox/(Cox+Cdep) ~ 0.7 (depends on gate voltage)
+    mutable double n;
+#endif
+    const unsigned short nVddt;
+    const unsigned short nVt;
+    const unsigned short nVmin;
+    const unsigned short nSnake;
 
-    const unsigned short kVddt;
-    const unsigned short n_snake;
+    const FilterModelConfig6581* fmc;
 
 public:
-    Integrator(const unsigned short* vcr_kVg, const unsigned short* vcr_n_Ids_term,
-               const unsigned short* opamp_rev, unsigned short kVddt, unsigned short n_snake) :
-        vcr_kVg(vcr_kVg),
-        vcr_n_Ids_term(vcr_n_Ids_term),
-        opamp_rev(opamp_rev),
-        Vddt_Vw_2(0),
+    Integrator6581(const FilterModelConfig6581* fmc,
+               double WL_snake) :
+        nVddt_Vw_2(0),
         vx(0),
         vc(0),
-        kVddt(kVddt),
-        n_snake(n_snake) {}
+#ifdef SLOPE_FACTOR
+        n(1.4),
+#endif
+        nVddt(fmc->getNormalizedValue(fmc->getVddt())),
+        nVt(fmc->getNormalizedValue(fmc->getVth())),
+        nVmin(fmc->getNVmin()),
+        nSnake(fmc->getNormalizedCurrentFactor(WL_snake)),
+        fmc(fmc) {}
 
-    void setVw(unsigned short Vw) { Vddt_Vw_2 = (kVddt - Vw) * (kVddt - Vw) >> 1; }
+    void setVw(unsigned short Vw) { nVddt_Vw_2 = ((nVddt - Vw) * (nVddt - Vw)) >> 1; }
 
-    int solve(int vi);
+    int solve(int vi) const;
 };
 
 } // namespace reSIDfp
@@ -189,32 +212,58 @@ namespace reSIDfp
 {
 
 RESID_INLINE
-int Integrator::solve(int vi)
+int Integrator6581::solve(int vi) const
 {
+    // Make sure Vgst>0 so we're not in subthreshold mode
+    assert(vx < nVddt);
+
+    // Check that transistor is actually in triode mode
+    // Vds < Vgs - Vth
+    assert(vi < nVddt);
+
     // "Snake" voltages for triode mode calculation.
-    const unsigned int Vgst = kVddt - vx;
-    const unsigned int Vgdt = kVddt - vi;
+    const unsigned int Vgst = nVddt - vx;
+    const unsigned int Vgdt = nVddt - vi;
 
     const unsigned int Vgst_2 = Vgst * Vgst;
     const unsigned int Vgdt_2 = Vgdt * Vgdt;
 
     // "Snake" current, scaled by (1/m)*2^13*m*2^16*m*2^16*2^-15 = m*2^30
-    const int n_I_snake = n_snake * (static_cast<int>(Vgst_2 - Vgdt_2) >> 15);
+    const int n_I_snake = nSnake * (static_cast<int>(Vgst_2 - Vgdt_2) >> 15);
 
     // VCR gate voltage.       // Scaled by m*2^16
     // Vg = Vddt - sqrt(((Vddt - Vw)^2 + Vgdt^2)/2)
-    const int kVg = static_cast<int>(vcr_kVg[(Vddt_Vw_2 + (Vgdt_2 >> 1)) >> 16]);
+    const int nVg = static_cast<int>(fmc->getVcr_nVg((nVddt_Vw_2 + (Vgdt_2 >> 1)) >> 16));
+#ifdef SLOPE_FACTOR
+    const double nVp = static_cast<double>(nVg - nVt) / n; // Pinch-off voltage
+    const int kVg = static_cast<int>(nVp) - nVmin;
+#else
+    const int kVg = (nVg - nVt) - nVmin;
+#endif
 
     // VCR voltages for EKV model table lookup.
-    int Vgs = kVg - vx;
-    if (Vgs < 0) Vgs = 0;
-    assert(Vgs < (1 << 16));
-    int Vgd = kVg - vi;
-    if (Vgd < 0) Vgd = 0;
-    assert(Vgd < (1 << 16));
+    const int kVgt_Vs = (vx < kVg) ? kVg - vx : 0;
+    assert(kVgt_Vs < (1 << 16));
+    const int kVgt_Vd = (vi < kVg) ? kVg - vi : 0;
+    assert(kVgt_Vd < (1 << 16));
 
     // VCR current, scaled by m*2^15*2^15 = m*2^30
-    const int n_I_vcr = static_cast<int>(vcr_n_Ids_term[Vgs] - vcr_n_Ids_term[Vgd]) << 15;
+    const unsigned int If = static_cast<unsigned int>(fmc->getVcr_n_Ids_term(kVgt_Vs)) << 15;
+    const unsigned int Ir = static_cast<unsigned int>(fmc->getVcr_n_Ids_term(kVgt_Vd)) << 15;
+#ifdef SLOPE_FACTOR
+    const int n_I_vcr = (If - Ir) * n;
+#else
+    const int n_I_vcr = (If - Ir);
+#endif
+
+#ifdef SLOPE_FACTOR
+    // estimate new slope factor based on gate voltage
+    const double gamma = 1.0;   // body effect factor
+    const double phi = 0.8;     // bulk Fermi potential
+    const double Vp = nVp / fmc->getN16();
+    n = 1. + (gamma / (2 * sqrt(Vp + phi + 4 * fmc->getUt())));
+    assert((n > 1.2) && (n < 1.8));
+#endif
 
     // Change in capacitor charge.
     vc += n_I_snake + n_I_vcr;
@@ -222,7 +271,7 @@ int Integrator::solve(int vi)
     // vx = g(vc)
     const int tmp = (vc >> 15) + (1 << 15);
     assert(tmp < (1 << 16));
-    vx = opamp_rev[tmp];
+    vx = fmc->getOpampRev(tmp);
 
     // Return vo.
     return vx - (vc >> 14);

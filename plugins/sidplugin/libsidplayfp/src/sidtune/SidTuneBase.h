@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2015 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2021 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2000 Simon White
  *
@@ -73,6 +73,8 @@ protected:
 public:  // ----------------------------------------------------------------
     virtual ~SidTuneBase() {}
 
+    typedef void (*LoaderFunc)(const char* fileName, buffer_t& bufferRef);
+
     /**
      * Load a sidtune from a file.
      *
@@ -90,6 +92,22 @@ public:  // ----------------------------------------------------------------
      * @throw loadError
      */
     static SidTuneBase* load(const char* fileName, const char **fileNameExt, bool separatorIsSlash);
+
+    /**
+     * Load a sidtune from a file, using a file access callback.
+     *
+     * Uses the same call methodology as the above function, only
+     * a callback is supplied, which will be used to read every
+     * file this function accesses.
+     *
+     * @param loader
+     * @param fileName
+     * @param fileNameExt
+     * @param separatorIsSlash
+     * @return the sid tune
+     * @throw loadError
+     */
+    static SidTuneBase* load(LoaderFunc loader, const char* fileName, const char **fileNameExt, bool separatorIsSlash);
 
     /**
      * Load a single-file sidtune from a memory buffer.
@@ -139,6 +157,15 @@ public:  // ----------------------------------------------------------------
      * @return a pointer to the buffer containing the md5 string.
      */
     virtual const char *createMD5(char *) { return nullptr; }
+
+    /**
+     * Calculates the MD5 hash of the tune.
+     * Not providing an md5 buffer will cause the internal one to be used.
+     * If provided, buffer must be MD5_LENGTH + 1
+     *
+     * @return a pointer to the buffer containing the md5 string.
+     */
+    virtual const char *createMD5New(char *) { return nullptr; }
 
     /**
      * Get the pointer to the tune data.
@@ -227,6 +254,7 @@ private:  // ---------------------------------------------------------------
     static SidTuneBase* getFromStdIn();
 #endif
     static SidTuneBase* getFromFiles(const char* name, const char **fileNameExtensions, bool separatorIsSlash);
+    static SidTuneBase* getFromFiles(LoaderFunc loader, const char* name, const char **fileNameExtensions, bool separatorIsSlash);
 
     /**
      * Try to retrieve single-file sidtune from specified buffer.

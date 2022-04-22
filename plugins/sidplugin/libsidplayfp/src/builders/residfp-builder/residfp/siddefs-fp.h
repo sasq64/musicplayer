@@ -31,7 +31,7 @@
 #endif
 
 // Branch prediction macros, lifted off the Linux kernel.
-#if RESID_BRANCH_HINTS && HAVE_BUILTIN_EXPECT && !defined(_WIN32)
+#if RESID_BRANCH_HINTS && HAVE_BUILTIN_EXPECT
 #  define likely(x)      __builtin_expect(!!(x), 1)
 #  define unlikely(x)    __builtin_expect(!!(x), 0)
 #else
@@ -51,7 +51,7 @@ extern "C"
 #ifndef __VERSION_CC__
 extern const char* residfp_version_string;
 #else
-const char* residfp_version_string = "2.0.0beta";
+const char* residfp_version_string = "2.4.0a";
 #endif
 }
 

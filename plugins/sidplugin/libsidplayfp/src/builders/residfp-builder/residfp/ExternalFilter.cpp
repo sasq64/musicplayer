@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2016 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2020 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2004 Dag Lem <resid@nimrod.no>
  *
@@ -33,14 +33,12 @@ namespace reSIDfp
  * @param res the resistance value in Ohms
  * @param cap the capacitance value in Farads
  */
-inline double getW0(double res, double cap)
+inline double getRC(double res, double cap)
 {
-    return 1. / (res * cap);
+    return res * cap;
 }
 
 ExternalFilter::ExternalFilter() :
-    Vlp(0),
-    Vhp(0),
     w0lp_1_s7(0),
     w0hp_1_s17(0)
 {
@@ -49,11 +47,15 @@ ExternalFilter::ExternalFilter() :
 
 void ExternalFilter::setClockFrequency(double frequency)
 {
-    // Low-pass: R = 10kOhm, C = 1000pF; w0l = 1/RC = 1/(1e4*1e-9) = 100000
-    w0lp_1_s7 = static_cast<int>(getW0(10e3, 1000e-12) / frequency * (1 << 7) + 0.5);
+    const double dt = 1. / frequency;
 
-    // High-pass: R = 1kOhm, C = 10uF; w0h = 1/RC = 1/(1e3*1e-5) = 100
-    w0hp_1_s17 = static_cast<int>(getW0(1e3, 10e-6) / frequency * (1 << 17) + 0.5);
+    // Low-pass:  R = 10kOhm, C = 1000pF; w0l = dt/(dt+RC) = 1e-6/(1e-6+1e4*1e-9) = 0.091
+	// Cutoff 1/2*PI*RC = 1/2*PI*1e4*1e-9 = 15915.5 Hz
+    w0lp_1_s7 = static_cast<int>((dt / (dt + getRC(10e3, 1000e-12))) * (1 << 7) + 0.5);
+
+    // High-pass: R = 10kOhm, C = 10uF;   w0h = dt/(dt+RC) = 1e-6/(1e-6+1e4*1e-5) = 0.00000999
+	// Cutoff 1/2*PI*RC = 1/2*PI*1e4*1e-5 = 1.59155 Hz
+    w0hp_1_s17 = static_cast<int>((dt / (dt + getRC(10e3, 10e-6))) * (1 << 17) + 0.5);
 }
 
 void ExternalFilter::reset()

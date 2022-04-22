@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2015 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2020 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2009-2014 VICE Project
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2001 Simon White
@@ -39,7 +39,7 @@ namespace libsidplayfp
 {
 
 /**
- * MOS 6567/6569/6572 emulation.
+ * MOS 6567/6569/6572/6573 emulation.
  * Not cycle exact but good enough for SID playback.
  */
 class MOS656X : private Event
@@ -51,6 +51,7 @@ public:
         ,MOS6567R8       ///< NTSC-M
         ,MOS6569         ///< PAL-B
         ,MOS6572         ///< PAL-N
+        ,MOS6573         ///< PAL-M
     } model_t;
 
 private:
@@ -137,6 +138,8 @@ private:
 
     EventCallback<MOS656X> rasterYIRQEdgeDetectorEvent;
 
+    EventCallback<MOS656X> lightpenTriggerEvent;
+
 private:
     event_clock_t clockPAL();
     event_clock_t clockNTSC();
@@ -163,6 +166,17 @@ private:
             activateIRQFlag(IRQ_RASTER);
     }
 
+    void lightpenTrigger()
+    {
+        // Synchronise simulation
+        sync();
+
+        if (lp.trigger(lineCycle, rasterY))
+        {
+            activateIRQFlag(IRQ_LIGHTPEN);
+        }
+    }
+
     /**
      * Set an IRQ flag and trigger an IRQ if the corresponding IRQ mask is set.
      * The IRQ only gets activated, i.e. flag 0x80 gets set, if it was not active before.
@@ -180,7 +194,7 @@ private:
      */
     unsigned int readRasterLineIRQ() const
     {
-        return (regs[0x12] & 0xff) + ((regs[0x11] & 0x80) << 1);
+        return regs[0x12] + ((regs[0x11] & 0x80) << 1);
     }
 
     /**
@@ -243,6 +257,8 @@ private:
         {
             rasterY++;
             rasterYIRQEdgeDetector();
+            if ((rasterY == FIRST_DMA_LINE) && !areBadLinesEnabled)
+                areBadLinesEnabled = readDEN();
         }
 
         if (evaluateIsBadLine())
@@ -260,7 +276,7 @@ private:
             rasterY = 0;
             rasterYIRQEdgeDetector();
             lp.untrigger();
-            if (lpAsserted && lp.retrigger(lineCycle, rasterY))
+            if (lpAsserted && lp.retrigger())
             {
                 activateIRQFlag(IRQ_LIGHTPEN);
             }

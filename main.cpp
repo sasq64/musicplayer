@@ -10,8 +10,8 @@
 
 #include <atomic>
 #include <csignal>
-#include <string>
 #include <fmt/format.h>
+#include <string>
 
 using namespace std::string_literals;
 
@@ -22,7 +22,7 @@ int main(int argc, const char** argv)
 
     if (argc < 2) { return 0; }
 
-    logging::setLevel(logging::Level::Debug);
+    logging::setLevel(logging::Level::Warning);
 
     std::string name = argv[1];
     //std::string name = "c:\\Demos\\turrican.mdat";
@@ -58,9 +58,7 @@ int main(int argc, const char** argv)
     AudioPlayer audioPlayer{44100};
     audioPlayer.play([&](int16_t* ptr, int size) {
         auto count = fifo.read(ptr, size);
-        if (count <= 0) {
-            memset(ptr, 0, size * 2);
-        }
+        if (count <= 0) { memset(ptr, 0, size * 2); }
     });
 
 #ifndef __APPLE__ // _Still_ no quick_exit() in OSX ...
@@ -69,10 +67,11 @@ int main(int argc, const char** argv)
     std::signal(SIGINT, [](int) { std::exit(0); });
 #endif
 
-    std::vector<int16_t> temp(1024 * 16);
+    std::array<int16_t, 1024 * 16> temp{};
     while (true) {
         fifo.setHz(player->getHZ());
-        auto rc = player->getSamples(&temp[0], static_cast<int>(temp.size()));
+        auto rc =
+            player->getSamples(temp.data(), static_cast<int>(temp.size()));
         if (rc < 0) { break; }
         fifo.write(&temp[0], &temp[1], rc);
     }

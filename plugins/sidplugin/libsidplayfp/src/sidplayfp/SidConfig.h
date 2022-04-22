@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2017 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2021 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2000-2001 Simon White
  *
@@ -42,43 +42,56 @@ public:
     /// Playback mode
     typedef enum
     {
-        MONO = 1,
-        STEREO
+        MONO = 1,      ///< One channel mono playback
+        STEREO         ///< Two channels stereo playback
     } playback_t;
 
     /// SID chip model
     typedef enum
     {
-        MOS6581,
-        MOS8580
+        MOS6581,       ///< Old MOS 6581
+        MOS8580        ///< New CSG 8580/MOS 6582
     } sid_model_t;
+
+    /// CIA chip model
+    typedef enum
+    {
+        MOS6526,       ///< Old MOS 6526/6526A with interrupts delayed by one cycle
+        MOS8521,       ///< New CSG 8521, often marked 6526 216A
+        MOS6526W4485   ///< Old MOS 6526, peculiar batch from week 4485 with different serial port behavior @since 2.2
+    } cia_model_t;
 
     /// C64 model
     typedef enum
     {
-        PAL,
-        NTSC,
-        OLD_NTSC,
-        DREAN
+        PAL,           ///< European PAL model
+        NTSC,          ///< American/Japanese NTSC model
+        OLD_NTSC,      ///< Older NTSC model with different video chip revision
+        DREAN,         ///< Argentinian PAL-N model
+        PAL_M          ///< Brasilian PAL-M model
     } c64_model_t;
 
     /// Sampling method
     typedef enum
     {
-        INTERPOLATE,
-        RESAMPLE_INTERPOLATE
+        INTERPOLATE,            ///< Interpolation
+        RESAMPLE_INTERPOLATE    ///< Resampling
     } sampling_method_t;
 
 public:
+    /**
+     * Maximum power on delay.
+     * - Delays <= MAX produce constant results
+     * - Delays >  MAX produce random results
+     */
+    static const uint_least16_t MAX_POWER_ON_DELAY = 0x1FFF;
+    static const uint_least16_t DEFAULT_POWER_ON_DELAY = MAX_POWER_ON_DELAY + 1;
+
     static const uint_least32_t DEFAULT_SAMPLING_FREQ  = 44100;
 
 public:
     /**
      * Intended c64 model when unknown or forced.
-     * - PAL
-     * - NTSC
-     * - OLD_NTSC
-     * - DREAN
      */
     c64_model_t defaultC64Model;
 
@@ -89,8 +102,6 @@ public:
 
     /**
      * Intended sid model when unknown or forced.
-     * - MOS6581
-     * - MOS8580
      */
     sid_model_t defaultSidModel;
 
@@ -100,9 +111,17 @@ public:
     bool forceSidModel;
 
     /**
+     * Enable digiboost when 8580 SID model is used.
+     */
+    bool digiBoost;
+
+    /**
+     * Intended cia model.
+     */
+    cia_model_t ciaModel;
+
+    /**
      * Playbak mode.
-     * - MONO
-     * - STEREO
      */
     playback_t playback;
 
@@ -121,7 +140,7 @@ public:
 
     /**
      * Pointer to selected emulation,
-     * reSIDfp, reSID or hardSID.
+     * reSIDfp, reSID, hardSID or exSID.
      */
     sidbuilder *sidEmulation;
 
@@ -136,9 +155,12 @@ public:
     uint_least32_t rightVolume;
 
     /**
+     * Power on delay cycles.
+     */
+    uint_least16_t powerOnDelay;
+
+    /**
      * Sampling method.
-     * - INTERPOLATE
-     * - RESAMPLE_INTERPOLATE
      */
     sampling_method_t samplingMethod;
 

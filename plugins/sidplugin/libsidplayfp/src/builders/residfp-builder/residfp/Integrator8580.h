@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2016 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2022 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2004, 2010 Dag Lem <resid@nimrod.no>
  *
@@ -23,6 +23,8 @@
 #ifndef INTEGRATOR8580_H
 #define INTEGRATOR8580_H
 
+#include "FilterModelConfig8580.h"
+
 #include <stdint.h>
 #include <cassert>
 
@@ -34,9 +36,9 @@ namespace reSIDfp
 /**
  * 8580 integrator
  *
- *                    ---C---
+ *                   +---C---+
  *                   |       |
- *     vi -----Rfc------[A>----- vo
+ *     vi -----Rfc---o--[A>--o-- vo
  *                   vx
  *
  *     IRfc + ICr = 0
@@ -52,45 +54,31 @@ namespace reSIDfp
 class Integrator8580
 {
 private:
-    const unsigned short* opamp_rev;
-
     mutable int vx;
     mutable int vc;
 
-    const unsigned short Vth;
-    unsigned short kVgt;
-    unsigned short n_snake;
+    unsigned short nVgt;
+    unsigned short n_dac;
 
-    const double denorm;
-    const double C;
-    const double k;
-    const double uCox;
-    const double vmin;
-    const double N16;
+    const FilterModelConfig8580* fmc;
 
 public:
-    Integrator8580(const unsigned short* opamp_rev, unsigned short Vth, double denorm, double C, double k, double uCox, double vmin, double N16) :
-        opamp_rev(opamp_rev),
+    Integrator8580(const FilterModelConfig8580* fmc) :
         vx(0),
         vc(0),
-        Vth(Vth),
-        denorm(denorm),
-        C(C),
-        k(k),
-        uCox(uCox),
-        vmin(vmin),
-        N16(N16)
+        fmc(fmc)
     {
         setV(1.5);
     }
 
+    /**
+     * Set Filter Cutoff resistor ratio.
+     */
     void setFc(double wl)
     {
         // Normalized current factor, 1 cycle at 1MHz.
         // Fit in 5 bits.
-        const double tmp = denorm * (1 << 13) * (uCox / (2. * k) * wl * 1.0e-6 / C);
-        assert(tmp > -0.5 && tmp < 65535.5);
-        n_snake = static_cast<unsigned short>(tmp + 0.5);
+        n_dac = fmc->getNormalizedCurrentFactor(wl);
     }
 
     /**
@@ -100,14 +88,13 @@ public:
     {
         // Gate voltage is controlled by the switched capacitor voltage divider
         // Ua = Ue * v = 4.76v  1<v<2
-        const double Vg = 4.76 * v;
-        const double Vgt = k * (Vg - Vth);
+        assert(v > 1.0 && v < 2.0);
+        const double Vg = fmc->getVoiceDCVoltage() * v;
+        const double Vgt = Vg - fmc->getVth();
 
         // Vg - Vth, normalized so that translated values can be subtracted:
-        // k*Vgt - x = (k*Vgt - t) - (x - t)
-        const double tmp = N16 * (Vgt - vmin);
-        assert(tmp > -0.5 && tmp < 65535.5);
-        kVgt = static_cast<unsigned short>(tmp + 0.5);
+        // Vgt - x = (Vgt - t) - (x - t)
+        nVgt = fmc->getNormalizedValue(Vgt);
     }
 
     int solve(int vi) const;
@@ -123,27 +110,26 @@ namespace reSIDfp
 RESID_INLINE
 int Integrator8580::solve(int vi) const
 {
-    // Check that transistor is actually in triode mode
-    // VDS < VGS  Vth
-    assert(vi < kVgt);
+    // Make sure we're not in subthreshold mode
+    assert(vx < nVgt);
 
-    // DAC voltages for triode mode calculation.
-    const unsigned int Vgst = kVgt - vx;
-    const unsigned int Vgdt = kVgt - vi;
+    // DAC voltages
+    const unsigned int Vgst = nVgt - vx;
+    const unsigned int Vgdt = (vi < nVgt) ? nVgt - vi : 0;  // triode/saturation mode
 
     const unsigned int Vgst_2 = Vgst * Vgst;
     const unsigned int Vgdt_2 = Vgdt * Vgdt;
 
     // DAC current, scaled by (1/m)*2^13*m*2^16*m*2^16*2^-15 = m*2^30
-    const int n_I_snake = n_snake * (static_cast<int>(Vgst_2 - Vgdt_2) >> 15);
+    const int n_I_dac = n_dac * (static_cast<int>(Vgst_2 - Vgdt_2) >> 15);
 
     // Change in capacitor charge.
-    vc += n_I_snake;
+    vc += n_I_dac;
 
     // vx = g(vc)
     const int tmp = (vc >> 15) + (1 << 15);
     assert(tmp < (1 << 16));
-    vx = opamp_rev[tmp];
+    vx = fmc->getOpampRev(tmp);
 
     // Return vo.
     return vx - (vc >> 14);

@@ -60,8 +60,7 @@ public:
         }
 
         std::sort(plugins.begin(), plugins.end(),
-                  [](std::shared_ptr<ChipPlugin> const& a,
-                     std::shared_ptr<ChipPlugin> const& b) -> bool {
+                  [](auto const& a, auto const& b) {
                       return a->priority() > b->priority();
                   });
         constructors.clear();

@@ -25,6 +25,8 @@ template <int SIZE> struct Resampler
     bool active = false;
     resampler* samp;
     utils::Ring<int16_t, SIZE> fifo;
+    std::array<int16_t, 2> lr{};
+
     explicit Resampler(int hz = 44100) : targetHz(hz), samp(rs_create())
     {
         setHz(hz);
@@ -45,7 +47,6 @@ template <int SIZE> struct Resampler
         for (int i = 0; i < size; i += stride) {
             rs_write_sample(samp, left[i], right[i]);
             while (rs_get_sample_count(samp) > 0) {
-                std::array<int16_t, 2> lr;
                 rs_get_sample(samp, &lr[0], &lr[1]);
                 fifo.write(&lr[0], 2);
                 rs_remove_sample(samp);

@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2017 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2022 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2004,2010 Dag Lem <resid@nimrod.no>
  *
@@ -66,31 +66,31 @@ class Integrator8580;
  *               |   |                    +---Ri-- \--o !D6&!D7      |
  *               |   |                                |              |
  * $17           |   |                    (CAP2B)     |  (CAP1B)     |
- * 0=to mixer    |   +--R8--+  +---R8--+      +---C---o      +---C---o
+ * 0=to mixer    |   +--R7--+  +---R7--+      +---C---o      +---C---o
  * 1=to filter   |          |  |       |      |       |      |       |
- *               +------R8--o--o--[A>--o--Rfc-o--[A>--o--Rfc-o--[A>--o
+ *               +------R7--o--o--[A>--o--Rfc-o--[A>--o--Rfc-o--[A>--o
  *     ve (EXT IN)          |          |              |              |
- * D3  \ ---------------R8--o          |              | (CAP2A)      | (CAP1A)
+ * D3  \ --------------R12--o          |              | (CAP2A)      | (CAP1A)
  *     |   v3               |          | vhp          | vbp          | vlp
- * D2  |   \ -----------R8--o    +-----+              |              |
+ * D2  |   \ -----------R7--o    +-----+              |              |
  *     |   |   v2           |    |                    |              |
- * D1  |   |   \ -------R8--o    |   +----------------+              |
+ * D1  |   |   \ -------R7--o    |   +----------------+              |
  *     |   |   |   v1       |    |   |                               |
- * D0  |   |   |   \ ---R8--+    |   |   +---------------------------+
+ * D0  |   |   |   \ ---R7--+    |   |   +---------------------------+
  *     |   |   |   |             |   |   |
- *     R6  R6  R6  R6            R6  R6  R6
+ *     R9  R5  R5  R5            R5  R5  R5
  *     |   |   |   | $18         |   |   |  $18
  *     |    \  |   | D7: 1=open   \   \   \ D6 - D4: 0=open
  *     |   |   |   |             |   |   |
  *     +---o---o---o-------------o---o---+
  *                 |
- *                 |               D3 +--/ --1R2--+
+ *                 |               D3 +--/ --1R4--+
  *                 |   +---R8--+      |           |  +---R2--+
- *                 |   |       |   D2 o--/ --2R2--o  |       |
+ *                 |   |       |   D2 o--/ --2R4--o  |       |
  *                 +---o--[A>--o------o           o--o--[A>--o-- vo (AUDIO OUT)
- *                                 D1 o--/ --4R2--o (4.25R2)
+ *                                 D1 o--/ --4R4--o
  *                        $18         |           |
- *                        0=open   D0 +--/ --8R2--+ (8.75R2)
+ *                        0=open   D0 +--/ --8R4--+
  *
  *
  *
@@ -241,15 +241,15 @@ class Integrator8580;
  * To get around this, there is an 11 input NOR gate below the DACs sensing those 11 bits.
  * If all are 0, the NOR gate gives the gate control voltage to the 12 bit DAC LSB.
  *
- *     ----------------------------
+ *     ----o---o--...--o---o---o---
  *         |   |       |   |   |
  *       Rb10 Rb9 ... Rb1 Rb0  R0
  *         |   |       |   |   |
- *     ----------------------------
+ *     ----o---o--...--o---o---o---
  *
  *
  *
- * Crystal stabilized precision swithced capacitor voltage divider
+ * Crystal stabilized precision switched capacitor voltage divider
  * ---------------------------------------------------------------
  * There is a FET working as a temperature sensor close to the DACs which changes the gate voltage
  * of the frequency control DACs according to the temperature of the DACs,
@@ -261,14 +261,14 @@ class Integrator8580;
  *                                |\  OpAmp has a smaller capacitor than the other OPs
  *                        Vref ---|+\
  *                                |A >---o--- Vdac
- *                        o-------|-/    |
+ *                        +-------|-/    |
  *                        |       |/     |
  *                        |              |
  *       C1               |     C2       |
  *   +---||---o---+   +---o-----||-------o
  *   |        |   |   |   |              |
  *   o----+   |   -----   |              |
- *   |    |   |   -----   +----+   +-----+
+ *   |    |   |   -----   +----+   +-----o
  *   |    -----     |          |   |     |
  *   |    -----     |          -----     |
  *   |      |       |          -----     |
@@ -286,13 +286,13 @@ private:
     unsigned short** gain_res;
     unsigned short** gain_vol;
 
-    const int voiceScaleS14;
+    const int voiceScaleS11;
     const int voiceDC;
 
     double cp;
 
-    /// VCR + associated capacitor connected to lowpass output.
-    std::unique_ptr<Integrator8580> const lpIntegrator;
+    /// VCR + associated capacitor connected to highpass output.
+    std::unique_ptr<Integrator8580> const hpIntegrator;
 
     /// VCR + associated capacitor connected to bandpass output.
     std::unique_ptr<Integrator8580> const bpIntegrator;
@@ -305,11 +305,7 @@ protected:
 
     /**
      * Set filter resonance.
-     *
-     * The following function for 1/Q has been modeled in the MOS 8580:
-     *
-     * 1/Q = 2^(1/2)*2^(-x/8) = 2^(1/2 - x/8) = 2^((4 - x)/8)
-     *
+	 *
      * @param res the new resonance value
      */
     void updateResonance(unsigned char res) override { currentResonance = gain_res[res]; }
@@ -322,10 +318,10 @@ public:
         summer(FilterModelConfig8580::getInstance()->getSummer()),
         gain_res(FilterModelConfig8580::getInstance()->getGainRes()),
         gain_vol(FilterModelConfig8580::getInstance()->getGainVol()),
-        voiceScaleS14(FilterModelConfig8580::getInstance()->getVoiceScaleS14()),
-        voiceDC(FilterModelConfig8580::getInstance()->getVoiceDC()),
+        voiceScaleS11(FilterModelConfig8580::getInstance()->getVoiceScaleS11()),
+        voiceDC(FilterModelConfig8580::getInstance()->getNormalizedVoiceDC()),
         cp(0.5),
-        lpIntegrator(FilterModelConfig8580::getInstance()->buildIntegrator()),
+        hpIntegrator(FilterModelConfig8580::getInstance()->buildIntegrator()),
         bpIntegrator(FilterModelConfig8580::getInstance()->buildIntegrator())
     {
         setFilterCurve(cp);
@@ -334,15 +330,14 @@ public:
 
     ~Filter8580();
 
-    int clock(int voice1, int voice2, int voice3) override;
+    unsigned short clock(int voice1, int voice2, int voice3) override;
 
-    void input(int sample) override { ve = (sample * voiceScaleS14 * 3 >> 14) + mixer[0][0]; }
+    void input(int sample) override { ve = (sample * voiceScaleS11 * 3 >> 11) + mixer[0][0]; }
 
     /**
      * Set filter curve type based on single parameter.
      *
-     * FIXME find a reasonable range of values
-     * @param curvePosition
+     * @param curvePosition 0 .. 1, where 0 sets center frequency high ("light") and 1 sets it low ("dark"), default is 0.5
      */
     void setFilterCurve(double curvePosition);
 };
@@ -355,34 +350,30 @@ namespace reSIDfp
 {
 
 RESID_INLINE
-int Filter8580::clock(int voice1, int voice2, int voice3)
+unsigned short Filter8580::clock(int voice1, int voice2, int voice3)
 {
-    voice1 = (voice1 * voiceScaleS14 >> 18) + voiceDC;
-    voice2 = (voice2 * voiceScaleS14 >> 18) + voiceDC;
-    voice3 = (voice3 * voiceScaleS14 >> 18) + voiceDC;
+    voice1 = (voice1 * voiceScaleS11 >> 15) + voiceDC;
+    voice2 = (voice2 * voiceScaleS11 >> 15) + voiceDC;
+    // Voice 3 is silenced by voice3off if it is not routed through the filter.
+    voice3 = (filt3 || !voice3off) ? (voice3 * voiceScaleS11 >> 15) + voiceDC : 0;
 
     int Vi = 0;
     int Vo = 0;
 
     (filt1 ? Vi : Vo) += voice1;
     (filt2 ? Vi : Vo) += voice2;
-
-    // NB! Voice 3 is not silenced by voice3off if it is routed
-    // through the filter.
-    if (filt3) Vi += voice3;
-    else if (!voice3off) Vo += voice3;
-
+    (filt3 ? Vi : Vo) += voice3;
     (filtE ? Vi : Vo) += ve;
 
     Vhp = currentSummer[currentResonance[Vbp] + Vlp + Vi];
-    Vbp = bpIntegrator->solve(Vhp);
-    Vlp = lpIntegrator->solve(Vbp);
+    Vbp = hpIntegrator->solve(Vhp);
+    Vlp = bpIntegrator->solve(Vbp);
 
     if (lp) Vo += Vlp;
     if (bp) Vo += Vbp;
     if (hp) Vo += Vhp;
 
-    return currentGain[currentMixer[Vo]] - (1 << 15);
+    return currentGain[currentMixer[Vo]];
 }
 
 } // namespace reSIDfp

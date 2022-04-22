@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2015 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2019 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2001 Simon White
  *
@@ -38,15 +38,13 @@ namespace libsidplayfp
 
 const char* ReSIDfp::getCredits()
 {
-    static const char* residfp_version_string = "2.0.0beta";
-
     static std::string credits;
 
     if (credits.empty())
     {
         // Setup credits
         std::ostringstream ss;
-        ss << "ReSIDfp V" << "" << " Engine:\n";
+        ss << "ReSIDfp V" << VERSION << " Engine:\n";
         ss << "\t(C) 1999-2002 Simon White\n";
         ss << "MOS6581 (SID) Emulation (ReSIDfp V" << residfp_version_string << "):\n";
         ss << "\t(C) 1999-2002 Dag Lem\n";
@@ -104,7 +102,7 @@ void ReSIDfp::write(uint_least8_t addr, uint8_t data)
 
 void ReSIDfp::clock()
 {
-    const event_clock_t cycles = eventScheduler->getTime(m_accessClk, EVENT_CLOCK_PHI1);
+    const event_clock_t cycles = eventScheduler->getTime(EVENT_CLOCK_PHI1) - m_accessClk;
     m_accessClk += cycles;
     m_bufferpos += m_sid.clock(cycles, m_buffer+m_bufferpos);
 }
@@ -134,9 +132,8 @@ void ReSIDfp::sampling(float systemclock, float freq,
 
     try
     {
-        // Round half frequency to the nearest multiple of 5000
-        const int halfFreq = 5000*((static_cast<int>(freq)+5000)/10000);
-        m_sid.setSamplingParameters(systemclock, sampleMethod, freq, std::min(halfFreq, 20000));
+        const int halfFreq = (freq > 44000) ? 20000 : 9 * freq / 20;
+        m_sid.setSamplingParameters(systemclock, sampleMethod, freq, halfFreq);
     }
     catch (reSIDfp::SIDError const &)
     {
@@ -149,16 +146,18 @@ void ReSIDfp::sampling(float systemclock, float freq,
 }
 
 // Set the emulated SID model
-void ReSIDfp::model(SidConfig::sid_model_t model)
+void ReSIDfp::model(SidConfig::sid_model_t model, bool digiboost)
 {
     reSIDfp::ChipModel chipModel;
     switch (model)
     {
         case SidConfig::MOS6581:
             chipModel = reSIDfp::MOS6581;
+            m_sid.input(0);
             break;
         case SidConfig::MOS8580:
             chipModel = reSIDfp::MOS8580;
+            m_sid.input(digiboost ? -32768 : 0);
             break;
         default:
             m_status = false;

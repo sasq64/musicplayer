@@ -75,16 +75,16 @@ add_subdirectory(plugins)
 
 
 add_executable(play main.cpp resampler.cpp)
-target_link_libraries(play PUBLIC plugin_register fmt::fmt ${MUSICPLAYER_PLUGINS}
+target_link_libraries(play PUBLIC fmt::fmt ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
 
 add_library(musix STATIC lib.cpp)
-target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
+target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive ${THREAD_LIB})
 
 if(NOT WIN32)
 add_executable(musixtest testmain.cpp test.cpp)
-target_link_libraries(musixtest plugin_register fmt::fmt ${MUSICPLAYER_PLUGINS}
+target_link_libraries(musixtest fmt::fmt ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive)
 endif()
 
