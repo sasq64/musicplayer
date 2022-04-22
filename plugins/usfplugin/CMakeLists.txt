@@ -57,11 +57,14 @@ set(SOURCE_FILES
 
 #find_package(ZLIB REQUIRED)
 
-add_library(usfplugin USFPlugin.cpp ${SOURCE_FILES})
-target_link_libraries(usfplugin PRIVATE psf coreutils ${ZLIB_LIBRARIES})
+add_library(lazyusf USFPlugin.cpp ${SOURCE_FILES})
+target_link_libraries(lazyusf PRIVATE psf coreutils ${ZLIB_LIBRARIES})
 
 if(MSVC)
-target_compile_options(usfplugin PRIVATE -DNO_ASM)
+target_compile_options(lazyusf PRIVATE -DNO_ASM)
 endif()
 
-target_include_directories(usfplugin PRIVATE ${ZLIB_INCLUDE_DIRS} . lazyusf2 lazyusf2/rsp_hle)
+target_include_directories(lazyusf PRIVATE ${ZLIB_INCLUDE_DIRS} . lazyusf2 lazyusf2/rsp_hle)
+
+add_library(usfplugin OBJECT usfplugin_register.cpp)
+target_link_libraries(usfplugin PRIVATE lazyusf)

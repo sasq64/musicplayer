@@ -34,6 +34,9 @@ set(SOURCE_FILES
 add_library(aosdk AOPlugin.cpp ${SOURCE_FILES})
 target_include_directories(aosdk PRIVATE aosdk/eng_ssf aosdk ${ZLIB_INCLUDE_DIRS})
 target_link_libraries(aosdk PRIVATE coreutils ${ZLIB_LIBRARIES})
+if(NOT WIN32)
+    target_compile_options(aosdk PRIVATE -Wno-implicit-function-declaration)
+endif()
 
 add_library(aoplugin OBJECT aoplugin_register.cpp)
 target_link_libraries(aoplugin PRIVATE aosdk)

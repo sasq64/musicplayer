@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.viceplugin)
 
 set(SOURCE_FILES
@@ -161,9 +161,9 @@ endif()
 
 
 
-add_library(viceplugin ${SOURCE_FILES})
-target_link_libraries(viceplugin PRIVATE apone::coreutils apone::crypto ZLIB::ZLIB)
-include_directories(viceplugin PRIVATE
+add_library(viceplayer ${SOURCE_FILES})
+target_link_libraries(viceplayer PRIVATE apone::coreutils apone::crypto ZLIB::ZLIB)
+include_directories(viceplayer PRIVATE
     .
     common
     common/readline
@@ -183,4 +183,7 @@ include_directories(viceplugin PRIVATE
     vice/vicii
     vice/rtc
 )
+
+add_library(viceplugin OBJECT viceplugin_register.cpp)
+target_link_libraries(viceplugin PRIVATE viceplayer)
 

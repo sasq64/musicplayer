@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.htplugin)
 
 set(SOURCE_FILES
@@ -15,8 +15,11 @@ set(SOURCE_FILES
 #find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
 
-add_library(htplugin ${SOURCE_FILES})
-##target_compile_options(htplugin PRIVATE -Wno-pointer-sign -Wno-incompatible-pointer-types)
-target_include_directories(htplugin PRIVATE .)
-target_compile_definitions(htplugin PRIVATE -DEMU_COMPILE -DEMU_LITTLE_ENDIAN -DUSE_M68K -DHAVE_STDINT_H -DLSB_FIRST -DHAVE_MPROTECT)
-target_link_libraries(htplugin PRIVATE psf coreutils ${ZLIB_LIBRARIES})
+add_library(hitech ${SOURCE_FILES})
+##target_compile_options(hitech PRIVATE -Wno-pointer-sign -Wno-incompatible-pointer-types)
+target_include_directories(hitech PRIVATE .)
+target_compile_definitions(hitech PRIVATE -DEMU_COMPILE -DEMU_LITTLE_ENDIAN -DUSE_M68K -DHAVE_STDINT_H -DLSB_FIRST -DHAVE_MPROTECT)
+target_link_libraries(hitech PRIVATE psf coreutils ${ZLIB_LIBRARIES})
+
+add_library(htplugin OBJECT htplugin_register.cpp)
+target_link_libraries(htplugin PRIVATE hitech)

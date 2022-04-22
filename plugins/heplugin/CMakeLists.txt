@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.heplugin)
 
 set(SOURCE_FILES
@@ -23,7 +23,10 @@ endif()
 
 #find_package(ZLIB REQUIRED)
 
-add_library(heplugin ${SOURCE_FILES})
-target_include_directories(heplugin PRIVATE he ${ZLIB_INCLUDE_DIRS})
-target_compile_definitions(heplugin PRIVATE -DEMU_COMPILE -DEMU_LITTLE_ENDIAN)
-target_link_libraries(heplugin PRIVATE psf coreutils ${ZLIB_LIBRARIES})
+add_library(hiexp ${SOURCE_FILES})
+target_include_directories(hiexp PRIVATE he ${ZLIB_INCLUDE_DIRS})
+target_compile_definitions(hiexp PRIVATE -DEMU_COMPILE -DEMU_LITTLE_ENDIAN)
+target_link_libraries(hiexp PRIVATE psf coreutils ${ZLIB_LIBRARIES})
+
+add_library(heplugin OBJECT heplugin_register.cpp)
+target_link_libraries(heplugin PRIVATE hiexp)

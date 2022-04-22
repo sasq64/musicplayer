@@ -32,6 +32,8 @@ template <int SIZE> struct Resampler
         setHz(hz);
     }
 
+    size_t filled() const { return fifo.filled(); }
+
     void setHz(int hz)
     {
         active = hz != targetHz;

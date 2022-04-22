@@ -13,8 +13,6 @@ set(APONE apone)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
 if (WIN32)
   # HACK to make an empty unistd.h available only to Windows
   include_directories(external/win)
@@ -36,7 +34,7 @@ add_subdirectory(${APONE}/archive archive)
 add_subdirectory(psf)
 
 set(MUSICPLAYER_PLUGINS
-#    tfmxplugin
+    tfmxplugin
     adplugin
     aoplugin
     ayflyplugin
@@ -61,7 +59,7 @@ set(MUSICPLAYER_PLUGINS
     # mp3plugin
     # MSVC incompatible
     # Obsolete
-    # sidplugin
+    sidplugin
     # sexypsfplugin
     # modplugin
 )

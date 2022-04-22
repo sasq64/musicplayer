@@ -16,6 +16,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <stdlib.h>
+#ifndef _WIN32
+#include <arpa/inet.h>
+#endif
+
 //#include <openssl/evp.h>
 //
 //#ifdef _SDL_Framework
