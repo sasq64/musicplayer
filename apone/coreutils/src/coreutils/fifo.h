@@ -256,6 +256,8 @@ template <typename T, size_t SIZE> struct Ring
     std::atomic<size_t> read_pos{0};
     std::atomic<size_t> write_pos{0};
 
+    size_t filled() const { return write_pos - read_pos; }
+
     void write(T const* source, size_t n)
     {
         while (write_pos + n - read_pos > SIZE) {

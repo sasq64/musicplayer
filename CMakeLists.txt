@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 project(musicplayer)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
+include(FetchContent)
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (WIN32)
   # HACK to make an empty unistd.h available only to Windows
-  include_directories(external/win)
+  include_directories(externa￣l/win)
 endif()
 add_subdirectory(external/zlib)
 set(ZLIB_LIBRARIES zlibstatic)
@@ -79,6 +79,31 @@ target_link_libraries(play PUBLIC fmt::fmt ${MUSICPLAYER_PLUGINS}
 add_library(musix STATIC lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive ${THREAD_LIB})
+
+if(APPLE)
+  include_directories(SYSTEM /usr/local/include /opt/homebrew/include)
+  link_directories(/usr/local/lib /opt/homebrew/lib)
+endif()
+
+find_package(OpenGL)
+find_package(GLEW REQUIRED)
+find_package(SDL2 REQUIRED)
+message(INFO ${SDL2_INCLUDE_DIRS})
+
+add_library(imgui STATIC
+    imgui/imgui.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp
+    imgui/imgui_widgets.cpp
+    imgui/backends/imgui_impl_glfw.cpp
+    imgui/backends/imgui_impl_opengl3.cpp
+    ImGui-Addons/FileBrowser/ImGuiFileBrowser.cpp
+    )
+target_link_libraries(imgui PUBLIC OpenGL::GL GLEW::GLEW SDL2 glfw)
+target_include_directories(imgui PUBLIC imgui ImGui-Addons/FileBrowser)
+
+add_executable(player player.cpp resampler.cpp ui.cpp)
+target_link_libraries(player PRIVATE imgui
+fmt::fmt ${MUSICPLAYER_PLUGINS}
+    apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
 
 if(NOT WIN32)
 add_executable(musixtest testmain.cpp test.cpp)
