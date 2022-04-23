@@ -36,7 +36,8 @@ int testPlugin(std::string const& dir, std::string const& exclude,
 {
     auto realDir = projDir() / dir;
 
-    std::vector<std::string> ex = utils::split(exclude, ";");
+    std::vector<std::string> ex;
+    if (!exclude.empty()) { ex = utils::split(exclude, ";"); }
 
     std::array<int16_t, 8192> buffer;
     PLUGIN plugin{args...};
@@ -46,14 +47,16 @@ int testPlugin(std::string const& dir, std::string const& exclude,
     int working = 0;
     for (auto const& f : utils::listFiles(realDir, false, false)) {
         bool play = true;
+        //printf("%s against '%s'\n", f.c_str(), exclude.c_str());
         for (auto const& e : ex) {
             if (f.string().find(e) != std::string::npos) { play = false; }
         }
+        //printf("GO %s\n", play ? "PLAY" : "NO");
 
         if (!play) { continue; }
 
         int64_t sum = 0;
-        printf("Trying %s\n", f.string().c_str());
+        //printf("Trying %s\n", f.string().c_str());
         musix::ChipPlayer* player = nullptr;
         try {
             player = plugin.fromFile(f.string());
