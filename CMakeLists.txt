@@ -100,7 +100,7 @@ add_library(imgui STATIC
 target_link_libraries(imgui PUBLIC OpenGL::GL GLEW::GLEW SDL2 glfw)
 target_include_directories(imgui PUBLIC imgui ImGui-Addons/FileBrowser)
 
-add_executable(player player.cpp resampler.cpp ui.cpp)
+add_executable(player player.cpp resampler.cpp)
 target_link_libraries(player PRIVATE imgui
 fmt::fmt ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})

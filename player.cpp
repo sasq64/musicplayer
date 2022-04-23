@@ -18,6 +18,7 @@
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #    include <GLES2/gl2.h>
 #endif
+
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
 class MusicPlayer
@@ -27,10 +28,18 @@ class MusicPlayer
 
     Resampler<32768> fifo{44100};
     AudioPlayer audioPlayer{44100};
+    std::string _title;
+    std::string _composer;
+    std::string _copyright;
+    std::string _format;
+    std::string _sub_title;
+    int _current_song{};
+    int _song_count{};
+
+    int _length{};
+
 public:
-    std::shared_ptr<musix::ChipPlayer> get_player() {
-        return player;
-    }
+    std::shared_ptr<musix::ChipPlayer> get_player() { return player; }
 
     MusicPlayer()
     {
@@ -47,9 +56,29 @@ public:
         });
     }
 
+    void update_meta()
+    {
+        if (player == nullptr)
+        {
+            _current_song = _song_count = _length = 0;
+            _title = _composer = _format = "";
+            _sub_title = "";
+        }
+        else
+        {
+        _song_count = player->getMetaInt("songs");
+        _length = player->getMetaInt("length");
+        _title = player->getMeta("title");
+        _sub_title = player->getMeta("sub_title");
+        _composer = player->getMeta("composer");
+        _format = player->getMeta("format");
+        }
+    }
+
     int play(std::string const& name)
     {
         player = nullptr;
+        update_meta();
         for (const auto& plugin : musix::ChipPlugin::getPlugins()) {
             if (plugin->canHandle(name)) {
                 if (auto* ptr = plugin->fromFile(name)) {
@@ -63,28 +92,37 @@ public:
             printf("No plugin could handle file\n");
             return 0;
         }
-        auto len = player->getMetaInt("length");
-        auto title = player->getMeta("title");
-        if (title.empty()) { title = utils::path_basename(name); }
-
-        auto format = player->getMeta("format");
-        printf("Playing: %s [%s/%s] (%02d:%02d)\n", title.c_str(),
-               pluginName.c_str(), format.c_str(), len / 60, len % 60);
+        update_meta();
+        _current_song = player->getMetaInt("startSong");
+        if (_title.empty()) { _title = utils::path_basename(name); }
         return 1;
     }
 
-    int song = 0;
+    std::string const& title() const { return _title; }
+    std::string const& composer() const { return _composer; }
+    std::string const& format() const { return _format; }
+    int length() const { return _length; }
+    int current_song() const { return _current_song + 1; }
+    int song_count() const { return _song_count; }
+    std::string const& sub_title() const { return _sub_title; }
 
     void next()
     {
-        song++;
-        player->seekTo(song);
+        _current_song++;
+        player->seekTo(_current_song);
+        update_meta();
+    }
+    void prev()
+    {
+        _current_song--;
+        player->seekTo(_current_song);
+        update_meta();
     }
 
     void update()
     {
         if (player == nullptr) { return; }
-        if (fifo.filled() > 8192) return;
+        if (fifo.filled() > 8192) { return; }
         std::array<int16_t, 1024 * 16> temp{};
         fifo.setHz(player->getHZ());
         auto rc =
@@ -109,9 +147,9 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 3.2+ only
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on Mac
 
-    GLFWwindow* window = glfwCreateWindow(
-        1280, 720, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
-    if (window == NULL) return 1;
+    GLFWwindow* window =
+        glfwCreateWindow(1280, 720, "Esoteric Player", nullptr, nullptr);
+    if (window == nullptr) { return 1; }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
@@ -145,23 +183,22 @@ int main()
         ImGui::Begin("x", nullptr,
                      ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize);
         bool open = false;
-        auto p = player.get_player();
 
-        if (p != nullptr) {
-            text(fmt::format("Title: {}", p->getMeta("title")));
-            text(fmt::format("Composer: {}", p->getMeta("composer")));
-            text(fmt::format("Format: {}", p->getMeta("format")));
-            text(fmt::format("Length: {}", p->getMetaInt("length")));
-        }
+        int len = player.length();
+        text(fmt::format("Title: {}", player.title()));
+        text(fmt::format("Subtitle: {}", player.sub_title()));
+        text(fmt::format("Composer: {}", player.composer()));
+        text(fmt::format("Format: {}", player.format()));
+        text(fmt::format("SONG: {:02}/{:02} TIME: {:02}:{:02}",
+                         player.current_song(), player.song_count(), len / 60,
+                         len % 60));
 
         if (ImGui::Button("Open")) {
             printf("Open\n");
             open = true;
         }
-        if (ImGui::Button("Next")) {
-            player.next();
-        }
-        ImGui::Text("This is some useful text.");
+        if (ImGui::Button(">>")) { player.next(); }
+        if (ImGui::Button("<<")) { player.prev(); }
         // Remember the name to ImGui::OpenPopup() and showFileDialog() must be
         // same...
         if (open) { ImGui::OpenPopup("Open File"); }
@@ -169,7 +206,8 @@ int main()
                 "Open File", imgui_addons::ImGuiFileBrowser::DialogMode::OPEN,
                 ImVec2(700, 310), "*.*")) {
             printf("Close\n");
-            std::string p = file_dialog.selected_path;//+ "/" + file_dialog.selected_fn;
+            std::string p =
+                file_dialog.selected_path; //+ "/" + file_dialog.selected_fn;
             player.play(p);
         }
         open = false;
