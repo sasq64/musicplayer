@@ -11,6 +11,7 @@
 #include "player.h"
 #include <pthread.h>
 #include <string.h>
+#include <stdint.h>
 
 #include <sys/stat.h>
 
