@@ -261,7 +261,7 @@ template <typename T, size_t SIZE> struct Ring
     void write(T const* source, size_t n)
     {
         while (write_pos + n - read_pos > SIZE) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         for (size_t i = 0; i < n; i++) {
             data[(write_pos + i) % SIZE] = source[i];

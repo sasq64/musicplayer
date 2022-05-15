@@ -19,11 +19,7 @@ static std::thread uadeThread;
 extern "C" void uade_run_thread(void (*f)(void*), void* data)
 {
     LOGD("Starting thread");
-    try {
-        uadeThread = std::thread(f, data);
-    } catch (std::exception& e) {
-        puts(e.what());
-    }
+    uadeThread = std::thread(f, data);
 }
 
 extern "C" void uade_wait_thread()
@@ -36,16 +32,15 @@ namespace musix {
 class UADEPlayer : public ChipPlayer
 {
 public:
-    explicit UADEPlayer(const std::string& dataDir)
-        : dataDir(dataDir), valid(false)
+    explicit UADEPlayer(const fs::path& _dataDir) : dataDir(_dataDir)
     {
 
-        currDir = utils::getCurrentDir();
+        currDir = fs::current_path();
         fs::current_path(dataDir);
         LOGD("CP: {}", fs::current_path().string());
-
     }
 
+    // Called when Amiga wants to load a file
     static struct uade_file* amigaloader(const char* name,
                                          const char* playerdir, void* context,
                                          struct uade_state* state)
@@ -55,6 +50,13 @@ public:
 
         fs::path fileName = name;
 
+        auto ext = fileName.extension();
+/*
+        if (ext == ".INS") {
+            fileName.replace_extension(".ins");
+        }
+*/
+
         if (utils::startsWith(name, "Env:")) {
             fileName = fs::path(playerdir) / "ENV" / &name[4];
         } else if (utils::startsWith(name, "smpl.")) {
@@ -63,24 +65,23 @@ public:
             fileName = player->loadDir / "set.smpl";
         } else if (!player->uadeFile.empty()) {
             fileName = player->loadDir /
-                       (player->baseName + "." + utils::path_prefix(fileName.string()));
+                       (player->baseName + "." + utils::path_prefix(fileName));
             LOGD("Translated back to '{}'", fileName.string());
-        } else if (player->currentFileName.find(fileName.string()) == 0) {
+        } else if (player->currentFileName.string().find(fileName.string()) ==
+                   0) {
             LOGD("Restoring filename {} back to '{}'", fileName.string(),
-                 player->currentFileName);
+                 player->currentFileName.string());
             fileName = player->currentFileName;
         }
 
-
-        LOGD("Acutally loading {}", fileName.string());
+        LOGD("Actually loading {}", fileName.string());
         struct uade_file* f =
             uade_load_amiga_file(fileName.string().c_str(), playerdir, state);
         return f;
     }
 
-    bool load(std::string fileName)
+    bool load(fs::path const& fileName)
     {
-
         struct uade_config* config = uade_new_config();
         uade_config_set_option(config, UC_ONE_SUBSONG, nullptr);
         uade_config_set_option(config, UC_IGNORE_PLAYER_CHECK, nullptr);
@@ -90,29 +91,24 @@ public:
         state = uade_new_state(config, 1);
         free(config);
 
-        loadDir = utils::path_directory(fileName);
-        baseName = utils::path_basename(fileName);
-
-        uade_set_amiga_loader(UADEPlayer::amigaloader, this, state);
-        auto suffix = utils::path_suffix(fileName);
-
-        if (suffix == "mdat") {
-            uadeFile = utils::getTempDir() / (suffix + ".music");
-            LOGD("Translated {} to {}", fileName, uadeFile.string());
-            if (fs::exists(uadeFile)) {
-                fs::remove(uadeFile);
-            }
-            fs::copy(fileName, uadeFile);
-            // uadeFile.copyFrom(File{fileName});
-            // uadeFile.close();
-            fileName = uadeFile.string();
-        }
-
+        loadDir = fileName.parent_path();
+        baseName = fileName.stem().string();
         currentFileName = fileName;
 
+        uade_set_amiga_loader(UADEPlayer::amigaloader, this, state);
+        auto suffix = fileName.extension();
 
-        LOGD("UADE FILE {}", fileName);
-        if (uade_play(fileName.c_str(), -1, state) == 1) {
+        if (suffix == ".mdat") {
+            // Transform to prefixed name so UADE can recognize it
+            uadeFile = utils::getTempDir() / "mdat.music";
+            LOGD("Translated {} to {}", fileName.string(), uadeFile.string());
+            if (fs::exists(uadeFile)) { fs::remove(uadeFile); }
+            fs::copy(fileName, uadeFile);
+            currentFileName = uadeFile;
+        }
+
+        LOGD("UADE FILE {}", currentFileName.string());
+        if (uade_play(currentFileName.c_str(), -1, state) == 1) {
             songInfo = uade_get_song_info(state);
             const char* modname = songInfo->modulename;
             if (strcmp(modname, "<no songtitle>") == 0) { modname = ""; }
@@ -168,13 +164,13 @@ public:
 
 private:
     fs::path currDir;
-    fs::path uadeFile;
-    std::string dataDir;
-    bool valid;
+    fs::path uadeFile; // Copy of main song but with different name
+    fs::path dataDir;
+    bool valid{false};
     struct uade_state* state{};
     const struct uade_song_info* songInfo{};
     std::string baseName;
-    std::string currentFileName;
+    fs::path currentFileName;
     fs::path loadDir;
 };
 
@@ -315,9 +311,9 @@ std::vector<std::string> UADEPlugin::getSecondaryFiles(const std::string& file)
 ChipPlayer* UADEPlugin::fromFile(const std::string& fileName)
 {
     auto realName = fs::absolute(fileName);
-    auto* player = new UADEPlayer(dataDir + "/uade");
-    LOGD("UADE data {}", dataDir);
-    if (!player->load(realName.string())) {
+    auto* player = new UADEPlayer(dataDir / "uade");
+    LOGD("UADE data {}", dataDir.string());
+    if (!player->load(realName)) {
         delete player;
         player = nullptr;
     }

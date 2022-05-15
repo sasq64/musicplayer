@@ -2,11 +2,13 @@
 
 #include "../../chipplugin.h"
 
+#include <filesystem>
+
 namespace musix {
 
 class UADEPlugin : public ChipPlugin {
 public:
-    explicit UADEPlugin(const std::string& dataDir) : dataDir(dataDir) {}
+    explicit UADEPlugin(const std::string& _dataDir) : dataDir(_dataDir) {}
 
     std::string name() const override { return "UADE"; }
     bool canHandle(const std::string& name) override;
@@ -15,7 +17,7 @@ public:
     int priority() override { return -10; }
 
 private:
-    std::string dataDir;
+    std::filesystem::path dataDir;
 };
 
 } // namespace musix

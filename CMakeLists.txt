@@ -26,12 +26,19 @@ target_include_directories(_zlib INTERFACE ${ZLIB_INCLUDE_DIRS})
 add_library(ZLIB::ZLIB ALIAS _zlib)
 
 add_subdirectory(external/fmt)
+option(ELEMENTS_BUILD_EXAMPLES "" OFF)
+add_subdirectory(external/elements)
+add_subdirectory(external/readerwriterqueue)
+add_subdirectory(external/portable-file-dialogs)
+
 add_subdirectory(${APONE}/coreutils coreutils)
 add_subdirectory(${APONE}/crypto crypto)
 add_subdirectory(${APONE}/audioplayer audioplayer)
 add_subdirectory(${APONE}/archive archive)
 
+
 add_subdirectory(psf)
+add_subdirectory(stil)
 
 set(MUSICPLAYER_PLUGINS
     tfmxplugin
@@ -100,9 +107,10 @@ add_library(imgui STATIC
 target_link_libraries(imgui PUBLIC OpenGL::GL GLEW::GLEW SDL2 glfw)
 target_include_directories(imgui PUBLIC imgui ImGui-Addons/FileBrowser)
 
-add_executable(player player.cpp resampler.cpp)
-target_link_libraries(player PRIVATE imgui
-fmt::fmt ${MUSICPLAYER_PLUGINS}
+add_executable(player ui.cpp player.cpp resampler.cpp)
+target_link_libraries(player PRIVATE cycfi::elements
+    portable_file_dialogs
+fmt::fmt ${MUSICPLAYER_PLUGINS} readerwriterqueue
     apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
 
 if(NOT WIN32)

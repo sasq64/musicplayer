@@ -60,7 +60,7 @@ auto find_if(CONTAINER<T> const& haystack, FX const& fn)
     return std::find_if(begin(haystack), end(haystack), fn);
 }
 
-inline std::string spaces(int n)
+inline std::string spaces(std::string::size_type n)
 {
     return std::string(n, ' ');
 }
@@ -115,8 +115,7 @@ inline bool isLower(std::string const& s)
 
 inline void makeLower(std::string& s)
 {
-    for (auto& c : s)
-        c = tolower(c);
+    for (auto& c : s) { c = static_cast<char>(tolower(c)); }
 }
 
 inline std::string toLower(const std::string& s)
@@ -155,11 +154,11 @@ inline std::string path_suffix(const std::string& name)
     return path_extension(name);
 }
 
-inline std::string path_prefix(const std::string& name)
+inline std::string path_prefix(const fs::path& name)
 {
-    auto file_name = path_filename(name);
+    auto file_name = name.filename().string();
     auto dotPos = file_name.find('.');
-    if (dotPos == std::string::npos) return "";
+    if (dotPos == std::string::npos) { return ""; }
     return file_name.substr(0, dotPos);
 }
 
@@ -405,7 +404,7 @@ inline uint32_t crc32(const uint32_t* data, int size)
         0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4};
 
     uint32_t crc = 0;
-    while (size--) {
+    while ((size--) != 0) {
         uint32_t v = *data++;
         COMPUTE(crc, v & 0xFF);
         COMPUTE(crc, (v >> 8) & 0xFF);
@@ -426,10 +425,6 @@ inline void sleepus(unsigned us)
     std::this_thread::sleep_for(std::chrono::microseconds(us));
 }
 
-template <typename T> inline T clamp(T x, T a0, T a1)
-{
-    return std::min(std::max(x, a0), a1);
-}
 #if 0
 template <typename T> constexpr T bswap(T const& t) {}
 
@@ -448,7 +443,7 @@ inline void listFiles(const fs::path& root, std::vector<fs::path>& result,
                       bool includeDirs, bool recurse)
 {
     for (const auto& entry : fs::directory_iterator(root)) {
-        auto p = entry.path().string();
+        auto&& p = entry.path().string();
         if (p[0] == '.' && (p[1] == 0 || (p[1] == '.' && p[2] == 0))) {
             continue;
         }

@@ -22,10 +22,9 @@ int main(int argc, const char** argv)
 
     if (argc < 2) { return 0; }
 
-    logging::setLevel(logging::Level::Warning);
+    logging::setLevel(logging::Level::Debug);
 
     std::string name = argv[1];
-    //std::string name = "c:\\Demos\\turrican.mdat";
 
     std::string pluginName;
 
@@ -51,8 +50,8 @@ int main(int argc, const char** argv)
     if (title.empty()) { title = utils::path_basename(name); }
 
     auto format = player->getMeta("format");
-    printf("Playing: %s [%s/%s] (%02d:%02d)\n", title.c_str(),
-           pluginName.c_str(), format.c_str(), len / 60, len % 60);
+    fmt::print("Playing: {} [{}/{}] ({:02}:{:02})\n", title,
+           pluginName, format, len / 60, len % 60);
 
     Resampler<32768> fifo{44100};
     AudioPlayer audioPlayer{44100};

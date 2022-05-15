@@ -1,0 +1,3 @@
+[submodule "external/elements"]
+	path = external/elements
+	url = https://github.com/cycfi/elements.git

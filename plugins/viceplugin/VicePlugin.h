@@ -2,6 +2,7 @@
 
 #include "../../chipplugin.h"
 
+#include <filesystem>
 #include <string>
 #include <thread>
 #include <vector>
@@ -28,7 +29,7 @@ public:
     static uint64_t calculateMD5(const std::string& fileName);
 
 private:
-    #pragma pack(push, 1)
+#pragma pack(push, 1)
     struct LengthEntry
     {
         uint64_t hash;
@@ -42,16 +43,16 @@ private:
         }
         bool operator<(uint64_t other) const { return hash < other; }
     }; //__attribute__((packed));
-    #pragma pack(pop)
+#pragma pack(pop)
 
     static std::vector<LengthEntry> mainHash;
     static std::vector<uint16_t> extraLengths;
 
-    std::string dataDir;
+    std::filesystem::path dataDir;
 
     bool stopInitThread = false;
 
-    struct STIL
+    struct STILInfo
     {
         int subsong;
         int seconds;
@@ -65,10 +66,10 @@ private:
     struct STILSong
     {
         STILSong() = default;
-        STILSong(const std::vector<STIL>& sngs, const std::string& c)
+        STILSong(const std::vector<STILInfo>& sngs, const std::string& c)
             : songs(sngs), comment(c)
         {}
-        std::vector<STIL> songs;
+        std::vector<STILInfo> songs;
         std::string comment;
     };
 
@@ -78,4 +79,3 @@ private:
 };
 
 } // namespace musix
-

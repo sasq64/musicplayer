@@ -183,7 +183,7 @@ public:
             currentLength = songLengths[defaultSong];
         }
         LOGD("Length:{}", currentLength);
-        std::string msg = "NO STIL INFO";
+        std::string msg = "NO STILInfo INFO";
         std::string sub_title;
         auto pos = realPath.find("C64Music/");
         currentInfo = 0;
@@ -323,10 +323,9 @@ VicePlugin::VicePlugin(const std::string& dataDir) : dataDir(dataDir)
 
 void VicePlugin::readSTIL()
 {
-    STIL current{};
-    std::vector<STIL> songs;
-    fs::path dd{dataDir};
-    if (!fs::exists(dd / "STIL.txt")) {
+    STILInfo currentInfo{};
+    std::vector<STILInfo> songs;
+    if (!fs::exists(dataDir / "STILInfo.txt")) {
         return;
     }
 
@@ -337,13 +336,12 @@ void VicePlugin::readSTIL()
     bool currentSet = false;
 
     std::ifstream myfile;
-    myfile.open(dd / "STIL.txt");
+    myfile.open(dataDir / "STILInfo.txt");
     std::string l;
     while (std::getline(myfile, l)) {
         if (stopInitThread) {
             return;
         }
-        // LOGD("'{}' : {}", l[0], l);
         if (l.empty() || l[0] == '#') {
             continue;
         }
@@ -354,21 +352,21 @@ void VicePlugin::readSTIL()
             if (!content.empty()) {
                 if (!what.empty()) {
                     if (songComment.empty() && what == "COMMENT" &&
-                        songs.empty() && current.title.empty() &&
-                        current.name.empty()) {
+                        songs.empty() && currentInfo.title.empty() &&
+                        currentInfo.name.empty()) {
                         songComment = content;
                     } else {
                         // LOGD("WHAT:{} = '{}'", what, content);
                         if (what == "TITLE") {
-                            current.title = content;
+                            currentInfo.title = content;
                         } else if (what == "COMMENT") {
-                            current.comment = content;
+                            currentInfo.comment = content;
                         } else if (what == "AUTHOR") {
-                            current.author = content;
+                            currentInfo.author = content;
                         } else if (what == "ARTIST") {
-                            current.artist = content;
+                            currentInfo.artist = content;
                         } else if (what == "NAME") {
-                            current.name = content;
+                            currentInfo.name = content;
                         }
                         currentSet = true;
                     }
@@ -379,34 +377,34 @@ void VicePlugin::readSTIL()
 
             if (l[0] == '/') {
                 if (currentSet) {
-                    songs.push_back(current);
-                    current = STIL();
+                    songs.push_back(currentInfo);
+                    currentInfo = {};
                     currentSet = false;
                 }
                 stilSongs[path] = STILSong(songs, songComment);
                 songComment = "";
                 songs.clear();
                 path = l;
-                current.subsong = 1;
-                current.seconds = 0;
+                currentInfo.subsong = 1;
+                currentInfo.seconds = 0;
                 what = "";
                 content = "";
             } else if (l[0] == '(') {
 
                 if (currentSet) {
-                    if (songComment.empty() && !current.comment.empty() &&
-                        songs.empty() && current.title.empty() &&
-                        current.name.empty()) {
+                    if (songComment.empty() && !currentInfo.comment.empty() &&
+                        songs.empty() && currentInfo.title.empty() &&
+                        currentInfo.name.empty()) {
                         songComment = content;
                     } else {
-                        songs.push_back(current);
+                        songs.push_back(currentInfo);
                     }
-                    current = STIL();
+                    currentInfo = {};
                     currentSet = false;
                 }
-                current.subsong = std::stoi(l.substr(2));
-                // LOGD("SUBSONG {}", current.subsong);
-                current.seconds = 0;
+                currentInfo.subsong = std::stoi(l.substr(2));
+                // LOGD("SUBSONG {}", currentInfo.subsong);
+                currentInfo.seconds = 0;
                 content = "";
                 what = "";
             } else {
@@ -415,11 +413,11 @@ void VicePlugin::readSTIL()
                     what = utils::lstrip(l.substr(0, colon));
                     content = l.substr(colon + 1);
                     if (what == "TITLE") {
-                        if (currentSet && !current.title.empty()) {
-                            songs.push_back(current);
-                            auto s = current.subsong;
-                            current = STIL();
-                            current.subsong = s;
+                        if (currentSet && !currentInfo.title.empty()) {
+                            songs.push_back(currentInfo);
+                            auto s = currentInfo.subsong;
+                            currentInfo = {};
+                            currentInfo.subsong = s;
                             currentSet = false;
                         }
                         if (content[content.size() - 1] == ')') {
@@ -429,7 +427,7 @@ void VicePlugin::readSTIL()
                             if (secs.size() >= 2) {
                                 int m = std::stoi(secs[0]);
                                 int s = std::stoi(secs[1]);
-                                current.seconds = s + m * 60;
+                                currentInfo.seconds = s + m * 60;
                             }
                         }
                     }
@@ -488,37 +486,33 @@ template <typename T> T from_hex(const std::string& s)
 void VicePlugin::readLengths()
 {
     static_assert(sizeof(LengthEntry) == 10, "LengthEntry size incorrect");
-    fs::path dd{dataDir};
-    if (!fs::exists(dd / "Songlengths.txt")) {
+    if (!fs::exists(dataDir / "Songlengths.txt")) {
         return;
     }
 
-    // File fp{dd / "Songlengths.txt"};
-    std::string secs;
-    std::string mins;
     uint16_t ll = 0;
     std::string name;
     extraLengths.reserve(30000);
 
     std::ifstream myfile;
-    myfile.open(dd / "Songlengths.txt");
-    std::string l;
-    while (std::getline(myfile, l)) {
+    myfile.open(dataDir / "Songlengths.txt");
+    std::string line;
+    while (std::getline(myfile, line)) {
         if (stopInitThread) {
             return;
         }
-        if (l[0] == ';') {
-            name = l;
-        } else if (l[0] != '[') {
-            auto key = from_hex<uint64_t>(l.substr(0, 16));
-            auto lengths = utils::split(l.substr(33), " ");
+        if (line[0] == ';') {
+            name = line;
+        } else if (line[0] != '[') {
+            auto key = from_hex<uint64_t>(line.substr(0, 16));
+            auto lengths = utils::split(line.substr(33), " ");
             if (lengths.size() == 1) {
-                std::tie(mins, secs) = utils::splitn<2>(lengths[0], ":");
+                auto [mins, secs] = utils::splitn<2>(lengths[0], ":");
                 ll = stoi(mins) * 60 + stoi(secs);
             } else {
                 ll = extraLengths.size() | 0x8000U;
                 for (const auto& sl : lengths) {
-                    tie(mins, secs) = utils::splitn<2>(sl, ":");
+                    auto [mins, secs] = utils::splitn<2>(sl, ":");
                     extraLengths.push_back(stoi(mins) * 60 + stoi(secs));
                 }
                 extraLengths.back() |= 0x8000U;

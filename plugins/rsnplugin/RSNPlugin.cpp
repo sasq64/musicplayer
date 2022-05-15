@@ -20,10 +20,10 @@ public:
         if (player == nullptr) {
             throw player_exception();
         }
-        setMeta("title", player->getMeta("title"), "sub_title",
-                player->getMeta("sub_title"), "game", player->getMeta("game"),
-                "composer", player->getMeta("composer"), "length",
-                player->getMeta("length"), "format", player->getMeta("format"),
+        setMeta("title", player->meta("title"), "sub_title",
+                player->meta("sub_title"), "game", player->meta("game"),
+                "composer", player->meta("composer"), "length",
+                player->meta("length"), "format", player->meta("format"),
                 "songs", l.size());
     }
 
@@ -64,7 +64,7 @@ ChipPlayer* RSNPlugin::fromFile(const std::string& fileName)
         "dsf", "minidsf", "mini2sf", "minigsf", "mdx",      "s98"};
 
     std::vector<std::string> l;
-    fs::path rsnDir = utils::get_cache_dir("chipmusic") / ".rsn";
+    auto rsnDir = utils::get_cache_dir("chipmusic") / ".rsn";
     fs::create_directory(rsnDir);
     for (auto const& f : utils::listFiles(rsnDir, false, true)) {
         fs::remove(f);

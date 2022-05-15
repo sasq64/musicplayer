@@ -6,9 +6,12 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 namespace musix {
+
+using MetaVar = std::variant<std::string, double>;
 
 class player_exception : public std::exception
 {
@@ -41,19 +44,30 @@ public:
         return false;
     }
 
-    virtual std::string getMeta(const std::string& what)
+    std::string getMeta(const std::string& what)
     {
-        return metaData[what];
+        auto const& v = metaData[what];
+        if(auto const* ptr = std::get_if<std::string>(&v)) {
+            return *ptr;
+        }
+        if(auto const* ptr = std::get_if<double>(&v)) {
+            return std::to_string(*ptr);
+        }
+        return "";
     };
 
-    virtual bool couldHandle() { return true; }
+    MetaVar const& meta(std::string const& what)
+    {
+        return metaData[what];
+    }
 
     int getMetaInt(const std::string& what)
     {
-        const auto& data = getMeta(what);
-        if (data.empty())
-            return -1;
-        return std::stoi(data);
+        auto const& v = metaData[what];
+        if(auto const* ptr = std::get_if<double>(&v)) {
+            return static_cast<int>(*ptr);
+        }
+        return -1;
     };
 
     void setMeta()
@@ -66,22 +80,19 @@ public:
         }
     }
 
-    void addMeta(const std::string& what, std::string const& value)
+    template <typename T, typename... A, typename = typename std::enable_if<std::is_arithmetic_v<T>>::type>
+    void setMeta(const std::string& what, T value, const A&... args)
     {
-        metaData[what] = value;
+        metaData[what] = static_cast<double>(value);
         changedMeta.push_back(what);
-    }
-
-    void addMeta(const std::string& what, int value)
-    {
-        metaData[what] = std::to_string(value);
-        changedMeta.push_back(what);
+        setMeta(args...);
     }
 
     template <typename... A>
-    void setMeta(const std::string& what, int value, const A&... args)
+    void setMeta(const std::string& what, const MetaVar& value,
+                 const A&... args)
     {
-        metaData[what] = std::to_string(value);
+        metaData[what] = value;
         changedMeta.push_back(what);
         setMeta(args...);
     }
@@ -116,7 +127,7 @@ public:
     }
 
 protected:
-    std::unordered_map<std::string, std::string> metaData;
+    std::unordered_map<std::string, MetaVar> metaData;
     std::vector<Callback> callbacks;
     std::vector<std::string> changedMeta;
 };
