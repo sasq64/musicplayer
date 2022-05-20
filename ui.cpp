@@ -53,34 +53,40 @@ int main(int argc, char** argv)
 
     if (argc > 1) { player->play(argv[1]); }
 
+    fmt::print("RUN 1\n");
     auto constexpr bkd_color = ui::rgba(35, 35, 37, 255);
     auto background = ui::box(bkd_color);
 
-    ui::app app(0, argv, "player", "org.apone.music-player");
+    ui::app app(1, argv, "player", "org.apone.music-player");
+    fmt::print("RUN 2\n");
     ui::window win{app.name()};
     win.on_close = [&app]() { app.stop(); };
 
     event_view view{win};
 
-    auto theme = ui::get_theme();
-    theme.label_font_size = 20;
-    theme.text_box_font_size = 20;
-    theme.frame_stroke_width = 3;
-    theme.frame_corner_radius = 5;
-    ui::set_theme(theme);
+    fmt::print("RUN 3\n");
+    //auto theme = ui::get_theme();
+    //theme.label_font_size = 20;
+    //theme.text_box_font_size = 20;
+    //theme.frame_stroke_width = 3;
+    //theme.frame_corner_radius = 5;
+    //ui::set_theme(theme);
 
+    fmt::print("RUN 3c\n");
     auto title = info_keyval("Title:");
     auto composer = info_keyval("Composer:");
     auto copyright = info_keyval("Copyright:");
     auto next_button = blue_button("Next");
     auto prev_button = blue_button("Prev");
 
+    fmt::print("RUN 3a\n");
     next_button.on_click = [&](auto&&) { player->next(); };
     prev_button.on_click = [&](auto&&) { player->prev(); };
 
     auto open_button = blue_button("Open");
 
     std::optional<pfd::open_file> open_dialog{};
+    fmt::print("RUN 3b\n");
 
     open_button.on_click = [&](auto) {
         open_dialog = pfd::open_file("Choose files to read", this_dir.string(),
@@ -91,6 +97,7 @@ int main(int argc, char** argv)
     };
 
     ui::rect m{5,5,5,5};
+    fmt::print("RUN 4\n");
     view.content(ui::margin(m,
         ui::layer(ui::vtile(title, composer, copyright,
                             ui::layer(ui::htile(
@@ -119,5 +126,6 @@ int main(int argc, char** argv)
             open_dialog = std::nullopt;
         }
     };
+    fmt::print("RUN\n");
     app.run();
 }
