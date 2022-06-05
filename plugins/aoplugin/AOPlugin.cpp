@@ -83,13 +83,13 @@ extern "C"
             return AO_FAIL;
         }
 
-        fread(filebuf, size, 1, auxfile);
+        auto rc = fread(filebuf, size, 1, auxfile);
         fclose(auxfile);
 
         *buffer = filebuf;
         *length = (uint64)size;
 
-        return AO_SUCCESS;
+        return rc > 0 ? AO_SUCCESS : AO_FAIL;
     }
 }
 

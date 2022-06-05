@@ -1,21 +1,21 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <variant>
+#include <vector>
 
 struct MusicPlayer
 {
     virtual ~MusicPlayer() = default;
     static std::unique_ptr<MusicPlayer> create();
-    struct Info
-    {
-        std::optional<std::string> title;
-        std::optional<std::string> composer;
-    };
-    virtual void run() {}
+    //virtual void run() {}
+    virtual void update() {}
     virtual void play(std::filesystem::path const& fileName) {}
     virtual void next() {}
     virtual void prev() {}
 
-    virtual std::optional<Info> get_info() { return std::nullopt; }
+    using Info = std::pair<std::string, std::variant<std::string, double, uint32_t>>;
+
+    virtual std::vector<Info> get_info() { return {}; }
 };
 

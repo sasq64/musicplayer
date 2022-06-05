@@ -62,7 +62,7 @@ set(MUSICPLAYER_PLUGINS
     usfplugin
     rsnplugin
     s98plugin
-    viceplugin
+    # viceplugin
     # mp3plugin
     # MSVC incompatible
     # Obsolete
@@ -92,27 +92,27 @@ if(APPLE)
   link_directories(/usr/local/lib /opt/homebrew/lib)
 endif()
 
-find_package(OpenGL)
-find_package(GLEW REQUIRED)
-find_package(SDL2 REQUIRED)
-message(INFO ${SDL2_INCLUDE_DIRS})
+# find_package(OpenGL)
+# find_package(GLEW REQUIRED)
+# find_package(SDL2 REQUIRED)
+# message(INFO ${SDL2_INCLUDE_DIRS})
 
-add_library(imgui STATIC
-    imgui/imgui.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp
-    imgui/imgui_widgets.cpp
-    imgui/backends/imgui_impl_glfw.cpp
-    imgui/backends/imgui_impl_opengl3.cpp
-    ImGui-Addons/FileBrowser/ImGuiFileBrowser.cpp
-    )
-target_link_libraries(imgui PUBLIC OpenGL::GL GLEW::GLEW SDL2 glfw)
-target_include_directories(imgui PUBLIC imgui ImGui-Addons/FileBrowser)
+# add_library(imgui STATIC
+#     imgui/imgui.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp
+#     imgui/imgui_widgets.cpp
+#     imgui/backends/imgui_impl_glfw.cpp
+#     imgui/backends/imgui_impl_opengl3.cpp
+#     ImGui-Addons/FileBrowser/ImGuiFileBrowser.cpp
+#     )
+# target_link_libraries(imgui PUBLIC OpenGL::GL GLEW::GLEW SDL2 glfw)
+# target_include_directories(imgui PUBLIC imgui ImGui-Addons/FileBrowser)
 
 add_executable(player ui.cpp player.cpp resampler.cpp)
 target_link_libraries(player PRIVATE cycfi::elements
     portable_file_dialogs
 fmt::fmt ${MUSICPLAYER_PLUGINS} readerwriterqueue
     apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
-target_link_libraries(player PRIVATE "-framework Cocoa" "-framework IOKit")
+# target_link_libraries(player PRIVATE "-framework Cocoa" "-framework IOKit")
 
 if(NOT WIN32)
 add_executable(musixtest testmain.cpp test.cpp)

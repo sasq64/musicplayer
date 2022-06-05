@@ -3,4 +3,4 @@ project(stil)
 
 add_library(stil STATIC STIL.cpp)
 target_link_libraries(stil PRIVATE coreutils crypto ${ZLIB_LIBRARIES})
-target_include_directories(stil PUBLIC include PRIVATE ${ZLIB_INCLUDE_DIRS})
+target_include_directories(stil PUBLIC . PRIVATE ${ZLIB_INCLUDE_DIRS})

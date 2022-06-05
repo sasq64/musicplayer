@@ -11,7 +11,7 @@
 
 namespace musix {
 
-using MetaVar = std::variant<std::string, double>;
+using MetaVar = std::variant<std::string, double, uint32_t>;
 
 class player_exception : public std::exception
 {
@@ -53,6 +53,9 @@ public:
         if(auto const* ptr = std::get_if<double>(&v)) {
             return std::to_string(*ptr);
         }
+        if(auto const* ptr = std::get_if<uint32_t>(&v)) {
+            return std::to_string(*ptr);
+        }
         return "";
     };
 
@@ -61,13 +64,13 @@ public:
         return metaData[what];
     }
 
-    int getMetaInt(const std::string& what)
+    uint32_t getMetaInt(const std::string& what)
     {
         auto const& v = metaData[what];
-        if(auto const* ptr = std::get_if<double>(&v)) {
-            return static_cast<int>(*ptr);
+        if(auto const* ptr = std::get_if<uint32_t>(&v)) {
+            return static_cast<uint32_t>(*ptr);
         }
-        return -1;
+        return 0;
     };
 
     void setMeta()
@@ -80,10 +83,18 @@ public:
         }
     }
 
-    template <typename T, typename... A, typename = typename std::enable_if<std::is_arithmetic_v<T>>::type>
+    template <typename T, typename... A, typename = typename std::enable_if<std::is_integral_v<T>>::type>
     void setMeta(const std::string& what, T value, const A&... args)
     {
-        metaData[what] = static_cast<double>(value);
+        metaData[what] = static_cast<uint32_t>(value);
+        changedMeta.push_back(what);
+        setMeta(args...);
+    }
+
+    template <typename... A>
+    void setMeta(const std::string& what, double value, const A&... args)
+    {
+        metaData[what] = value;
         changedMeta.push_back(what);
         setMeta(args...);
     }

@@ -49,44 +49,40 @@ int main(int argc, char** argv)
 {
     auto this_dir = fs::current_path();
     auto player = MusicPlayer::create();
-    player->run();
+    //player->run();
 
     if (argc > 1) { player->play(argv[1]); }
 
-    fmt::print("RUN 1\n");
     auto constexpr bkd_color = ui::rgba(35, 35, 37, 255);
     auto background = ui::box(bkd_color);
 
     ui::app app(1, argv, "player", "org.apone.music-player");
-    fmt::print("RUN 2\n");
     ui::window win{app.name()};
     win.on_close = [&app]() { app.stop(); };
 
     event_view view{win};
 
-    fmt::print("RUN 3\n");
-    //auto theme = ui::get_theme();
-    //theme.label_font_size = 20;
-    //theme.text_box_font_size = 20;
-    //theme.frame_stroke_width = 3;
-    //theme.frame_corner_radius = 5;
-    //ui::set_theme(theme);
+    // auto theme = ui::get_theme();
+    // theme.label_font_size = 20;
+    // theme.text_box_font_size = 20;
+    // theme.frame_stroke_width = 3;
+    // theme.frame_corner_radius = 5;
+    // ui::set_theme(theme);
 
-    fmt::print("RUN 3c\n");
     auto title = info_keyval("Title:");
     auto composer = info_keyval("Composer:");
     auto copyright = info_keyval("Copyright:");
+    auto song = info_keyval("Song:");
+    auto length = info_keyval("Length:");
     auto next_button = blue_button("Next");
     auto prev_button = blue_button("Prev");
 
-    fmt::print("RUN 3a\n");
     next_button.on_click = [&](auto&&) { player->next(); };
     prev_button.on_click = [&](auto&&) { player->prev(); };
 
     auto open_button = blue_button("Open");
 
     std::optional<pfd::open_file> open_dialog{};
-    fmt::print("RUN 3b\n");
 
     open_button.on_click = [&](auto) {
         open_dialog = pfd::open_file("Choose files to read", this_dir.string(),
@@ -96,24 +92,34 @@ int main(int argc, char** argv)
                                      pfd::opt::none);
     };
 
-    ui::rect m{5,5,5,5};
-    fmt::print("RUN 4\n");
-    view.content(ui::margin(m,
-        ui::layer(ui::vtile(title, composer, copyright,
-                            ui::layer(ui::htile(
-                                ui::margin(m, prev_button), 
-                                ui::margin(m, next_button), 
-                                ui::margin(m, open_button)), ui::frame{})),
-                  background)));
+    ui::rect m{5, 5, 5, 5};
+    view.content(ui::margin(
+        m, ui::layer(ui::vtile(title, composer, copyright, length, song,
+                               ui::layer(ui::htile(ui::margin(m, prev_button),
+                                                   ui::margin(m, next_button),
+                                                   ui::margin(m, open_button)),
+                                         ui::frame{})),
+                     background)));
 
     view.on_update = [&] {
-        auto info = player->get_info();
-        if (info) {
-            if (info->title) {
-                fmt::print("Title:{}\n", *info->title);
-                title.set_text(*info->title);
-                view.refresh();
+        auto&& info = player->get_info();
+        for (auto&& [key, val] : info) {
+            if (key == "title") { title.set_text(std::get<std::string>(val)); }
+            if (key == "copyright") {
+                copyright.set_text(std::get<std::string>(val));
             }
+            if (key == "composer") {
+                composer.set_text(std::get<std::string>(val));
+            }
+            if (key == "length") {
+                auto l = std::get<uint32_t>(val);
+                length.set_text(fmt::format("{:02}:{:02}", l / 60, l % 60));
+            }
+            if (key == "song") {
+                auto s = std::get<uint32_t>(val);
+                song.set_text(fmt::format("{:02}/{:02}", s, 99));
+            }
+            view.refresh();
         }
 
         if (open_dialog && open_dialog->ready(10)) {
@@ -126,6 +132,5 @@ int main(int argc, char** argv)
             open_dialog = std::nullopt;
         }
     };
-    fmt::print("RUN\n");
     app.run();
 }
