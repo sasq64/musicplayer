@@ -204,6 +204,6 @@ bool AOPlugin::canHandle(const std::string& name)
 ChipPlayer* AOPlugin::fromFile(const std::string& name)
 {
     return new AOPlayer{name};
-};
+}
 
 } // namespace musix

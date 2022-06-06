@@ -89,11 +89,7 @@ bool TFMXPlugin::canHandle(const std::string& name)
 
 ChipPlayer* TFMXPlugin::fromFile(const std::string& name)
 {
-    try {
-        return new TFMXPlayer{name};
-    } catch (player_exception const& e) {
-        return nullptr;
-    }
+    return new TFMXPlayer{name};
 };
 
 } // namespace musix

@@ -21,7 +21,7 @@
 #include <unordered_map>
 
 #ifdef min
-#undef min
+#    undef min
 #endif
 
 namespace musix {
@@ -52,9 +52,7 @@ public:
 
         m_player = CAdPlug::factory(fileName, emu, CAdPlug::players);
 
-        if (m_player == nullptr) {
-            throw player_exception();
-        }
+        if (m_player == nullptr) { throw player_exception(); }
 
         setMeta("title", m_player->gettitle(), "composer",
                 m_player->getauthor(), "length", m_player->songlength() / 1000,
@@ -84,9 +82,7 @@ public:
             while (minicnt < 0) {
                 minicnt += freq;
                 auto playing = m_player->update();
-                if (!playing) {
-                    return -1;
-                }
+                if (!playing) { return -1; }
             }
             i = std::min(towrite,
                          (long)(minicnt / m_player->getrefresh() + 4) & ~3);

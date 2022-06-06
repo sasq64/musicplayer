@@ -41,17 +41,21 @@ STIL::STIL(fs::path const& data_dir) : dataDir(data_dir)
     readLengths();
 }
 
-STIL::~STIL() = default;
+STIL::~STIL()
+{
+    stopInitThread = true;
+    if (initThread.joinable()) { initThread.join(); }
+}
 
 std::vector<uint8_t> STIL::calculateMD5(std::vector<uint8_t> const& data)
 {
     uint8_t speed = (data[0] == 'R') ? 60 : 0;
-    uint16_t version = get<uint16_t>(data, PSID_VERSION);
-    uint16_t initAdr = get<uint16_t>(data, INIT_ADDRESS);
-    uint16_t playAdr = get<uint16_t>(data, PLAY_ADDRESS);
-    uint16_t songs = get<uint16_t>(data, SONGS);
-    uint32_t speedBits = get<uint32_t>(data, SPEED);
-    uint16_t flags = get<uint16_t>(data, FLAGS);
+    auto version = get<uint16_t>(data, PSID_VERSION);
+    auto initAdr = get<uint16_t>(data, INIT_ADDRESS);
+    auto playAdr = get<uint16_t>(data, PLAY_ADDRESS);
+    auto songs = get<uint16_t>(data, SONGS);
+    auto speedBits = get<uint32_t>(data, SPEED);
+    auto flags = get<uint16_t>(data, FLAGS);
     auto offset = (version == 2) ? 126 : 120;
 
     MD5 md5;
@@ -77,15 +81,14 @@ uint64_t STIL::calculateMD5(const std::string& fileName)
 {
     auto data = utils::read_file(fileName);
     auto md5 = calculateMD5(data);
-    auto key = get<uint64_t>(md5, 0);
-    return key;
+    return get<uint64_t>(md5, 0);
 }
 
 void STIL::readSTIL()
 {
     STILInfo currentInfo{};
     std::vector<STILInfo> songs;
-    if (!fs::exists(dataDir / "STILInfo.txt")) { return; }
+    if (!fs::exists(dataDir / "STIL.txt")) { return; }
 
     std::string path;
     std::string what;
@@ -94,12 +97,13 @@ void STIL::readSTIL()
     bool currentSet = false;
 
     std::ifstream myfile;
-    myfile.open(dataDir / "STILInfo.txt");
+    myfile.open(dataDir / "STIL.txt");
     std::string l;
     while (std::getline(myfile, l)) {
         if (stopInitThread) { return; }
+
         if (l.empty() || l[0] == '#') { continue; }
-        // if(count++ == 300) break;
+
         if (l.length() > 4 && l[4] == ' ' && !what.empty()) {
             content = content + " " + utils::lstrip(l);
         } else {
@@ -110,7 +114,6 @@ void STIL::readSTIL()
                         currentInfo.name.empty()) {
                         songComment = content;
                     } else {
-                        // LOGD("WHAT:{} = '{}'", what, content);
                         if (what == "TITLE") {
                             currentInfo.title = content;
                         } else if (what == "COMMENT") {
@@ -194,20 +197,28 @@ void STIL::readSTIL()
 
 void STIL::readLengths()
 {
-    static_assert(sizeof(LengthEntry) == 10, "LengthEntry size incorrect");
+    static_assert(sizeof(LengthEntry) == 12, "LengthEntry size incorrect");
     if (!fs::exists(dataDir / "Songlengths.txt")) { return; }
 
     uint16_t ll = 0;
     std::string name;
     extraLengths.reserve(30000);
 
-    std::ifstream myfile;
-    myfile.open(dataDir / "Songlengths.txt");
+    std::ifstream lenFile;
+    lenFile.open(dataDir / "Songlengths.txt");
     std::string line;
-    while (std::getline(myfile, line)) {
+    uint16_t stilOffset = 0;
+    while (std::getline(lenFile, line)) {
         if (stopInitThread) { return; }
+
         if (line[0] == ';') {
-            name = line;
+            name = line.substr(2);
+            auto it = stilSongs.find(name);
+            if (it != stilSongs.end()) {
+                fmt::print("{} has STIL info\n", name);
+                stilArray.push_back(it->second);
+                stilOffset = stilArray.size();
+            }
         } else if (line[0] != '[') {
             auto key = from_hex<uint64_t>(line.substr(0, 16));
             auto lengths = utils::split(line.substr(33), " ");
@@ -223,7 +234,8 @@ void STIL::readLengths()
                 extraLengths.back() |= 0x8000U;
             }
 
-            LengthEntry le(key, ll);
+            LengthEntry le(key, ll, stilOffset);
+            stilOffset = 0;
 
             // Sadly, this is ~100% of the cost of this function
             mainHash.insert(
@@ -232,11 +244,26 @@ void STIL::readLengths()
     }
 }
 
+STIL::STILSong STIL::getInfo(std::vector<uint8_t>const& data)
+{
+    STILSong result;
+    result.lengths = findLengths(data);
+    return result;
+}
+
 std::optional<STIL::STILSong> STIL::findSTIL(std::string const& fileName)
 {
 
     if (stilSongs.count(fileName) != 0) { return stilSongs[fileName]; }
     return std::nullopt;
+}
+
+
+STIL::LengthEntry STIL::findLengths(uint64_t key)
+{
+    auto it = lower_bound(mainHash.begin(), mainHash.end(), key);
+    if (it != mainHash.end()) {
+    }
 }
 
 std::vector<uint16_t> STIL::findLengths(uint64_t key)

@@ -1,17 +1,19 @@
-#include <builders/residfp-builder/residfp.h>
-
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <memory>
+#include "SidPlugin.h"
+#include <coreutils/utils.h>
 
 #include <STIL.hpp>
 
+#include <builders/residfp-builder/residfp.h>
 #include <sidplayfp/SidInfo.h>
 #include <sidplayfp/SidTune.h>
 #include <sidplayfp/SidTuneInfo.h>
 #include <sidplayfp/sidplayfp.h>
+
+#include <cstdio>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
 
 #ifndef _WIN32
 #    include <libgen.h>
@@ -20,12 +22,6 @@
 #    define strcasecmp _stricmp
 #endif
 
-#include "SidPlugin.h"
-
-#include "../../chipplayer.h"
-#include <coreutils/log.h>
-#include <coreutils/utils.h>
-
 #include <set>
 
 namespace musix {
@@ -33,7 +29,7 @@ namespace musix {
 class SidPlayer : public ChipPlayer
 {
 public:
-    explicit SidPlayer(const std::string& fileName, STIL* stil)
+    explicit SidPlayer(std::string const& fileName, STIL* stil)
     {
 
         engine.setRoms(nullptr, nullptr, nullptr);
@@ -110,7 +106,7 @@ public:
 
     int getSamples(int16_t* target, int noSamples) override
     {
-        std::array<int16_t,8192> temp_data;
+        std::array<int16_t, 8192> temp_data;
 
         auto rc = engine.play(temp_data.data(), noSamples / 2);
 
@@ -146,7 +142,6 @@ SidPlugin::SidPlugin(std::string const& configDir) {
         stil->readLengths();
         stil->readSTIL();
     });
-
 }
 
 bool SidPlugin::canHandle(const std::string& name)
@@ -157,11 +152,7 @@ bool SidPlugin::canHandle(const std::string& name)
 ChipPlayer* SidPlugin::fromFile(const std::string& name)
 {
     if (initThread.joinable()) { initThread.join(); }
-    try {
-        return new SidPlayer{name, stil.get()};
-    } catch (player_exception& e) {
-        return nullptr;
-    }
+    return new SidPlayer{name, stil.get()};
 };
 
 } // namespace musix

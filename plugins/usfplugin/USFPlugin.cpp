@@ -80,11 +80,7 @@ bool USFPlugin::canHandle(const std::string& name)
 
 ChipPlayer* USFPlugin::fromFile(const std::string& fileName)
 {
-    try {
-        return new USFPlayer{fileName};
-    } catch (player_exception& e) {
-        return nullptr;
-    }
+    return new USFPlayer{fileName};
 };
 
 } // namespace musix

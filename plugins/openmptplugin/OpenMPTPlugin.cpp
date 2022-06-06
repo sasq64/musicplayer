@@ -112,15 +112,8 @@ bool OpenMPTPlugin::canHandle(const std::string& n)
 
 ChipPlayer* OpenMPTPlugin::fromFile(std::string const& fileName)
 {
-    std::ifstream instream(fileName, std::ios::in | std::ios::binary);
-    std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
-                              std::istreambuf_iterator<char>());
-
-    try {
-        return new OpenMPTPlayer{data};
-    } catch (player_exception& e) {
-        return nullptr;
-    }
+    auto data = utils::read_file(fileName);
+    return new OpenMPTPlayer{data};
 };
 
 } // namespace musix

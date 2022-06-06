@@ -54,11 +54,7 @@ bool AyflyPlugin::canHandle(const std::string& name)
 
 ChipPlayer* AyflyPlugin::fromFile(const std::string& name)
 {
-    try {
-        return new AyflyPlayer{name};
-    } catch (player_exception& e) {
-        return nullptr;
-    }
+    return new AyflyPlayer{name};
 };
 
 } // namespace musix

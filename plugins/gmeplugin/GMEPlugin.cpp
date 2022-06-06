@@ -1,4 +1,3 @@
-
 #include "GMEPlugin.h"
 #include "../../chipplayer.h"
 
@@ -99,11 +98,7 @@ bool GMEPlugin::canHandle(const std::string& name)
 
 ChipPlayer* GMEPlugin::fromFile(const std::string& name)
 {
-    try {
-        return new GMEPlayer{name};
-    } catch (player_exception& e) {
-        return nullptr;
-    }
+    return new GMEPlayer{name};
 };
 
 } // namespace musix

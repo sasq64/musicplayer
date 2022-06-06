@@ -16,9 +16,10 @@ public:
     {
         uint64_t hash;
         uint16_t length;
+        uint16_t stil;
 
         LengthEntry() = default;
-        LengthEntry(uint64_t h, uint16_t l) : hash(h), length(l) {}
+        LengthEntry(uint64_t h, uint16_t l, uint16_t st) : hash(h), length(l), stil(st) {}
         bool operator<(const LengthEntry& other) const
         {
             return hash < other.hash;
@@ -41,6 +42,7 @@ public:
         std::string comment;
     };
 
+
     struct STILSong
     {
         STILSong() = default;
@@ -50,6 +52,7 @@ public:
         }
         std::vector<STILInfo> songs;
         std::string comment;
+        std::vector<uint16_t> lengths;
     };
 
     explicit STIL(std::filesystem::path const& data_dir);
@@ -57,6 +60,7 @@ public:
 
 private:
     std::unordered_map<std::string, STILSong> stilSongs;
+    std::vector<STILSong> stilArray;
 
     std::thread initThread;
     std::filesystem::path dataDir;
@@ -99,6 +103,7 @@ public:
     void readLengths();
 
     std::optional<STILSong> findSTIL(std::string const& fileName);
+    STILSong getInfo(std::vector<uint8_t>const& data);
     std::vector<uint16_t> findLengths(uint64_t key);
     std::vector<uint16_t> findLengths(std::vector<uint8_t> const& data);
 };

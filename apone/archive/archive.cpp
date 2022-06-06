@@ -42,7 +42,7 @@ public:
 
     void close() { mz_zip_reader_end(&zipArchive); }
 
-    fs::path extract(const string& name)
+    fs::path extract(const string& name) override
     {
 
         fs::path file(workDir + "/" + name);
@@ -50,21 +50,21 @@ public:
                                            workDir.c_str(), 0);
         return file;
     }
-    void extractAll(const string& targetDir) override
+    void extractAll(const string&) override
     {
         throw std::exception();
     }
 
-    virtual string nameFromPosition(int pos) const
+    string nameFromPosition(int pos) const override
     {
         mz_zip_archive_file_stat file_stat;
-        if (!mz_zip_reader_file_stat(const_cast<mz_zip_archive*>(&zipArchive),
-                                     pos, &file_stat)) {
+        if (mz_zip_reader_file_stat(const_cast<mz_zip_archive*>(&zipArchive),
+                                     pos, &file_stat) == 0) {
         }
-        return string(file_stat.m_filename);
+        return file_stat.m_filename;
     }
 
-    virtual int totalFiles() const
+    int totalFiles() const override
     {
         return mz_zip_reader_get_num_files(
             const_cast<mz_zip_archive*>(&zipArchive));
@@ -117,7 +117,7 @@ public:
         }
     }
 
-    fs::path extract(const string& name)
+    fs::path extract(const string& name) override
     {
         // RARHeaderDataEx fileInfo;
         // int RHCode = RARReadHeaderEx(rarFile, &fileInfo);
@@ -141,7 +141,7 @@ public:
         return f;
     }
 
-    virtual string nameFromPosition(int pos) const
+    string nameFromPosition(int pos) const override
     {
 
         // LOGD("POS %d vs %d", pos , currentPos);
@@ -164,7 +164,7 @@ public:
         return fileInfo.FileName;
     }
 
-    virtual int totalFiles() const { return -1; }
+    int totalFiles() const override { return -1; }
 
 private:
     HANDLE rarFile;

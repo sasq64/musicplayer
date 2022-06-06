@@ -76,11 +76,7 @@ bool HivelyPlugin::canHandle(const std::string& name)
 
 ChipPlayer* HivelyPlugin::fromFile(const std::string& name)
 {
-    try {
-        return new HivelyPlayer{name};
-    } catch (player_exception const& e) {
-        return nullptr;
-    }
+    return new HivelyPlayer{name};
 };
 
 } // namespace musix

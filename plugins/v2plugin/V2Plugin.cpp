@@ -80,11 +80,7 @@ bool V2Plugin::canHandle(const std::string& name)
 
 ChipPlayer* V2Plugin::fromFile(const std::string& name)
 {
-    try {
-        return new V2Player{name};
-    } catch (player_exception& e) {
-        return nullptr;
-    }
+    return new V2Player{name};
 };
 
 } // namespace musix

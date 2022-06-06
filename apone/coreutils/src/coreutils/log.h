@@ -41,8 +41,6 @@ void log2(const char* fn, int line, Level level, const std::string& fmt,
 
 void setLevel(Level level);
 void setOutputFile(const std::string& fileName);
-// void setLogSpace(const std::string &sourceFile, const std::string &function,
-// const std::string &spaceName);
 
 inline constexpr const char* xbasename(const char* x)
 {
