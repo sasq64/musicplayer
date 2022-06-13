@@ -9,8 +9,8 @@
 #include <sidplayfp/SidTuneInfo.h>
 #include <sidplayfp/sidplayfp.h>
 
-#include <cstdio>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
@@ -31,7 +31,6 @@ class SidPlayer : public ChipPlayer
 public:
     explicit SidPlayer(std::string const& fileName, STIL* stil)
     {
-
         engine.setRoms(nullptr, nullptr, nullptr);
 
         rs = std::make_unique<ReSIDfpBuilder>("musix");
@@ -77,9 +76,11 @@ public:
             printf("Engine error %s\n", engine.error());
             throw player_exception();
         }
-        auto key = STIL::calculateMD5(fileName);
-        lengths = stil->findLengths(key);
-        auto stilInfo = stil->findSTIL(fileName);
+        // auto key = STIL::calculateMD5(fileName);
+        // lengths = stil->findLengths(key);
+        // auto stilInfo = stil->findSTIL(fileName);
+        auto data = utils::read_file(fileName);
+        auto stilInfo = stil->getInfo(data);
 
         const SidTuneInfo* info = tune->getInfo();
         auto&& title = info->infoString(0);
@@ -89,20 +90,18 @@ public:
         auto startSong = info->startSong();
         printf("%d/%d\n", startSong, info->songs());
 
-        auto length = lengths.empty() ? 0 : lengths[startSong-1];
-
+        auto length = lengths.empty() ? 0 : lengths[startSong - 1];
 
         setMeta("title", title, "composer", composer, "copyright", copyright,
-                "startSong", info->startSong(), "song", startSong-1, "length", length);
+                "startSong", info->startSong(), "song", startSong - 1, "length",
+                length);
 
-        if (stilInfo) {
-            setMeta("sub_title", stilInfo->songs[startSong-1].title);
+        printf("%s - %d\n", stilInfo.comment.c_str(), stilInfo.songs.size());
+        if (!stilInfo.songs.empty()) {
+            setMeta("sub_title", stilInfo.songs[startSong - 1].name);
         }
     }
-    ~SidPlayer() override
-    {
-        engine.stop();
-    }
+    ~SidPlayer() override { engine.stop(); }
 
     int getSamples(int16_t* target, int noSamples) override
     {
@@ -115,19 +114,21 @@ public:
             target[i * 2] = v;
             target[i * 2 + 1] = v;
         }
-        return rc * 2;
+        return static_cast<int>(rc) * 2;
     }
 
-     bool seekTo(int song, int  /*seconds*/) override {
-        tune->selectSong(song+1);
+    bool seekTo(int song, int /*seconds*/) override
+    {
+        tune->selectSong(song + 1);
         engine.load(tune.get());
         printf("SONG %d\n", song);
-        setMeta("length", lengths.empty() ? 0 : lengths[song], "song", song+1);
-        return true; 
+        setMeta("length", lengths.empty() ? 0 : lengths[song], "song",
+                song + 1);
+        return true;
     }
 
 private:
-    std::vector<uint16_t> lengths; 
+    std::vector<uint16_t> lengths;
     sidplayfp engine;
     std::unique_ptr<ReSIDfpBuilder> rs;
     std::unique_ptr<SidTune> tune;
@@ -135,7 +136,8 @@ private:
 
 static const std::set<std::string> supported_ext = {"sid"};
 
-SidPlugin::SidPlugin(std::string const& configDir) {
+SidPlugin::SidPlugin(std::string const& configDir)
+{
 
     stil = std::make_unique<STIL>(fs::path(configDir));
     initThread = std::thread([=] {

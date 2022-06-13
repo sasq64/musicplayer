@@ -144,6 +144,7 @@ TEST_CASE("zx", "[music]")
     testPlugin<musix::AyflyPlugin>("testmus/zx", "");
 }
 
+#if 0
 TEST_CASE("vicemd5", "[viceplugin]")
 {
     //; /MUSICIANS/G/Galway_Martin/Comic_Bakery.sid
@@ -163,3 +164,4 @@ TEST_CASE("vicemd5", "[viceplugin]")
 
     REQUIRE(key == 0x8ffecb26d6ff34e3);
 }
+#endif

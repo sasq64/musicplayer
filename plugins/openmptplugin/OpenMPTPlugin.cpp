@@ -19,16 +19,14 @@ public:
     explicit OpenMPTPlayer(std::vector<uint8_t> const& data)
     {
         const uint8_t* ptr = data.data();
-        if (data.size() < 1090) {
-            throw player_exception("Data too short");
-        }
+        if (data.size() < 1090) { throw player_exception("Data too short"); }
         if (memcmp(ptr + 1080, "FLT", 3) == 0 ||
             memcmp(ptr + 1080, "EXO", 3) == 0) {
             throw player_exception("Can not play Startrekker module");
         }
 
-        module = openmpt_module_create_from_memory(data.data(), data.size(), nullptr,
-                                                nullptr, nullptr);
+        module = openmpt_module_create_from_memory(data.data(), data.size(),
+                                                   nullptr, nullptr, nullptr);
 
         if (module == nullptr) {
             throw player_exception("Could not load module");
@@ -47,9 +45,7 @@ public:
         auto type = get("type");
 
         auto p = utils::split(type_long, " / ");
-        if (p.size() > 1) {
-            type_long = p[0];
-        }
+        if (p.size() > 1) { type_long = p[0]; }
 
         setMeta("title", get("title"), "composer", get("artist"), "message",
                 get("message"), "tracker", get("tracker"), "format", type_long,
@@ -67,9 +63,7 @@ public:
 
     ~OpenMPTPlayer() override
     {
-        if (module != nullptr) {
-            openmpt_module_destroy(module);
-        }
+        if (module != nullptr) { openmpt_module_destroy(module); }
     }
 
     int getSamples(int16_t* target, int noSamples) override
@@ -100,13 +94,9 @@ bool OpenMPTPlugin::canHandle(const std::string& n)
 {
     auto name = utils::toLower(n);
     auto ext = utils::path_extension(name);
-    if (ext == "gz" || ext == "rns" || ext == "dtm") {
-        return false;
-    }
+    if (ext == "gz" || ext == "rns" || ext == "dtm") { return false; }
     auto prefix = utils::path_prefix(name);
-    if (prefix == "stk" || prefix == "mod" || ext == "ft") {
-        return true;
-    }
+    if (prefix == "stk" || prefix == "mod" || ext == "ft") { return true; }
     return openmpt_is_extension_supported(ext.c_str()) != 0;
 }
 

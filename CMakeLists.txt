@@ -112,7 +112,7 @@ target_link_libraries(player PRIVATE cycfi::elements
     portable_file_dialogs
 fmt::fmt ${MUSICPLAYER_PLUGINS} readerwriterqueue
     apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
-# target_link_libraries(player PRIVATE "-framework Cocoa" "-framework IOKit")
+target_link_libraries(player PRIVATE "-framework Cocoa" "-framework IOKit")
 
 if(NOT WIN32)
 add_executable(musixtest testmain.cpp test.cpp)

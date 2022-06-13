@@ -215,7 +215,7 @@ void STIL::readLengths()
             name = line.substr(2);
             auto it = stilSongs.find(name);
             if (it != stilSongs.end()) {
-                fmt::print("{} has STIL info\n", name);
+                //fmt::print("{} has STIL info\n", name);
                 stilArray.push_back(it->second);
                 stilOffset = stilArray.size();
             }
@@ -247,7 +247,19 @@ void STIL::readLengths()
 STIL::STILSong STIL::getInfo(std::vector<uint8_t>const& data)
 {
     STILSong result;
-    result.lengths = findLengths(data);
+    auto md5 = calculateMD5(data);
+    auto key = get<uint64_t>(md5, 0);
+
+    auto it = lower_bound(mainHash.begin(), mainHash.end(), key);
+    if (it != mainHash.end()) {
+        if (it->hash == key) {
+            if (it->stil > 0) {
+                fmt::print("Has STIL\n");
+                result = stilArray[it->stil-1];
+            }
+            result.lengths = getLengths(*it);
+        }
+    }
     return result;
 }
 
@@ -258,17 +270,27 @@ std::optional<STIL::STILSong> STIL::findSTIL(std::string const& fileName)
     return std::nullopt;
 }
 
-
-STIL::LengthEntry STIL::findLengths(uint64_t key)
+std::vector<uint16_t> STIL::getLengths(LengthEntry const& entry)
 {
-    auto it = lower_bound(mainHash.begin(), mainHash.end(), key);
-    if (it != mainHash.end()) {
+    std::vector<uint16_t> songLengths;
+    uint16_t len = entry.length;
+    LOGI("LEN {:04x}", len);
+    if ((len & 0x8000U) != 0) {
+        auto offset = len & 0x7fffU;
+        len = 0;
+        while ((len & 0x8000U) == 0) {
+            len = extraLengths[offset++];
+            songLengths.push_back(len & 0x7fffU);
+        }
+    } else {
+        songLengths.push_back(len);
     }
+    return songLengths;
 }
+
 
 std::vector<uint16_t> STIL::findLengths(uint64_t key)
 {
-    std::vector<uint16_t> songLengths;
 
     LOGI("Looking for {:x}", key);
 
@@ -278,20 +300,9 @@ std::vector<uint16_t> STIL::findLengths(uint64_t key)
             LOGW("Song not found");
             return {};
         }
-        uint16_t len = it->length;
-        LOGI("LEN {:04x}", len);
-        if ((len & 0x8000U) != 0) {
-            auto offset = len & 0x7fffU;
-            len = 0;
-            while ((len & 0x8000U) == 0) {
-                len = extraLengths[offset++];
-                songLengths.push_back(len & 0x7fffU);
-            }
-        } else {
-            songLengths.push_back(len);
-        }
+        return getLengths(*it);
     }
-    return songLengths;
+    return {};
 }
 
 std::vector<uint16_t> STIL::findLengths(std::vector<uint8_t> const& data)

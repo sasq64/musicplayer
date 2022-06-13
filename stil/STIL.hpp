@@ -58,6 +58,8 @@ public:
     explicit STIL(std::filesystem::path const& data_dir);
     ~STIL();
 
+    std::vector<uint16_t> getLengths(LengthEntry const& entry);
+
 private:
     std::unordered_map<std::string, STILSong> stilSongs;
     std::vector<STILSong> stilArray;

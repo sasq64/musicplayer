@@ -5,8 +5,6 @@ extern "C"
 
 #include "HivelyPlugin.h"
 
-#include "../../chipplayer.h"
-#include <coreutils/log.h>
 #include <coreutils/utf8.h>
 #include <coreutils/utils.h>
 
@@ -18,9 +16,8 @@ class HivelyPlayer : public ChipPlayer
 {
 public:
     explicit HivelyPlayer(std::string const& fileName)
-        : tune(hvl_LoadTune(fileName.c_str(), 44100, 0))
+        : tune(hvl_LoadTune(fileName.c_str(), 44100, 0), &hvl_FreeTune)
     {
-
         if (tune == nullptr) {
             throw player_exception();
         }
@@ -35,21 +32,14 @@ public:
                 tune->ht_Version == 0xAA ? "AHX" : "Hively");
     }
 
-    ~HivelyPlayer() override
-    {
-        hvl_FreeTune(tune);
-        tune = nullptr;
-    }
-
     int getSamples(int16_t* target, int noSamples) override
     {
-
         const int frameSize = ((44100 * 2) / 50);
 
         auto* ptr = reinterpret_cast<int8_t*>(target);
         int len = 0;
         while (len < noSamples - frameSize) {
-            hvl_DecodeFrame(tune, ptr, ptr + 2, 4);
+            hvl_DecodeFrame(tune.get(), ptr, ptr + 2, 4);
             ptr += frameSize * 2;
             len += frameSize;
         }
@@ -59,7 +49,7 @@ public:
     bool seekTo(int /*song*/, int /*seconds*/) override { return true; }
 
 private:
-    struct hvl_tune* tune;
+    std::shared_ptr<hvl_tune> tune;
 };
 
 static const std::set<std::string> supported_ext = {"ahx", "hvl"};

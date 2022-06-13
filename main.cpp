@@ -42,15 +42,22 @@ int main(int argc, const char** argv)
         }
     }
     if (!player) {
-        printf("No plugin could handle file\n");
+        fmt::print("No plugin could handle file\n");
         return 0;
     }
+    player->onMeta([](auto&& meta_list, auto* player) {
+        for(auto&& meta : meta_list) {
+            auto val = player->getMeta(meta);
+            fmt::print("{} = {}\n", meta, val);
+        }
+    });
     auto len = player->getMetaInt("length");
     auto title = player->getMeta("title");
+    auto sub_title = player->getMeta("sub_title");
     if (title.empty()) { title = utils::path_basename(name); }
 
     auto format = player->getMeta("format");
-    fmt::print("Playing: {} [{}/{}] ({:02}:{:02})\n", title,
+    fmt::print("Playing: {} ({}) [{}/{}] ({:02}:{:02})\n", title, sub_title,
            pluginName, format, len / 60, len % 60);
 
     Resampler<32768> fifo{44100};
