@@ -1,12 +1,9 @@
 
 #include "V2Plugin.h"
 
-#include "libv2.h"
 #include "sounddef.h"
 #include "v2mconv.h"
 #include "v2mplayer.h"
-
-#include "../../chipplayer.h"
 
 #include <coreutils/utils.h>
 
@@ -49,7 +46,7 @@ public:
 
     int getSamples(int16_t* target, int noSamples) override
     {
-        player.Render(&temp[0], noSamples / 2);
+        player.Render(temp.data(), noSamples / 2);
         // NOTE: Should really be normalized, values usually < 2.0 though
         for (int i = 0; i < noSamples; i++) {
             target[i] = static_cast<int16_t>(temp[i] * scaler);

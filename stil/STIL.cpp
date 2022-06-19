@@ -100,6 +100,10 @@ void STIL::readSTIL()
     myfile.open(dataDir / "STIL.txt");
     std::string l;
     while (std::getline(myfile, l)) {
+        auto n = l.length();
+        if (l[n-1] == 13) {
+            l = l.substr(0, n-1);
+        }
         if (stopInitThread) { return; }
 
         if (l.empty() || l[0] == '#') { continue; }
@@ -113,6 +117,7 @@ void STIL::readSTIL()
                         songs.empty() && currentInfo.title.empty() &&
                         currentInfo.name.empty()) {
                         songComment = content;
+                        //fmt::print(">{}\n", songComment);
                     } else {
                         if (what == "TITLE") {
                             currentInfo.title = content;
@@ -197,6 +202,7 @@ void STIL::readSTIL()
 
 void STIL::readLengths()
 {
+    fmt::print("Lengths {}\n", dataDir.string());
     static_assert(sizeof(LengthEntry) == 12, "LengthEntry size incorrect");
     if (!fs::exists(dataDir / "Songlengths.txt")) { return; }
 
@@ -210,12 +216,14 @@ void STIL::readLengths()
     uint16_t stilOffset = 0;
     while (std::getline(lenFile, line)) {
         if (stopInitThread) { return; }
-
+        auto n = line.length();
+        if (line[n-1] == 13) {
+            line = line.substr(0, n-1);
+        }
         if (line[0] == ';') {
             name = line.substr(2);
             auto it = stilSongs.find(name);
             if (it != stilSongs.end()) {
-                //fmt::print("{} has STIL info\n", name);
                 stilArray.push_back(it->second);
                 stilOffset = stilArray.size();
             }

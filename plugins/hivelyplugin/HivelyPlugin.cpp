@@ -22,7 +22,7 @@ public:
             throw player_exception();
         }
         std::string msg;
-        for (int i = 1; i < tune->ht_InstrumentNr; i++) {
+        for (auto i = 1; i < tune->ht_InstrumentNr; i++) {
             auto const* name = tune->ht_Instruments[i].ins_Name;
             msg = msg + utils::utf8_encode(name) + " ";
         }

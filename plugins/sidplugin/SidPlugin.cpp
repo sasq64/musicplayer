@@ -71,6 +71,14 @@ public:
             throw player_exception();
         }
 
+        const SidTuneInfo* info = tune->getInfo();
+        auto&& title = info->infoString(0);
+        auto&& composer = info->infoString(1);
+        auto&& copyright = info->infoString(2);
+
+        auto startSong = info->startSong() - 1;
+
+        tune->selectSong(startSong+1);
         // Load tune into engine
         if (!engine.load(tune.get())) {
             printf("Engine error %s\n", engine.error());
@@ -82,23 +90,23 @@ public:
         auto data = utils::read_file(fileName);
         auto stilInfo = stil->getInfo(data);
 
-        const SidTuneInfo* info = tune->getInfo();
-        auto&& title = info->infoString(0);
-        auto&& composer = info->infoString(1);
-        auto&& copyright = info->infoString(2);
+        //printf("%d/%d\n", startSong, info->songs());
 
-        auto startSong = info->startSong();
-        printf("%d/%d\n", startSong, info->songs());
-
-        auto length = lengths.empty() ? 0 : lengths[startSong - 1];
+        lengths = stilInfo.lengths;
+        auto length = lengths.empty() ? 0 : lengths[startSong];
 
         setMeta("title", title, "composer", composer, "copyright", copyright,
-                "startSong", info->startSong(), "song", startSong - 1, "length",
-                length);
+                "startSong", startSong, "song", startSong, "length",
+                length, "songs", info->songs());
+
+        if (!stilInfo.comment.empty()) {
+            setMeta("comment", stilInfo.comment);
+        }
+
 
         printf("%s - %d\n", stilInfo.comment.c_str(), stilInfo.songs.size());
         if (!stilInfo.songs.empty()) {
-            setMeta("sub_title", stilInfo.songs[startSong - 1].name);
+            setMeta("sub_title", stilInfo.songs[startSong].name);
         }
     }
     ~SidPlayer() override { engine.stop(); }
@@ -121,9 +129,9 @@ public:
     {
         tune->selectSong(song + 1);
         engine.load(tune.get());
-        printf("SONG %d\n", song);
+        //printf("SONG %d\n", song);
         setMeta("length", lengths.empty() ? 0 : lengths[song], "song",
-                song + 1);
+                song);
         return true;
     }
 

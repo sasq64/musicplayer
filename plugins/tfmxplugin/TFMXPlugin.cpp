@@ -74,7 +74,23 @@ public:
         return noSamples;
     }
 
-    bool seekTo(int /*song*/, int /*seconds*/) override { return true; }
+    bool seekTo(int song, int /*seconds*/) override
+    {
+        StartSong(song, 0);
+        open_sndfile();
+        hdb[0] = (struct Hdb){0,
+                              0x1C01,
+                              0x3200,
+                              0x15BE,
+                              (char*)&smplbuf[0x4],
+                              (char*)&smplbuf[0x4 + 0x1C42],
+                              0x40,
+                              3,
+                              &LoopOff,
+                              0,
+                              NULL};
+        return true;
+    }
 
 private:
 };

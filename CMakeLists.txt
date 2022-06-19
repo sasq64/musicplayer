@@ -41,7 +41,7 @@ add_subdirectory(psf)
 add_subdirectory(stil)
 
 set(MUSICPLAYER_PLUGINS
-    tfmxplugin
+    #tfmxplugin
     adplugin
     aoplugin
     ayflyplugin

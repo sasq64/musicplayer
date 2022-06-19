@@ -243,7 +243,8 @@ static const std::set<std::string> supported_ext{
     "tme",       "sg",           "dp",          "trc",          "tro",
     "tronic",    "ufo",          "mod15_ust",   "vss",          "wb",
     "ym",        "ml",           "mod15_st-iv", "agi",          "tpu",
-    "qpa",       "sqt",          "qts",         "ftm",          "sdata"};
+    "qpa",       "sqt",          "qts",         "ftm",          "sdata",
+"dux"};
 
 bool UADEPlugin::canHandle(const std::string& name)
 {

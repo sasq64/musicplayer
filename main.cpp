@@ -12,6 +12,7 @@
 #include <csignal>
 #include <fmt/format.h>
 #include <string>
+#include <string_view>
 
 using namespace std::string_literals;
 
@@ -24,29 +25,67 @@ int main(int argc, const char** argv)
 
     logging::setLevel(logging::Level::Debug);
 
-    std::string name = argv[1];
+    std::string name;
+    int startSong = -1;
+    bool pipe = false;
+    for(int i=1; i<argc; i++) {
+        if (argv[i][0] == '-') {
+            auto opt = std::string_view(&argv[i][1]);
+            if (opt == "song" || opt == "s") {
+                startSong = std::stoi(argv[++i]);
+            } else if (opt == "p") {
+                pipe = true;
+            }
 
+        } else {
+            name = argv[i];
+        }
+    }
     std::string pluginName;
 
-    ChipPlugin::createPlugins("data");
+    auto xd = utils::get_exe_dir();
+    auto search_path = std::vector{fs::absolute(xd / ".." / "data"),
+                                   fs::absolute(xd / ".." / ".." / "data"),
+                                   fs::path("/usr/share/musix"),
+                                   fs::path("/usr/local/share/musix")};
+    fs::path dataPath;
+    for(auto&& p : search_path) {
+        if (fs::exists(p)) {
+            dataPath = p;
+            break;
+        }
+    }
+    if (dataPath.empty()) {
+        fmt::print(stderr, "Could not find data directory\n");
+        return 1;
+    }
+    ChipPlugin::createPlugins(dataPath.string());
 
     std::shared_ptr<ChipPlayer> player;
 
     for (const auto& plugin : ChipPlugin::getPlugins()) {
         if (plugin->canHandle(name)) {
             if (auto* ptr = plugin->fromFile(name)) {
-                player = std::shared_ptr<ChipPlayer>(ptr);
-                pluginName = plugin->name();
+                try {
+                    player = std::shared_ptr<ChipPlayer>(ptr);
+                    pluginName = plugin->name();
+                } catch (musix::player_exception& e) {
+                    player = nullptr;
+                }
                 break;
             }
         }
     }
     if (!player) {
-        fmt::print("No plugin could handle file\n");
-        return 0;
+        fmt::print(stderr, "No plugin could handle file\n");
+        return 1;
     }
-    player->onMeta([](auto&& meta_list, auto* player) {
-        for(auto&& meta : meta_list) {
+    if (startSong >= 0) {
+        player->seekTo(startSong);
+    }
+    player->onMeta([pipe](auto&& meta_list, auto* player) {
+        if (pipe) { return; }
+        for(auto const& meta : meta_list) {
             auto val = player->getMeta(meta);
             fmt::print("{} = {}\n", meta, val);
         }
@@ -57,9 +96,23 @@ int main(int argc, const char** argv)
     if (title.empty()) { title = utils::path_basename(name); }
 
     auto format = player->getMeta("format");
-    fmt::print("Playing: {} ({}) [{}/{}] ({:02}:{:02})\n", title, sub_title,
-           pluginName, format, len / 60, len % 60);
+    if (!pipe) {
+        fmt::print("Playing: {} ({}) [{}/{}] ({:02}:{:02})\n", title, sub_title,
+               pluginName, format, len / 60, len % 60);
+    }
 
+    if (pipe) {
+        std::array<int16_t, 1024 * 16> temp{};
+        std::cout.setf(std::ios_base::binary);
+        while (true) {
+            auto rc =
+                player->getSamples(temp.data(), static_cast<int>(temp.size()));
+            if (rc < 0) { break; }
+            std::cout.write(reinterpret_cast<const char*>(temp.data()), rc * 2);
+        }
+        return 0;
+
+    }
     Resampler<32768> fifo{44100};
     AudioPlayer audioPlayer{44100};
     audioPlayer.play([&](int16_t* ptr, int size) {
