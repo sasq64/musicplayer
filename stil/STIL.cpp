@@ -147,7 +147,7 @@ void STIL::readSTIL()
                 songComment = "";
                 songs.clear();
                 path = l;
-                currentInfo.subsong = 1;
+                currentInfo.subSong = 1;
                 currentInfo.seconds = 0;
                 what = "";
                 content = "";
@@ -165,7 +165,7 @@ void STIL::readSTIL()
                     currentInfo = {};
                     currentSet = false;
                 }
-                currentInfo.subsong = std::stoi(l.substr(2));
+                currentInfo.subSong = std::stoi(l.substr(2));
                 // LOGD("SUBSONG {}", currentInfo.subsong);
                 currentInfo.seconds = 0;
                 content = "";
@@ -178,9 +178,9 @@ void STIL::readSTIL()
                     if (what == "TITLE") {
                         if (currentSet && !currentInfo.title.empty()) {
                             songs.push_back(currentInfo);
-                            auto s = currentInfo.subsong;
+                            auto s = currentInfo.subSong;
                             currentInfo = {};
-                            currentInfo.subsong = s;
+                            currentInfo.subSong = s;
                             currentSet = false;
                         }
                         if (content[content.size() - 1] == ')') {
@@ -202,13 +202,15 @@ void STIL::readSTIL()
 
 void STIL::readLengths()
 {
-    fmt::print("Lengths {}\n", dataDir.string());
     static_assert(sizeof(LengthEntry) == 12, "LengthEntry size incorrect");
+
+    fmt::print("Lengths {}\n", dataDir.string());
     if (!fs::exists(dataDir / "Songlengths.txt")) { return; }
 
     uint16_t ll = 0;
     std::string name;
     extraLengths.reserve(30000);
+    mainHash.reserve(60000);
 
     std::ifstream lenFile;
     lenFile.open(dataDir / "Songlengths.txt");
@@ -268,6 +270,10 @@ STIL::STILSong STIL::getInfo(std::vector<uint8_t>const& data)
             result.lengths = getLengths(*it);
         }
     }
+    result.title = std::string(reinterpret_cast<const char*>(&data[0x16]), 32);
+    result.composer = std::string(reinterpret_cast<const char*>(&data[0x36]), 32);
+    result.copyright = std::string(reinterpret_cast<const char*>(&data[0x56]), 32);
+
     return result;
 }
 
@@ -282,7 +288,7 @@ std::vector<uint16_t> STIL::getLengths(LengthEntry const& entry)
 {
     std::vector<uint16_t> songLengths;
     uint16_t len = entry.length;
-    LOGI("LEN {:04x}", len);
+    //LOGI("LEN {:04x}", len);
     if ((len & 0x8000U) != 0) {
         auto offset = len & 0x7fffU;
         len = 0;

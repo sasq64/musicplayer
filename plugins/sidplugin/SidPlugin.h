@@ -12,7 +12,7 @@ class SidPlugin : public ChipPlugin {
     std::thread initThread;
 public:
     explicit SidPlugin(std::string const& configDir);
-    ~SidPlugin() override = default;
+    ~SidPlugin() override;
     std::string name() const override { return "SidPlugin"; }
     bool canHandle(const std::string& name) override;
     int priority() override { return -1; }

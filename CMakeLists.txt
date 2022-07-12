@@ -115,7 +115,7 @@ fmt::fmt ${MUSICPLAYER_PLUGINS} readerwriterqueue
 target_link_libraries(player PRIVATE "-framework Cocoa" "-framework IOKit")
 
 if(NOT WIN32)
-add_executable(musixtest testmain.cpp test.cpp)
+add_executable(musixtest testmain.cpp test.cpp stil_test.cpp)
 target_link_libraries(musixtest fmt::fmt ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive)
 endif()

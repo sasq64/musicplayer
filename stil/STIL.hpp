@@ -19,7 +19,10 @@ public:
         uint16_t stil;
 
         LengthEntry() = default;
-        LengthEntry(uint64_t h, uint16_t l, uint16_t st) : hash(h), length(l), stil(st) {}
+        LengthEntry(uint64_t h, uint16_t l, uint16_t st)
+            : hash(h), length(l), stil(st)
+        {
+        }
         bool operator<(const LengthEntry& other) const
         {
             return hash < other.hash;
@@ -33,7 +36,7 @@ public:
 
     struct STILInfo
     {
-        int subsong;
+        int subSong;
         int seconds;
         std::string title;
         std::string name;
@@ -42,14 +45,18 @@ public:
         std::string comment;
     };
 
-
     struct STILSong
     {
         STILSong() = default;
-        STILSong(const std::vector<STILInfo>& sngs, const std::string& c)
-            : songs(sngs), comment(c)
+        STILSong(const std::vector<STILInfo>& _songs,
+                 const std::string& _comment)
+            : songs(_songs), comment(_comment)
         {
         }
+        std::string title;
+        std::string composer;
+        std::string copyright;
+
         std::vector<STILInfo> songs;
         std::string comment;
         std::vector<uint16_t> lengths;
@@ -68,12 +75,12 @@ private:
     std::filesystem::path dataDir;
     bool stopInitThread{};
 
-    constexpr uint16_t a2h(char c)
+    static constexpr uint16_t a2h(char c)
     {
         return c <= '9' ? c - '0' : (tolower(c) - 'a' + 10);
     }
 
-    template <typename T> T from_hex(const std::string& s)
+    template <typename T> static constexpr T from_hex(const std::string& s)
     {
         T t = 0;
         const auto* ptr = s.c_str();
@@ -105,7 +112,7 @@ public:
     void readLengths();
 
     std::optional<STILSong> findSTIL(std::string const& fileName);
-    STILSong getInfo(std::vector<uint8_t>const& data);
+    STILSong getInfo(std::vector<uint8_t> const& data);
     std::vector<uint16_t> findLengths(uint64_t key);
     std::vector<uint16_t> findLengths(std::vector<uint8_t> const& data);
 };

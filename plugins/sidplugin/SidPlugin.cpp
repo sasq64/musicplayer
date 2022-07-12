@@ -9,11 +9,11 @@
 #include <sidplayfp/SidTuneInfo.h>
 #include <sidplayfp/sidplayfp.h>
 
-#include <cmath>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <memory>
+#include <string>
+
+using namespace std::string_literals;
 
 #ifndef _WIN32
 #    include <libgen.h>
@@ -42,16 +42,14 @@ public:
 
         // Check if builder is ok
         if (!rs->getStatus()) {
-            printf("SidPlugin error %s\n", rs->error());
-            throw player_exception();
+            throw player_exception("SidPlugin error"s + rs->error());
         }
 
         tune = std::make_unique<SidTune>(fileName.c_str());
 
         // CHeck if the tune is valid
         if (!tune->getStatus()) {
-            printf("SidPlugin: tune status %s\n", tune->statusString());
-            throw player_exception();
+            throw player_exception("SidPlugin: tune status: "s + tune->statusString());
         }
 
         // Select default song
@@ -67,8 +65,7 @@ public:
         cfg.defaultSidModel = SidConfig::MOS8580;
 
         if (!engine.config(cfg)) {
-            printf("Engine error %s\n", engine.error());
-            throw player_exception();
+            throw player_exception("SidPlugin engine error: "s + engine.error());
         }
 
         const SidTuneInfo* info = tune->getInfo();
@@ -84,13 +81,8 @@ public:
             printf("Engine error %s\n", engine.error());
             throw player_exception();
         }
-        // auto key = STIL::calculateMD5(fileName);
-        // lengths = stil->findLengths(key);
-        // auto stilInfo = stil->findSTIL(fileName);
         auto data = utils::read_file(fileName);
         auto stilInfo = stil->getInfo(data);
-
-        //printf("%d/%d\n", startSong, info->songs());
 
         lengths = stilInfo.lengths;
         auto length = lengths.empty() ? 0 : lengths[startSong];
@@ -103,8 +95,6 @@ public:
             setMeta("comment", stilInfo.comment);
         }
 
-
-        printf("%s - %d\n", stilInfo.comment.c_str(), stilInfo.songs.size());
         if (!stilInfo.songs.empty()) {
             setMeta("sub_title", stilInfo.songs[startSong].name);
         }
@@ -129,9 +119,7 @@ public:
     {
         tune->selectSong(song + 1);
         engine.load(tune.get());
-        //printf("SONG %d\n", song);
-        setMeta("length", lengths.empty() ? 0 : lengths[song], "song",
-                song);
+        setMeta("length", lengths.empty() ? 0 : lengths[song], "song", song);
         return true;
     }
 
@@ -146,13 +134,15 @@ static const std::set<std::string> supported_ext = {"sid"};
 
 SidPlugin::SidPlugin(std::string const& configDir)
 {
-
     stil = std::make_unique<STIL>(fs::path(configDir));
     initThread = std::thread([=] {
         stil->readLengths();
         stil->readSTIL();
     });
 }
+SidPlugin::~SidPlugin() {
+    if (initThread.joinable()) { initThread.join(); }
+};
 
 bool SidPlugin::canHandle(const std::string& name)
 {
