@@ -94,19 +94,42 @@ int main(int argc, const char** argv)
 
     con->fill(0xff0000ff, 0x000000ff);
     Panel panel{con, 0, 0, 40, 10};
-    panel.box(0,0,30,2, 0xff00ffff);
-    panel.draw_text("Hello", 1, 1);
+    panel.box(0, 0, 39, 8, 0xff00ffff);
+    panel.box(10, 0, 29, 8, 0xff00ffff);
+    panel.draw_text("Title", 1, 1);
+    panel.draw_text("Composer", 1, 2);
+    panel.draw_text("Copyright", 1, 3);
     panel.flush();
     panel.refresh();
     con->flush();
 
+    int song = -1;
+
     if (startSong >= 0) { player->seekTo(startSong); }
-    player->onMeta([pipe](auto&& meta_list, auto* player) {
+    player->onMeta([&](auto&& meta_list, auto* player) {
         if (pipe) { return; }
         for (auto const& meta : meta_list) {
             auto val = player->getMeta(meta);
-            //fmt::print("{} = {}\n", meta, val);
+            if (meta == "title") { panel.draw_text(val, 11, 1); }
+            if (meta == "composer") { panel.draw_text(val, 11, 2); }
+            if (meta == "copyright") { panel.draw_text(val, 11, 3); }
+            if (meta == "length") {
+                auto len = player->getMetaInt(meta);
+                panel.draw_text(fmt::format("{:02}:{:02}", len / 60, len % 60),
+                                11, 4);
+            }
+            if (meta == "song") {
+                auto song = player->getMetaInt(meta);
+                panel.draw_text(val, 20, 4);
+            }
+            if (meta == "songs") {
+                auto songs = player->getMetaInt(meta);
+                panel.draw_text(val, 24, 4);
+            }
+            // fmt::print("{} = {}\n", meta, val);
         }
+        panel.refresh();
+        con->flush();
     });
     auto len = player->getMetaInt("length");
     auto title = player->getMeta("title");
@@ -115,8 +138,9 @@ int main(int argc, const char** argv)
 
     auto format = player->getMeta("format");
     if (!pipe) {
-        //fmt::print("Playing: {} ({}) [{}/{}] ({:02}:{:02})\n", title, sub_title,
-        //           pluginName, format, len / 60, len % 60);
+        // fmt::print("Playing: {} ({}) [{}/{}] ({:02}:{:02})\n", title,
+        // sub_title,
+        //            pluginName, format, len / 60, len % 60);
     }
 
     if (pipe) {
@@ -146,6 +170,7 @@ int main(int argc, const char** argv)
 
         auto key = con->read_key();
         if (key == KEY_RIGHT) { player->seekTo(++startSong, -1); }
+        if (key == KEY_LEFT) { player->seekTo(--startSong, -1); }
         fifo.setHz(player->getHZ());
         auto rc =
             player->getSamples(temp.data(), static_cast<int>(temp.size()));
