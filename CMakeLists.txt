@@ -30,6 +30,7 @@ option(ELEMENTS_BUILD_EXAMPLES "" OFF)
 add_subdirectory(external/elements)
 add_subdirectory(external/readerwriterqueue)
 add_subdirectory(external/portable-file-dialogs)
+add_subdirectory(external/ansi)
 
 add_subdirectory(${APONE}/coreutils coreutils)
 add_subdirectory(${APONE}/crypto crypto)
@@ -79,8 +80,8 @@ endif()
 add_subdirectory(plugins)
 
 
-add_executable(play main.cpp resampler.cpp)
-target_link_libraries(play PUBLIC fmt::fmt ${MUSICPLAYER_PLUGINS}
+add_executable(play main.cpp resampler.cpp ui/panel.cpp)
+target_link_libraries(play PUBLIC ansi fmt::fmt ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
 
 add_library(musix SHARED lib.cpp)
@@ -112,7 +113,9 @@ target_link_libraries(player PRIVATE cycfi::elements
     portable_file_dialogs
 fmt::fmt ${MUSICPLAYER_PLUGINS} readerwriterqueue
     apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
+if(APPLE)
 target_link_libraries(player PRIVATE "-framework Cocoa" "-framework IOKit")
+endif()
 
 if(NOT WIN32)
 add_executable(musixtest testmain.cpp test.cpp stil_test.cpp)

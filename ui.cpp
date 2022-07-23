@@ -1,3 +1,4 @@
+#include "elements/support/color.hpp"
 #include "elements/support/theme.hpp"
 #include "player.hpp"
 
@@ -28,9 +29,10 @@ auto round_box(ui::color c, std::string const& text)
 
 auto blue_button(std::string const& text)
 {
-    return ui::layered_button(
-        round_box(ui::colors::medium_blue, text),
-        round_box(ui::colors::medium_blue.level(0.8), text));
+    return ui::button(text, 1.0F, ui::colors::medium_blue);
+    //return ui::layered_button(
+    //    round_box(ui::colors::medium_blue, text),
+    //    round_box(ui::colors::medium_blue.level(0.8), text));
 }
 
 class event_view : public ui::view
@@ -49,7 +51,7 @@ int main(int argc, char** argv)
 {
     auto this_dir = fs::current_path();
     auto player = MusicPlayer::create();
-    //player->run();
+    // player->run();
 
     if (argc > 1) { player->play(argv[1]); }
 
@@ -69,18 +71,26 @@ int main(int argc, char** argv)
     // theme.frame_corner_radius = 5;
     // ui::set_theme(theme);
 
-    auto title = info_keyval("Title:");
+    auto telem = ui::share(ui::static_text_box(
+        "DATA  HERE"));// cycfi::elements::get_theme().text_box_font, 16));
+    auto title = ui::htile(
+            ui::hsize(300, ui::label("Title")), 
+            ui::hsize(200, ui::hold(telem)));
+    //auto title = info_keyval("Title:");
     auto composer = info_keyval("Composer:");
     auto copyright = info_keyval("Copyright:");
     auto song = info_keyval("Song:");
     auto length = info_keyval("Length:");
-    auto next_button = blue_button("Next");
-    auto prev_button = blue_button("Prev");
+    //auto next_button = blue_button("Next");
+    auto next_button = ui::icon_button(ui::icons::right_circled, 1.2);
+    auto prev_button = ui::icon_button(ui::icons::left_circled, 1.2);
 
     next_button.on_click = [&](auto&&) { player->next(); };
     prev_button.on_click = [&](auto&&) { player->prev(); };
 
-    auto open_button = blue_button("Open");
+    //auto open_button = ui::button("Open", 1.0F, ui::colors::medium_blue);
+    //auto open_button = blue_button("Open");
+    auto open_button = ui::icon_button(ui::icons::floppy, 1.2);
 
     std::optional<pfd::open_file> open_dialog{};
 
@@ -93,18 +103,22 @@ int main(int argc, char** argv)
     };
 
     ui::rect m{5, 5, 5, 5};
-    view.content(ui::margin(
-        m, ui::layer(ui::vtile(title, composer, copyright, length, song,
-                               ui::layer(ui::htile(ui::margin(m, prev_button),
-                                                   ui::margin(m, next_button),
-                                                   ui::margin(m, open_button)),
-                                         ui::frame{})),
-                     background)));
+
+    auto control_panel = [&] {
+        return ui::layer(ui::htile(ui::margin(m, prev_button),
+                                   ui::margin(m, next_button),
+                                   ui::margin(m, open_button)),
+                         ui::frame{});
+    };
+    view.content(
+        ui::margin(m, ui::layer(ui::vtile(title, composer, copyright, length,
+                                          song, control_panel()),
+                                background)));
 
     view.on_update = [&] {
         auto&& info = player->get_info();
         for (auto&& [key, val] : info) {
-            if (key == "title") { title.set_text(std::get<std::string>(val)); }
+            if (key == "title") { telem->set_text(std::get<std::string>(val)); }
             if (key == "copyright") {
                 copyright.set_text(std::get<std::string>(val));
             }

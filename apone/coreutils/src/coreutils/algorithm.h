@@ -124,4 +124,29 @@ template <typename C, typename PRED> auto find_ptr(C& c, PRED&& pred)
     return it != std::end(c) ? &(*it) : nullptr;
 }
 
+template <typename Container, typename Pred>
+inline auto remove_if(Container& c, Pred&& pred)
+{
+    return std::remove_if(std::begin(c), std::end(c), std::forward<Pred>(pred));
+}
+
+template <typename Container, typename T>
+inline auto fill(Container& c, T&& v)
+{
+    return std::fill(std::begin(c), std::end(c), std::forward<T>(v));
+}
+
+template <typename Container, size_t... Is>
+auto gen_tuple_impl(const Container& c, std::index_sequence<Is...>)
+{
+    return std::make_tuple(c.at(Is)...);
+}
+
+template <size_t N, typename Container>
+auto take(Container const& c)
+{
+    return gen_tuple_impl(c, std::make_index_sequence<N>{});
+}
+
+
 } // namespace utils

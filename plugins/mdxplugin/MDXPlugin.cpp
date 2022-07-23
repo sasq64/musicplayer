@@ -33,7 +33,7 @@ public:
         int len = mdx_get_length(&song);
         mdx_get_title(&song, title);
 
-        std::wstring jis = utils::jis2unicode((uint8_t*)title);
+        auto jis = utils::jis2unicode((uint8_t*)title);
         std::string title_utf8 = utils::utf8_encode(jis);
         LOGD("TITLE: %s", title_utf8);
 

@@ -78,9 +78,9 @@ inline int utf8_decode(const std::string& utf8, uint32_t* target)
     return static_cast<int>(ptr - target);
 }
 
-inline std::wstring utf8_decode(const std::string& txt)
+inline std::u32string utf8_decode(const std::string& txt)
 {
-    std::wstring result;
+    std::u32string result;
 
     uint32_t codepoint = 0;
     uint32_t state = 0;
@@ -110,7 +110,7 @@ inline std::string utf8_encode(const std::string& txt)
     return out;
 }
 
-inline std::string utf8_encode(const std::wstring& s)
+inline std::string utf8_encode(const std::u32string& s)
 {
     std::string out;
     for (uint16_t c : s) {

@@ -2,6 +2,11 @@
 #include "chipplayer.h"
 #include "chipplugin.h"
 
+#include <ansi/console.h>
+#include <ansi/unix_terminal.h>
+
+#include "ui/panel.hpp"
+
 #include <audioplayer/audioplayer.h>
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
@@ -11,6 +16,7 @@
 #include <atomic>
 #include <csignal>
 #include <fmt/format.h>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -28,7 +34,7 @@ int main(int argc, const char** argv)
     std::string name;
     int startSong = -1;
     bool pipe = false;
-    for(int i=1; i<argc; i++) {
+    for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             auto opt = std::string_view(&argv[i][1]);
             if (opt == "song" || opt == "s") {
@@ -44,12 +50,12 @@ int main(int argc, const char** argv)
     std::string pluginName;
 
     auto xd = utils::get_exe_dir();
-    auto search_path = std::vector{fs::absolute(xd / ".." / "data"),
-                                   fs::absolute(xd / ".." / ".." / "data"),
-                                   fs::path("/usr/share/musix"),
-                                   fs::path("/usr/local/share/musix")};
+    auto searchPath = std::vector{fs::absolute(xd / ".." / "data"),
+                                  fs::absolute(xd / ".." / ".." / "data"),
+                                  fs::path("/usr/share/musix"),
+                                  fs::path("/usr/local/share/musix")};
     fs::path dataPath;
-    for(auto&& p : search_path) {
+    for (auto&& p : searchPath) {
         if (fs::exists(p)) {
             dataPath = p;
             break;
@@ -65,29 +71,41 @@ int main(int argc, const char** argv)
 
     for (const auto& plugin : ChipPlugin::getPlugins()) {
         if (plugin->canHandle(name)) {
-            if (auto* ptr = plugin->fromFile(name)) {
-                try {
+            try {
+                if (auto* ptr = plugin->fromFile(name)) {
                     player = std::shared_ptr<ChipPlayer>(ptr);
                     pluginName = plugin->name();
-                } catch (musix::player_exception& e) {
-                    player = nullptr;
                 }
-                break;
+            } catch (musix::player_exception& e) {
+                player = nullptr;
             }
+            break;
         }
     }
     if (!player) {
         fmt::print(stderr, "No plugin could handle file\n");
         return 1;
     }
-    if (startSong >= 0) {
-        player->seekTo(startSong);
-    }
+
+    std::unique_ptr<bbs::Terminal> term =
+        std::make_unique<bbs::LocalTerminal>();
+    term->open();
+    auto con = std::make_shared<bbs::Console>(std::move(term));
+
+    con->fill(0xff0000ff, 0x000000ff);
+    Panel panel{con, 0, 0, 40, 10};
+    panel.box(0,0,30,2, 0xff00ffff);
+    panel.draw_text("Hello", 1, 1);
+    panel.flush();
+    panel.refresh();
+    con->flush();
+
+    if (startSong >= 0) { player->seekTo(startSong); }
     player->onMeta([pipe](auto&& meta_list, auto* player) {
         if (pipe) { return; }
-        for(auto const& meta : meta_list) {
+        for (auto const& meta : meta_list) {
             auto val = player->getMeta(meta);
-            fmt::print("{} = {}\n", meta, val);
+            //fmt::print("{} = {}\n", meta, val);
         }
     });
     auto len = player->getMetaInt("length");
@@ -97,13 +115,13 @@ int main(int argc, const char** argv)
 
     auto format = player->getMeta("format");
     if (!pipe) {
-        fmt::print("Playing: {} ({}) [{}/{}] ({:02}:{:02})\n", title, sub_title,
-               pluginName, format, len / 60, len % 60);
+        //fmt::print("Playing: {} ({}) [{}/{}] ({:02}:{:02})\n", title, sub_title,
+        //           pluginName, format, len / 60, len % 60);
     }
 
     if (pipe) {
         std::array<int16_t, 1024 * 16> temp{};
-        std::cout.setf(std::ios_base::binary);
+        // std::cout.setf(std::ios_base::binary);
         while (true) {
             auto rc =
                 player->getSamples(temp.data(), static_cast<int>(temp.size()));
@@ -111,7 +129,6 @@ int main(int argc, const char** argv)
             std::cout.write(reinterpret_cast<const char*>(temp.data()), rc * 2);
         }
         return 0;
-
     }
     Resampler<32768> fifo{44100};
     AudioPlayer audioPlayer{44100};
@@ -120,14 +137,15 @@ int main(int argc, const char** argv)
         if (count <= 0) { memset(ptr, 0, size * 2); }
     });
 
-#ifndef __APPLE__ // _Still_ no quick_exit() in OSX ...
-    std::signal(SIGINT, [](int) { std::quick_exit(0); });
-#else
-    std::signal(SIGINT, [](int) { std::exit(0); });
-#endif
+    static std::atomic<bool> quit{false};
+
+    std::signal(SIGINT, [](int) { quit = true; });
 
     std::array<int16_t, 1024 * 16> temp{};
-    while (true) {
+    while (!quit) {
+
+        auto key = con->read_key();
+        if (key == KEY_RIGHT) { player->seekTo(++startSong, -1); }
         fifo.setHz(player->getHZ());
         auto rc =
             player->getSamples(temp.data(), static_cast<int>(temp.size()));

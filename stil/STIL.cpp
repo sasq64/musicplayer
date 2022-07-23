@@ -84,6 +84,17 @@ uint64_t STIL::calculateMD5(const std::string& fileName)
     return get<uint64_t>(md5, 0);
 }
 
+template <typename S>
+auto&& getLine(S& stream, std::string& out)
+{
+    auto&& r = std::getline(stream, out);
+    auto n = out.length();
+    if (out[n-1] == 13) {
+        out = out.substr(0, n-1);
+    }
+    return r;
+}
+
 void STIL::readSTIL()
 {
     STILInfo currentInfo{};
@@ -99,11 +110,7 @@ void STIL::readSTIL()
     std::ifstream myfile;
     myfile.open(dataDir / "STIL.txt");
     std::string l;
-    while (std::getline(myfile, l)) {
-        auto n = l.length();
-        if (l[n-1] == 13) {
-            l = l.substr(0, n-1);
-        }
+    while (getLine(myfile, l)) {
         if (stopInitThread) { return; }
 
         if (l.empty() || l[0] == '#') { continue; }
@@ -198,6 +205,15 @@ void STIL::readSTIL()
             }
         }
     }
+    /* for(auto&& [p,info] : stilSongs) { */
+    /*     int i = 1; */
+    /*     fmt::print("{}\nCOMMENT: {}\n", p, info.comment); */
+    /*     for(auto&& song : info.songs) { */
+    /*         fmt::print("#{} : {}\n", i, song.title, song.name); */
+    /*         i++; */
+    /*     } */
+
+    /* } */
 }
 
 void STIL::readLengths()

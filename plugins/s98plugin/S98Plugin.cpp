@@ -47,7 +47,7 @@ public:
             for (const auto& line : utils::split(tagInfo, "\n")) {
                 auto parts = utils::split(line, "=");
                 if (parts.size() == 2) {
-                    std::wstring jis = utils::jis2unicode((uint8_t*)parts[1]);
+                    auto jis = utils::jis2unicode((uint8_t*)parts[1]);
                     std::string u = utils::utf8_encode(jis);
                     tags[utils::toLower(parts[0])] = u;
                     LOGD("%s=%s", parts[0], u);
