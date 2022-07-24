@@ -3,14 +3,19 @@
 #include "terminal.h"
 
 #include <coreutils/log.h>
+#include <coreutils/split.h>
+#include <coreutils/utils.h>
 
 #include <cassert>
 #include <cstring>
+#include <string>
 #include <tuple>
 
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
+
+using namespace std::string_literals;
 
 namespace bbs {
 
@@ -35,6 +40,22 @@ struct LocalTerminal : public Terminal
         if (tcsetattr(fileno(stdin), TCSANOW, &new_term_attr) < 0) {
             LOGD("FAIL");
         }
+        /* write("\x1b[6n"); */
+        /* fflush(stdout); */
+        /* std::string target; */
+        /* while (true) { */
+        /*     utils::sleepms(10); */
+        /*     auto done = read(target); */
+        /*     if (done) break; */
+        /* } */
+        /* target.resize(strlen(target.c_str())); */
+        /* fmt::print("'{}' {}\n", target, target.size()); */
+        /* fflush(stdout); */
+        /* if (!target.empty() && target[0] == 0x1b && target[1] == '[') { */
+        /*     auto [row, col] = utils::splitn<2>(target.substr(2), ";"s); */
+        /*     col = col.substr(0, col.length() - 1); */
+        /*     //{std::stoi(row), std::stoi(col)}; */
+        /* } */
 
         if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0) { LOGD("IOCTL FAIL"); }
 
@@ -44,6 +65,7 @@ struct LocalTerminal : public Terminal
     int width() const override { return ws.ws_col; }
 
     int height() const override { return ws.ws_row; }
+
 
     static std::pair<int, int> get_size()
     {

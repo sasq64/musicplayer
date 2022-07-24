@@ -11,15 +11,15 @@
 #include <vector>
 
 //#include <coreutils/file.h>
-#include <coreutils/utils.h>
 #include <coreutils/log.h>
+#include <coreutils/utils.h>
 
 class InternalPlayer
 {
 public:
-    InternalPlayer(int hz = 44100)
-        : hz(hz), quit(false), playback_handle(nullptr), paused(false)
+    InternalPlayer(int hz = 44100) : hz(hz), quit(false), paused(false)
     {
+        puts("Creating player");
         playerThread = std::thread{&InternalPlayer::run, this};
     };
 
@@ -30,15 +30,15 @@ public:
     {
         quit = true;
         paused = false;
-        if (playerThread.joinable())
-            playerThread.join();
-        if (playback_handle)
-            snd_pcm_close(playback_handle);
+        if (playerThread.joinable()) playerThread.join();
+        if (playback_handle) snd_pcm_close(playback_handle);
         snd_config_update_free_global();
+        puts("Player closed");
     }
 
     void run()
     {
+        puts("Running player");
         int err;
         if ((err = snd_pcm_open(&playback_handle, "default",
                                 SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
@@ -58,7 +58,7 @@ public:
             if (paused)
                 utils::sleepms(10);
             else {
-                if(callback)
+                if (callback)
                     callback(&buffer[0], buffer.size());
                 else {
                     memset(&buffer[0], 0, buffer.size() * 2);
@@ -66,8 +66,7 @@ public:
                 writeAudio(&buffer[0], buffer.size());
             }
         }
-        if (playback_handle)
-            snd_pcm_close(playback_handle);
+        if (playback_handle) snd_pcm_close(playback_handle);
         playback_handle = nullptr;
     }
 
@@ -85,8 +84,7 @@ public:
             throw utils::io_exception("mixer attach");
         if (snd_mixer_selem_register(handle, NULL, NULL) < 0)
             throw utils::io_exception("selem register");
-        if (snd_mixer_load(handle) < 0)
-            throw utils::io_exception("load");
+        if (snd_mixer_load(handle) < 0) throw utils::io_exception("load");
 
         snd_mixer_selem_id_alloca(&sid);
         snd_mixer_selem_id_set_index(sid, 0);
@@ -111,9 +109,7 @@ public:
     {
         int frames =
             snd_pcm_writei(playback_handle, (char*)samples, sampleCount / 2);
-        if (frames < 0) {
-            snd_pcm_recover(playback_handle, frames, 0);
-        }
+        if (frames < 0) { snd_pcm_recover(playback_handle, frames, 0); }
     }
 
     int get_delay() const
@@ -127,10 +123,10 @@ public:
 
     int hz;
     std::function<void(int16_t*, int)> callback;
-    std::atomic<bool> quit;
-    int dspFD;
-    snd_pcm_t* playback_handle;
-    std::atomic<bool> paused;
+    std::atomic<bool> quit{};
+    int dspFD = 0;
+    snd_pcm_t* playback_handle = nullptr;
+    std::atomic<bool> paused{};
     std::thread playerThread;
 };
 

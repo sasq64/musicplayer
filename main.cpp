@@ -2,12 +2,14 @@
 #include "chipplayer.h"
 #include "chipplugin.h"
 
+#include "player.hpp"
 #include <ansi/console.h>
 #include <ansi/unix_terminal.h>
 
 #include "ui/panel.hpp"
 
 #include <audioplayer/audioplayer.h>
+#include <chrono>
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
 
@@ -22,6 +24,23 @@
 
 using namespace std::string_literals;
 
+std::string make_title(
+    std::unordered_map<std::string,
+                       std::variant<std::string, double, uint32_t>> const& meta)
+{
+    auto title = std::get<std::string>(meta.at("title"));
+    auto sub_title = std::get<std::string>(meta.at("sub_title"));
+    auto game = std::get<std::string>(meta.at("game"));
+
+    if (title.empty()) { title = game; }
+    if (!title.empty()) {
+        if (!sub_title.empty()) {
+            title = fmt::format("{} ({})", title, sub_title);
+        }
+    }
+    return title;
+}
+
 int main(int argc, const char** argv)
 {
     using musix::ChipPlayer;
@@ -29,7 +48,7 @@ int main(int argc, const char** argv)
 
     if (argc < 2) { return 0; }
 
-    logging::setLevel(logging::Level::Debug);
+    logging::setLevel(logging::Level::Info);
 
     std::string name;
     int startSong = -1;
@@ -47,135 +66,110 @@ int main(int argc, const char** argv)
             name = argv[i];
         }
     }
-    std::string pluginName;
 
-    auto xd = utils::get_exe_dir();
-    auto searchPath = std::vector{fs::absolute(xd / ".." / "data"),
-                                  fs::absolute(xd / ".." / ".." / "data"),
-                                  fs::path("/usr/share/musix"),
-                                  fs::path("/usr/local/share/musix")};
-    fs::path dataPath;
-    for (auto&& p : searchPath) {
-        if (fs::exists(p)) {
-            dataPath = p;
-            break;
-        }
-    }
-    if (dataPath.empty()) {
-        fmt::print(stderr, "Could not find data directory\n");
-        return 1;
-    }
-    ChipPlugin::createPlugins(dataPath.string());
-
-    std::shared_ptr<ChipPlayer> player;
-
-    for (const auto& plugin : ChipPlugin::getPlugins()) {
-        if (plugin->canHandle(name)) {
-            try {
-                if (auto* ptr = plugin->fromFile(name)) {
-                    player = std::shared_ptr<ChipPlayer>(ptr);
-                    pluginName = plugin->name();
-                }
-            } catch (musix::player_exception& e) {
-                player = nullptr;
-            }
-            break;
-        }
-    }
-    if (!player) {
-        fmt::print(stderr, "No plugin could handle file\n");
-        return 1;
-    }
+    auto music_player = MusicPlayer::create();
+    music_player->play(name);
 
     std::unique_ptr<bbs::Terminal> term =
         std::make_unique<bbs::LocalTerminal>();
     term->open();
     auto con = std::make_shared<bbs::Console>(std::move(term));
 
-    con->fill(0xff0000ff, 0x000000ff);
-    Panel panel{con, 0, 0, 40, 10};
-    panel.box(0, 0, 39, 8, 0xff00ffff);
-    panel.box(10, 0, 29, 8, 0xff00ffff);
+    auto w = con->get_width();
+    // con->fill(0xff0000ff, 0x000000ff);
+    Panel panel{con, 0, 0, w, 8};
+    panel.box(0, 0, w - 1, 7, 0xff00ffff);
+    panel.box(10, 0, w - 11, 7, 0xff00ffff);
     panel.draw_text("Title", 1, 1);
     panel.draw_text("Composer", 1, 2);
     panel.draw_text("Copyright", 1, 3);
+    panel.draw_text("Format", 1, 4);
+    panel.draw_text("Length", 1, 5);
     panel.flush();
     panel.refresh();
     con->flush();
+    bool output = true;
 
-    int song = -1;
+    std::unordered_map<std::string, std::variant<std::string, double, uint32_t>>
+        meta;
+    meta["title"] = ""s;
+    meta["sub_title"] = ""s;
+    meta["game"] = ""s;
 
-    if (startSong >= 0) { player->seekTo(startSong); }
-    player->onMeta([&](auto&& meta_list, auto* player) {
-        if (pipe) { return; }
-        for (auto const& meta : meta_list) {
-            auto val = player->getMeta(meta);
-            if (meta == "title") { panel.draw_text(val, 11, 1); }
-            if (meta == "composer") { panel.draw_text(val, 11, 2); }
-            if (meta == "copyright") { panel.draw_text(val, 11, 3); }
-            if (meta == "length") {
-                auto len = player->getMetaInt(meta);
-                panel.draw_text(fmt::format("{:02}:{:02}", len / 60, len % 60),
-                                11, 4);
+    auto update_meta = [&](std::string const& name, auto val) {
+        meta[name] = val;
+        if (name == "composer") {
+            panel.clear(11, 2, 30, 1);
+            panel.draw_text(std::get<std::string>(val), 11, 2);
+        } else if (name == "copyright") {
+            panel.draw_text(std::get<std::string>(val), 11, 3);
+        } else if (name == "length") {
+            auto len = std::get<uint32_t>(val);
+            if (len > 0) {
+                panel.draw_text(fmt::format("/{:02}:{:02}", len / 60, len % 60),
+                                16, 5);
             }
-            if (meta == "song") {
-                auto song = player->getMetaInt(meta);
-                panel.draw_text(val, 20, 4);
-            }
-            if (meta == "songs") {
-                auto songs = player->getMetaInt(meta);
-                panel.draw_text(val, 24, 4);
-            }
-            // fmt::print("{} = {}\n", meta, val);
+        } else if (name == "song") {
+            auto song = std::get<uint32_t>(val);
+            panel.draw_text(std::to_string(song + 1), 24, 5);
+        } else if (name == "songs") {
+            auto songs = std::get<uint32_t>(val);
+            panel.draw_text(std::to_string(songs), 28, 5);
+        } else if (name == "format") {
+            panel.draw_text(std::get<std::string>(val), 11, 4);
         }
-        panel.refresh();
-        con->flush();
-    });
-    auto len = player->getMetaInt("length");
-    auto title = player->getMeta("title");
-    auto sub_title = player->getMeta("sub_title");
-    if (title.empty()) { title = utils::path_basename(name); }
-
-    auto format = player->getMeta("format");
-    if (!pipe) {
-        // fmt::print("Playing: {} ({}) [{}/{}] ({:02}:{:02})\n", title,
-        // sub_title,
-        //            pluginName, format, len / 60, len % 60);
-    }
-
-    if (pipe) {
-        std::array<int16_t, 1024 * 16> temp{};
-        // std::cout.setf(std::ios_base::binary);
-        while (true) {
-            auto rc =
-                player->getSamples(temp.data(), static_cast<int>(temp.size()));
-            if (rc < 0) { break; }
-            std::cout.write(reinterpret_cast<const char*>(temp.data()), rc * 2);
+        auto title = make_title(meta);
+        if (title.empty()) {
+            fs::path p = name;
+            title = p.filename().stem().string();
         }
-        return 0;
-    }
-    Resampler<32768> fifo{44100};
-    AudioPlayer audioPlayer{44100};
-    audioPlayer.play([&](int16_t* ptr, int size) {
-        auto count = fifo.read(ptr, size);
-        if (count <= 0) { memset(ptr, 0, size * 2); }
-    });
+        panel.clear(11, 1, 50, 1);
+        panel.draw_text(title, 11, 1);
+    };
 
     static std::atomic<bool> quit{false};
 
     std::signal(SIGINT, [](int) { quit = true; });
+    // std::signal(SIGSTOP, [](int) { quit = true; });
 
     std::array<int16_t, 1024 * 16> temp{};
+    auto start = std::chrono::system_clock::now();
+    int64_t last_secs = -1;
     while (!quit) {
 
-        auto key = con->read_key();
-        if (key == KEY_RIGHT) { player->seekTo(++startSong, -1); }
-        if (key == KEY_LEFT) { player->seekTo(--startSong, -1); }
-        fifo.setHz(player->getHZ());
-        auto rc =
-            player->getSamples(temp.data(), static_cast<int>(temp.size()));
-        if (rc < 0) { break; }
-        fifo.write(&temp[0], &temp[1], rc);
+        auto secs = (std::chrono::duration_cast<std::chrono::seconds>(
+                         std::chrono::system_clock::now() - start))
+                        .count();
+
+        if (output) {
+            auto&& info = music_player->get_info();
+            for (auto&& [name, val] : info) {
+                update_meta(name, val);
+            }
+
+            if (secs != last_secs) {
+                panel.draw_text(
+                    fmt::format("{:02}:{:02}", secs / 60, secs % 60), 11, 5);
+                panel.refresh();
+                con->flush();
+                last_secs = secs;
+            }
+            if (info.empty()) {
+                panel.refresh();
+                con->flush();
+            }
+
+            auto key = con->read_key();
+            if (key == KEY_RIGHT) {
+                music_player->next();
+                start = std::chrono::system_clock::now();
+            }
+            if (key == KEY_LEFT) {
+                music_player->prev();
+                start = std::chrono::system_clock::now();
+            }
+        }
     }
+    music_player = nullptr;
     return 0;
 }

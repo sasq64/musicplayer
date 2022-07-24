@@ -34,7 +34,8 @@ public:
 
         openmpt_module_set_repeat_count(module, 99);
 
-        auto length = openmpt_module_get_duration_seconds(module);
+        auto length =
+            static_cast<uint32_t>(openmpt_module_get_duration_seconds(module));
         auto songs = openmpt_module_get_num_subsongs(module);
 
         auto get = [&](const char* what) {

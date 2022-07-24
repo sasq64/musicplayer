@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -44,30 +45,28 @@ public:
         return false;
     }
 
-    std::string getMeta(const std::string& what)
+    std::string getMeta(const std::string& what) const
     {
-        auto const& v = metaData[what];
-        if(auto const* ptr = std::get_if<std::string>(&v)) {
-            return *ptr;
-        }
-        if(auto const* ptr = std::get_if<double>(&v)) {
-            return std::to_string(*ptr);
-        }
-        if(auto const* ptr = std::get_if<uint32_t>(&v)) {
-            return std::to_string(*ptr);
+        try {
+            auto const& v = metaData.at(what);
+            if (auto const* ptr = std::get_if<std::string>(&v)) { return *ptr; }
+            if (auto const* ptr = std::get_if<double>(&v)) {
+                return std::to_string(*ptr);
+            }
+            if (auto const* ptr = std::get_if<uint32_t>(&v)) {
+                return std::to_string(*ptr);
+            }
+        } catch (std::out_of_range& _) {
         }
         return "";
     };
 
-    MetaVar const& meta(std::string const& what)
-    {
-        return metaData[what];
-    }
+    MetaVar const& meta(std::string const& what) { return metaData[what]; }
 
     uint32_t getMetaInt(const std::string& what)
     {
         auto const& v = metaData[what];
-        if(auto const* ptr = std::get_if<uint32_t>(&v)) {
+        if (auto const* ptr = std::get_if<uint32_t>(&v)) {
             return static_cast<uint32_t>(*ptr);
         }
         return 0;
@@ -83,7 +82,8 @@ public:
         }
     }
 
-    template <typename T, typename... A, typename = typename std::enable_if<std::is_integral_v<T>>::type>
+    template <typename T, typename... A,
+              typename = typename std::enable_if<std::is_integral_v<T>>::type>
     void setMeta(const std::string& what, T value, const A&... args)
     {
         metaData[what] = static_cast<uint32_t>(value);

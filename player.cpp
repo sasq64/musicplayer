@@ -8,6 +8,7 @@
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
 
+#include <csignal>
 #include <readerwriterqueue.h>
 
 #include "resampler.h"
@@ -36,7 +37,22 @@ public:
 
         logging::setLevel(logging::Level::Warning);
 
-        ChipPlugin::createPlugins("data");
+        auto xd = utils::get_exe_dir();
+        auto searchPath = std::vector{fs::absolute(xd / ".." / "data"),
+                                      fs::absolute(xd / ".." / ".." / "data"),
+                                      fs::path("/usr/share/musix"),
+                                      fs::path("/usr/local/share/musix")};
+        fs::path dataPath;
+        for (auto&& p : searchPath) {
+            if (fs::exists(p)) {
+                dataPath = p;
+                break;
+            }
+        }
+        if (dataPath.empty()) {
+            throw musix::player_exception("Could not find data directory");
+        }
+        ChipPlugin::createPlugins(dataPath.string());
 
         audioPlayer.play([&](int16_t* ptr, int size) {
             auto count = fifo.read(ptr, size);
@@ -96,7 +112,6 @@ class ThreadedPlayer : public MusicPlayer
     std::thread playThread;
     std::atomic<bool> quit{false};
 
-
     struct Next
     {};
     struct Prev
@@ -135,6 +150,7 @@ class ThreadedPlayer : public MusicPlayer
             }
         });
     }
+
 public:
     void play(fs::path const& name) override { commands.emplace(Play{name}); }
     void next() override { commands.emplace(Next{}); }
@@ -148,9 +164,85 @@ public:
     }
 
     ThreadedPlayer() { run(); }
+    ~ThreadedPlayer() override
+    {
+        quit = true;
+        if (playThread.joinable()) { playThread.join(); }
+    }
+};
+
+class PipePlayer : public MusicPlayer
+{
+    int childPid = -1;
+public:
+    PipePlayer()
+    {
+        pid_t pid = fork();
+        if (pid < 0) { exit(EXIT_FAILURE); }
+        if (pid > 0) {
+            childPid = pid;
+            return;
+            // exit(EXIT_SUCCESS);
+        }
+        // Child starting
+        umask(0);
+        auto sid = setsid();
+        if (sid < 0) { exit(EXIT_FAILURE); }
+
+        auto fifo_path = utils::get_home_dir() / ".musix_fifo";
+        mkfifo(fifo_path.c_str(), 0777);
+        //close(STDIN_FILENO);
+        //close(STDOUT_FILENO);
+        //close(STDERR_FILENO);
+        ThreadedPlayer player;
+        std::ifstream myfile;
+        myfile.open(fifo_path.string());
+        std::string l;
+        while (true) {
+            if(std::getline(myfile, l)) {
+                if (l[0] == '>') {
+                    player.play(l.substr(1));
+                } else if(l[0] == 'n') {
+                    player.next();
+                } else if(l[0] == 'p') {
+                    player.prev();
+                }
+            }
+        }
+    }
+
+    ~PipePlayer() override
+    {
+        if (childPid > 0) {
+            kill(childPid, SIGINT);
+        }
+    }
+
+    void play(fs::path const& name) override
+    {
+        auto fifo_path = utils::get_home_dir() / ".musix_fifo";
+        std::ofstream myfile;
+        myfile.open(fifo_path.string());
+        myfile << '>' << name.string() << "\n";
+        myfile.close();
+    }
+
+    void next() override
+    {
+        auto fifo_path = utils::get_home_dir() / ".musix_fifo";
+        std::ofstream myfile;
+        myfile.open(fifo_path.string());
+        myfile << "n\n";
+        myfile.close();
+    }
+
+    std::vector<Info> get_info() override
+    {
+        return {};
+    }
 };
 
 std::unique_ptr<MusicPlayer> MusicPlayer::create()
 {
-    return std::make_unique<ThreadedPlayer>();
+    return std::make_unique<PipePlayer>();
 }

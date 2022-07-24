@@ -31,31 +31,28 @@ namespace musix {
 class SC68Player : public ChipPlayer
 {
 public:
-    SC68Player(std::vector<uint8_t> data, std::string const& dataDir)
-        : sc68(nullptr), dataDir(dataDir), valid(false)
+    SC68Player(std::vector<uint8_t> const& data, std::string const& dataDir)
+        : dataDir(dataDir)
     {
 
-        std::string head = std::string(reinterpret_cast<char*>(&data[0]), 0, 4);
+        std::string head =
+            std::string(reinterpret_cast<const char*>(data.data()), 0, 4);
         if (head == "ICE!") {
-            int dsize = unice68_get_depacked_size(&data[0], nullptr);
+            int dsize = unice68_get_depacked_size(data.data(), nullptr);
             LOGD("Unicing {} bytes to {} bytes", data.size(), dsize);
             auto* ptr = new uint8_t[dsize];
-            int res = unice68_depacker(ptr, &data[0]);
-            if (res == 0) {
-                valid = load(ptr, dsize);
-            }
+            int res = unice68_depacker(ptr, data.data());
+            if (res == 0) { valid = load(ptr, dsize); }
 
             delete[] ptr;
 
         } else {
-            valid = load(&data[0], data.size());
+            valid = load(data.data(), static_cast<int>(data.size()));
         }
-        if (valid) {
-            setMeta("format", "SC68");
-}
+        if (valid) { setMeta("format", "SC68"); }
     }
 
-    bool load(uint8_t* ptr, int size)
+    bool load(uint8_t const* ptr, int size)
     {
 
         sc68_init_t init68;
@@ -67,7 +64,7 @@ public:
             return false;
         }
 
-        sc68 = sc68_create(NULL);
+        sc68 = sc68_create(nullptr);
         sc68_set_user(sc68, dataDir.c_str());
 
         if (sc68_verify_mem(ptr, size) < 0) {
@@ -92,9 +89,6 @@ public:
                  info.dsk.time_ms, info.trk.time_ms);
         }
 
-        setMeta("title", info.title, "composer", info.artist, "length",
-                info.trk.time_ms / 1000);
-
         trackChanged = false;
 
         sc68_play(sc68, 0, 0);
@@ -108,24 +102,22 @@ public:
 
         defaultTrack = sc68_play(sc68, -1, 0);
 
-        if (defaultTrack == 0) {
-            defaultTrack = 1;
-        }
+        if (defaultTrack == 0) { defaultTrack = 1; }
 
         currentTrack = defaultTrack;
+
+        setMeta("title", info.title, "composer", info.artist, "length",
+                info.trk.time_ms / 1000, "songs", info.tracks, "startSong",
+                defaultTrack);
 
         return true;
     }
 
     ~SC68Player() override
     {
-        if (sc68 != nullptr) {
-            sc68_destroy(sc68);
-        }
+        if (sc68 != nullptr) { sc68_destroy(sc68); }
         sc68 = nullptr;
-        if (valid) {
-            sc68_shutdown();
-        }
+        if (valid) { sc68_shutdown(); }
     }
 
     int getSamples(int16_t* target, int noSamples) override
@@ -138,9 +130,7 @@ public:
         /* Set track number : command line is prior to config force-track */
         if (currentTrack < 0) {
             currentTrack = 0;
-            if (sc68_play(sc68, currentTrack, 0) != 0) {
-                return -1;
-            }
+            if (sc68_play(sc68, currentTrack, 0) != 0) { return -1; }
         }
 
         int n = noSamples / 2;
@@ -154,9 +144,7 @@ public:
 
         trackChanged = false;
 
-        if (code == SC68_ERROR) {
-            return -1;
-        }
+        if (code == SC68_ERROR) { return -1; }
 
         return noSamples;
     }
@@ -170,6 +158,13 @@ public:
                 currentTrack = -1;
                 return false;
             }
+            sc68_music_info_t info;
+            if (sc68_music_info(sc68, &info, currentTrack, nullptr) == 0) {
+                LOGD("{} - {} {} {} {}", info.artist, info.title, info.loop_ms,
+                     info.dsk.time_ms, info.trk.time_ms);
+            }
+            setMeta("title", info.title, "composer", info.artist, "length",
+                    info.trk.time_ms / 1000, "song", currentTrack);
             trackChanged = true;
         }
 
@@ -183,12 +178,12 @@ public:
     bool isValid() const { return valid; }
 
 private:
-    sc68_t* sc68;
+    sc68_t* sc68{};
     int currentTrack{};
     int defaultTrack{};
     bool trackChanged{};
     std::string dataDir;
-    bool valid;
+    bool valid{};
 };
 
 static const std::set<std::string> supported_ext{"sndh", "sc68", "snd"};
@@ -203,9 +198,7 @@ ChipPlayer* SC68Plugin::fromFile(const std::string& fileName)
     auto data = utils::read_file(fileName);
 
     auto* player = new SC68Player{data, dataDir};
-    if (player->isValid()) {
-        return player;
-    }
+    if (player->isValid()) { return player; }
     delete player;
     return nullptr;
 };

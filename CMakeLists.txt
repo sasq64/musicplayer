@@ -80,9 +80,9 @@ endif()
 add_subdirectory(plugins)
 
 
-add_executable(play main.cpp resampler.cpp ui/panel.cpp)
+add_executable(play main.cpp resampler.cpp ui/panel.cpp player.cpp resampler.cpp)
 target_link_libraries(play PUBLIC ansi fmt::fmt ${MUSICPLAYER_PLUGINS}
-    apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
+    apone::coreutils audioplayer apone::crypto archive readerwriterqueue ${THREAD_LIB})
 
 add_library(musix SHARED lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}

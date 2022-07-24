@@ -8,6 +8,16 @@ void Panel::clear()
     }
 }
 
+void Panel::clear(int x, int y, int w, int h)
+{
+    Tile empty{' ', fg, color};
+    for (int yy = y; yy < y + h; yy++) {
+        for (int xx = x; xx < x + w; xx++) {
+            grid[xx + width * yy] = empty;
+        }
+    }
+}
+
 char32_t Panel::box_char(char32_t a, char32_t b)
 {
     static const std::u32string conv = U"   ┃ ┛┓┫ ┗┏┣━┻┳╋";
@@ -20,9 +30,7 @@ char32_t Panel::box_char(char32_t a, char32_t b)
 
 void Panel::draw_box_char(int x, int y, char32_t c)
 {
-    if (x < 0 || y < 0 || x >= width || y >= height) {
-        return;
-    }
+    if (x < 0 || y < 0 || x >= width || y >= height) { return; }
     auto& g = grid[x + y * width];
     g = {box_char(c, g.c), fg, color};
 }
@@ -49,12 +57,10 @@ void Panel::box(int x, int y, int w, int h, uint32_t col)
     fg = saved;
 }
 
-void Panel::put(
-    std::u32string const& text, int x, int y, uint32_t fg, uint32_t bg)
+void Panel::put(std::u32string const& text, int x, int y, uint32_t fg,
+                uint32_t bg)
 {
-    if (x < 0 || y < 0 || y >= height) {
-        return;
-    }
+    if (x < 0 || y < 0 || y >= height) { return; }
     for (auto c : text) {
         if (x >= width) return;
         // TODO: UTF8 decode

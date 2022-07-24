@@ -82,12 +82,13 @@ public:
             throw player_exception();
         }
         auto data = utils::read_file(fileName);
-        auto stilInfo = stil->getInfo(data);
+        stilInfo = stil->getInfo(data);
 
         lengths = stilInfo.lengths;
         auto length = lengths.empty() ? 0 : lengths[startSong];
 
         setMeta("title", title, "composer", composer, "copyright", copyright,
+                "format", "SID",
                 "startSong", startSong, "song", startSong, "length",
                 length, "songs", info->songs());
 
@@ -120,6 +121,11 @@ public:
         tune->selectSong(song + 1);
         engine.load(tune.get());
         setMeta("length", lengths.empty() ? 0 : lengths[song], "song", song);
+        if (!stilInfo.songs.empty()) {
+            setMeta("sub_title", stilInfo.songs[song].name);
+        } else {
+            setMeta("sub_title", "");
+        }
         return true;
     }
 
@@ -128,6 +134,7 @@ private:
     sidplayfp engine;
     std::unique_ptr<ReSIDfpBuilder> rs;
     std::unique_ptr<SidTune> tune;
+    STIL::STILSong stilInfo;
 };
 
 static const std::set<std::string> supported_ext = {"sid"};

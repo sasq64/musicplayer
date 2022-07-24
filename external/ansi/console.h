@@ -2,6 +2,7 @@
 
 #include <coreutils/algorithm.h>
 #include <coreutils/log.h>
+#include <coreutils/split.h>
 #include <coreutils/utf8.h>
 
 #include <cstdint>
@@ -53,6 +54,7 @@ public:
     };
 
     std::unique_ptr<Terminal> terminal;
+    bool useColors = false;
 
     explicit Console(std::unique_ptr<Terminal> terminal_)
         : terminal(std::move(terminal_))
@@ -60,12 +62,22 @@ public:
 
         put_fg = cur_fg;
         put_bg = cur_bg;
-        write("\x1b[?1049h");
-        write(Protocol::set_color(cur_fg, cur_bg));
-        write(Protocol::goto_xy(0, 0));
-        write(Protocol::clear());
+        // write("\x1b[?1049h");
+        if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }
+        int w = terminal->width();
+        int h = 8;
+        // resize(terminal->width(), terminal->height());
+        // write(Protocol::goto_xy(0, 0));
+        // write(Protocol::clear());
+
+        resize(w, h);
+        auto [ox, oy] = get_xy();
+        for (int y = 0; y < height; y++) {
+            puts("");
+        }
+        org_x = 0;
+        org_y = oy - height - 1;
         write("\x1b[?25l");
-        resize(terminal->width(), terminal->height());
     }
 
     Console() = default;
@@ -80,10 +92,10 @@ public:
 
     virtual ~Console()
     {
-        fprintf(stderr, "CONSOLE DESTROY\n");
+        puts("");
         if (terminal != nullptr) {
             write("\x1b[?25h");
-            write("\x1b[?1049l");
+            // write("\x1b[?1049l");
         }
     }
 
@@ -119,6 +131,9 @@ public:
     uint32_t put_fg = 0;
     uint32_t put_bg = 0;
 
+    int32_t org_x = 0;
+    int32_t org_y = 0;
+
     int32_t cur_x = 0;
     int32_t cur_y = 0;
     uint32_t cur_fg = 0xc0c0c007;
@@ -135,7 +150,7 @@ public:
     }
 
     virtual void blit(int32_t x, int32_t y, int32_t stride,
-              std::vector<Tile> const& grid)
+                      std::vector<Tile> const& grid)
     {
         int32_t i = 0;
         auto xx = x;
@@ -159,6 +174,22 @@ public:
     {
         put_x = x;
         put_y = y;
+    }
+
+    virtual std::pair<int, int> get_xy()
+    {
+        write("\x1b[6n");
+        fflush(stdout);
+        std::string target;
+        target.resize(16);
+        terminal->read(target);
+        fflush(stdout);
+        if (!target.empty() && target[0] == 0x1b && target[1] == '[') {
+            auto [row, col] = utils::splitn<2>(target.substr(2), ";"s);
+            col = col.substr(0, col.length() - 1);
+            return {std::stoi(col), std::stoi(row)};
+        }
+        return {-1, -1};
     }
 
     void set_color(uint32_t fg, uint32_t bg)
@@ -236,7 +267,7 @@ public:
         bool skip_next = false;
         cur_x = cur_y = -1;
         for (int32_t y = 0; y < height; y++) {
-            write(Protocol::goto_xy(0, y));
+            write(Protocol::goto_xy(org_x, org_y + y));
             skip_next = false;
             for (int32_t x = 0; x < width; x++) {
                 auto& t0 = old_grid[x + y * width];
@@ -247,14 +278,16 @@ public:
                 }
                 if (t0 != t1) {
                     if (cur_y != y || cur_x != x) {
-                        write(Protocol::goto_xy(x, y));
+                        write(Protocol::goto_xy(org_x + x, org_y + y));
                         xy++;
                         cur_x = x;
                         cur_y = y;
                     }
-                    write((t1.flags & 1) != 1
-                              ? Protocol::set_color(t1.fg, t1.bg)
-                              : Protocol::set_color(t1.bg, t1.fg));
+                    if (useColors) {
+                        write((t1.flags & 1) != 1
+                                  ? Protocol::set_color(t1.fg, t1.bg)
+                                  : Protocol::set_color(t1.bg, t1.fg));
+                    }
                     terminal->write(utils::utf8_encode(std::u32string{t1.c}));
                     bool wide = is_wide(t1.c);
                     cur_x++;
@@ -286,9 +319,8 @@ public:
         for (int32_t y = 0; y < height; y++) {
             for (int32_t x = 0; x < width; x++) {
                 auto const& t1 = grid[x + y * width];
-                write((t1.flags & 1) != 1
-                          ? Protocol::set_color(t1.fg, t1.bg)
-                          : Protocol::set_color(t1.bg, t1.fg));
+                write((t1.flags & 1) != 1 ? Protocol::set_color(t1.fg, t1.bg)
+                                          : Protocol::set_color(t1.bg, t1.fg));
                 write(utils::utf8_encode(std::u32string{t1.c}));
                 if (is_wide(t1.c)) { x++; }
                 chars++;
