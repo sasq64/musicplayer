@@ -4,6 +4,8 @@
 #include <variant>
 #include <vector>
 
+using Meta = std::variant<std::string, double, uint32_t>;
+
 struct MusicPlayer
 {
     virtual ~MusicPlayer() = default;
@@ -14,7 +16,9 @@ struct MusicPlayer
     virtual void next() {}
     virtual void prev() {}
 
-    using Info = std::pair<std::string, std::variant<std::string, double, uint32_t>>;
+    virtual void detach() {}
+
+    using Info = std::pair<std::string, Meta>;
 
     virtual std::vector<Info> get_info() { return {}; }
 };

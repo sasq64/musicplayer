@@ -220,7 +220,7 @@ void STIL::readLengths()
 {
     static_assert(sizeof(LengthEntry) == 12, "LengthEntry size incorrect");
 
-    fmt::print("Lengths {}\n", dataDir.string());
+    //fmt::print("Lengths {}\n", dataDir.string());
     if (!fs::exists(dataDir / "Songlengths.txt")) { return; }
 
     uint16_t ll = 0;
@@ -280,7 +280,7 @@ STIL::STILSong STIL::getInfo(std::vector<uint8_t>const& data)
     if (it != mainHash.end()) {
         if (it->hash == key) {
             if (it->stil > 0) {
-                fmt::print("Has STIL\n");
+                //fmt::print("Has STIL\n");
                 result = stilArray[it->stil-1];
             }
             result.lengths = getLengths(*it);

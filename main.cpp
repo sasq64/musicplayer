@@ -1,32 +1,25 @@
 
-#include "chipplayer.h"
-#include "chipplugin.h"
-
 #include "player.hpp"
-#include <ansi/console.h>
-#include <ansi/unix_terminal.h>
-
 #include "ui/panel.hpp"
 
-#include <audioplayer/audioplayer.h>
-#include <chrono>
+#include <ansi/console.h>
+#include <ansi/unix_terminal.h>
 #include <coreutils/log.h>
-#include <coreutils/utils.h>
 
-#include "resampler.h"
+#include <fmt/format.h>
 
 #include <atomic>
+#include <chrono>
 #include <csignal>
-#include <fmt/format.h>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 using namespace std::string_literals;
+using namespace std::chrono_literals;
 
-std::string make_title(
-    std::unordered_map<std::string,
-                       std::variant<std::string, double, uint32_t>> const& meta)
+std::string make_title(std::unordered_map<std::string, Meta> const& meta)
 {
     auto title = std::get<std::string>(meta.at("title"));
     auto sub_title = std::get<std::string>(meta.at("sub_title"));
@@ -43,14 +36,11 @@ std::string make_title(
 
 int main(int argc, const char** argv)
 {
-    using musix::ChipPlayer;
-    using musix::ChipPlugin;
-
-    if (argc < 2) { return 0; }
+    //if (argc < 2) { return 0; }
 
     logging::setLevel(logging::Level::Info);
 
-    std::string name;
+    std::string songFile;
     int startSong = -1;
     bool pipe = false;
     for (int i = 1; i < argc; i++) {
@@ -63,12 +53,14 @@ int main(int argc, const char** argv)
             }
 
         } else {
-            name = argv[i];
+            songFile = argv[i];
         }
     }
 
     auto music_player = MusicPlayer::create();
-    music_player->play(name);
+    if (!songFile.empty()) {
+        music_player->play(songFile);
+    }
 
     std::unique_ptr<bbs::Terminal> term =
         std::make_unique<bbs::LocalTerminal>();
@@ -90,8 +82,7 @@ int main(int argc, const char** argv)
     con->flush();
     bool output = true;
 
-    std::unordered_map<std::string, std::variant<std::string, double, uint32_t>>
-        meta;
+    std::unordered_map<std::string, Meta> meta;
     meta["title"] = ""s;
     meta["sub_title"] = ""s;
     meta["game"] = ""s;
@@ -132,15 +123,15 @@ int main(int argc, const char** argv)
     std::signal(SIGINT, [](int) { quit = true; });
     // std::signal(SIGSTOP, [](int) { quit = true; });
 
+    using clk = std::chrono::system_clock;
+
     std::array<int16_t, 1024 * 16> temp{};
-    auto start = std::chrono::system_clock::now();
+    auto start = clk::now();
     int64_t last_secs = -1;
     while (!quit) {
-
         auto secs = (std::chrono::duration_cast<std::chrono::seconds>(
-                         std::chrono::system_clock::now() - start))
+                         clk::now() - start))
                         .count();
-
         if (output) {
             auto&& info = music_player->get_info();
             for (auto&& [name, val] : info) {
@@ -160,6 +151,13 @@ int main(int argc, const char** argv)
             }
 
             auto key = con->read_key();
+            if (key == KEY_NONE) {
+                std::this_thread::sleep_for(100ms);
+            }
+            if (key == KEY_ESCAPE) {
+                music_player->detach();
+                quit = true;
+            }
             if (key == KEY_RIGHT) {
                 music_player->next();
                 start = std::chrono::system_clock::now();

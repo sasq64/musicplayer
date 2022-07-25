@@ -16,6 +16,16 @@
 #include <atomic>
 #include <thread>
 
+using namespace std::string_literals;
+using namespace std::chrono_literals;
+
+namespace std {
+std::string to_string(std::string const& s)
+{
+    return s;
+}
+} // namespace std
+
 class Player : public MusicPlayer
 {
 
@@ -64,7 +74,7 @@ public:
     {
         player = nullptr;
         for (const auto& plugin : musix::ChipPlugin::getPlugins()) {
-            if (plugin->canHandle(name)) {
+            if (plugin->canHandle(name.string())) {
                 if (auto* ptr = plugin->fromFile(name)) {
                     player = std::shared_ptr<musix::ChipPlayer>(ptr);
                     pluginName = plugin->name();
@@ -174,9 +184,47 @@ public:
 class PipePlayer : public MusicPlayer
 {
     int childPid = -1;
+    FILE* infile;
+    FILE* cmdfile;
+
+    std::unordered_map<std::string, Meta> currentInfo;
+
 public:
     PipePlayer()
     {
+        auto fifo_in = utils::get_home_dir() / ".musix_fifo_in";
+        auto fifo_out = utils::get_home_dir() / ".musix_fifo_out";
+
+        if (!fs::exists(fifo_in)) { mkfifo(fifo_in.c_str(), 0777); }
+
+        if (!fs::exists(fifo_out)) { mkfifo(fifo_out.c_str(), 0777); }
+
+        //puts("open");
+        int fd = open(fifo_out.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+        infile = fdopen(fd, "r");
+
+        int test_fd = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+        if (test_fd > 0) {
+            //puts("Someone at the other end");
+            cmdfile = fdopen(test_fd, "w");
+            fputs(fmt::format("d{}\n", fs::current_path().string()).c_str(),
+                  cmdfile);
+            fflush(cmdfile);
+            fputs("?\n", cmdfile);
+            fflush(cmdfile);
+            return;
+        }
+
+        fd = open(fifo_in.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+        FILE* myfile = fdopen(fd, "r");
+
+        fd = open(fifo_out.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+        FILE* outfile = fdopen(fd, "w");
+
+        fd = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+        cmdfile = fdopen(fd, "w");
+        //puts("Done");
+
         pid_t pid = fork();
         if (pid < 0) { exit(EXIT_FAILURE); }
         if (pid > 0) {
@@ -189,58 +237,122 @@ public:
         auto sid = setsid();
         if (sid < 0) { exit(EXIT_FAILURE); }
 
-        auto fifo_path = utils::get_home_dir() / ".musix_fifo";
-        mkfifo(fifo_path.c_str(), 0777);
-        //close(STDIN_FILENO);
-        //close(STDOUT_FILENO);
-        //close(STDERR_FILENO);
+        // close(STDIN_FILENO);
+        // close(STDOUT_FILENO);
+        // close(STDERR_FILENO);
+        // puts("player");
         ThreadedPlayer player;
-        std::ifstream myfile;
-        myfile.open(fifo_path.string());
         std::string l;
-        while (true) {
-            if(std::getline(myfile, l)) {
+        bool quit = false;
+        while (!quit) {
+            l.resize(128);
+            if (fgets(l.data(), 128, myfile) != nullptr) {
+                l.resize(strlen(l.data()) - 1);
                 if (l[0] == '>') {
                     player.play(l.substr(1));
-                } else if(l[0] == 'n') {
+                } else if (l[0] == 'n') {
                     player.next();
-                } else if(l[0] == 'p') {
+                } else if (l[0] == 'p') {
                     player.prev();
+                } else if (l[0] == 'q') {
+                    quit = true;
+                } else if (l[0] == 'd') {
+                    fs::current_path(l.substr(1));
+                } else if (l[0] == '?') {
+                    for (auto&& info : currentInfo) {
+                        auto line = fmt::format(
+                            "i{}\t{}\n", info.first,
+                            std::visit(
+                                [](auto v) { return fmt::format("{}", v); },
+                                info.second));
+                        fputs(line.c_str(), outfile);
+                    }
+                    fflush(outfile);
                 }
+            } else {
+                std::this_thread::sleep_for(100ms);
+            }
+            auto allInfo = player.get_info();
+            if (!allInfo.empty()) {
+                // puts("info");
+                for (auto&& info : allInfo) {
+                    currentInfo[info.first] = info.second;
+                    auto line = fmt::format(
+                        "i{}\t{}\n", info.first,
+                        std::visit([](auto v) { return fmt::format("{}", v); },
+                                   info.second));
+                    // puts(line.c_str());
+                    fputs(line.c_str(), outfile);
+                }
+                fflush(outfile);
+                // puts("info done");
             }
         }
+        exit(0);
     }
 
+    bool detached = false;
     ~PipePlayer() override
     {
-        if (childPid > 0) {
-            kill(childPid, SIGINT);
+        if (!detached) {
+            fputs("q\n", cmdfile);
+            fflush(cmdfile);
         }
+        fclose(cmdfile);
+        fclose(infile);
+        // if (childPid > 0) { kill(childPid, SIGINT); }
     }
 
     void play(fs::path const& name) override
     {
-        auto fifo_path = utils::get_home_dir() / ".musix_fifo";
-        std::ofstream myfile;
-        myfile.open(fifo_path.string());
-        myfile << '>' << name.string() << "\n";
-        myfile.close();
+        auto line = fmt::format(">{}\n", name.string());
+        if (fputs(line.c_str(), cmdfile) < 0) { fmt::print("FAILED\n"); }
+        fflush(cmdfile);
     }
 
     void next() override
     {
-        auto fifo_path = utils::get_home_dir() / ".musix_fifo";
-        std::ofstream myfile;
-        myfile.open(fifo_path.string());
-        myfile << "n\n";
-        myfile.close();
+        fputs("n\n", cmdfile);
+        fflush(cmdfile);
+    }
+
+    void prev() override
+    {
+        fputs("p\n", cmdfile);
+        fflush(cmdfile);
     }
 
     std::vector<Info> get_info() override
     {
-        return {};
+        std::string line;
+        line.resize(1024);
+        std::vector<Info> result;
+
+        while (fgets(line.data(), 1024, infile) != nullptr) {
+            line.resize(strlen(line.data()));
+            // puts(line.c_str());
+            if (line[0] == 'i') {
+                line = line.substr(0, line.length() - 1);
+                auto [meta, val] = utils::splitn<2>(line.substr(1), "\t"s);
+                // fmt::print("{}={}\n", meta, val);
+                if (utils::startsWith(meta, "song") || meta == "length" ||
+                    meta == "startSong") {
+                    result.emplace_back(meta,
+                                        static_cast<uint32_t>(std::stoi(val)));
+                } else {
+                    result.emplace_back(meta, val);
+                }
+            }
+            line.resize(1024);
+        }
+        return result;
+    }
+    void detach() override
+    {
+        detached = true;
     }
 };
+
 
 std::unique_ptr<MusicPlayer> MusicPlayer::create()
 {

@@ -71,10 +71,10 @@ public:
         // write(Protocol::clear());
 
         resize(w, h);
-        auto [ox, oy] = get_xy();
         for (int y = 0; y < height; y++) {
             puts("");
         }
+        auto [ox, oy] = get_xy();
         org_x = 0;
         org_y = oy - height - 1;
         write("\x1b[?25l");
