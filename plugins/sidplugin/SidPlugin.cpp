@@ -1,5 +1,6 @@
 #include "SidPlugin.h"
 #include <coreutils/utils.h>
+#include <coreutils/utf8.h>
 
 #include <STIL.hpp>
 
@@ -69,9 +70,10 @@ public:
         }
 
         const SidTuneInfo* info = tune->getInfo();
-        auto&& title = info->infoString(0);
-        auto&& composer = info->infoString(1);
-        auto&& copyright = info->infoString(2);
+
+        auto title = utils::utf8_encode(info->infoString(0));
+        auto composer = utils::utf8_encode(info->infoString(1));
+        auto copyright = utils::utf8_encode(info->infoString(2));
 
         auto startSong = info->startSong() - 1;
 
@@ -97,7 +99,11 @@ public:
         }
 
         if (!stilInfo.songs.empty()) {
-            setMeta("sub_title", stilInfo.songs[startSong].name);
+            for (auto const& songInfo : stilInfo.songs) {
+                if (songInfo.subSong == startSong+1) {
+                    setMeta("sub_title", songInfo.name);
+                }
+            }
         }
     }
     ~SidPlayer() override { engine.stop(); }
@@ -122,7 +128,11 @@ public:
         engine.load(tune.get());
         setMeta("length", lengths.empty() ? 0 : lengths[song], "song", song);
         if (!stilInfo.songs.empty()) {
-            setMeta("sub_title", stilInfo.songs[song].name);
+            for (auto const& songInfo : stilInfo.songs) {
+                if (songInfo.subSong == song+1) {
+                    setMeta("sub_title", songInfo.name);
+                }
+            }
         } else {
             setMeta("sub_title", "");
         }

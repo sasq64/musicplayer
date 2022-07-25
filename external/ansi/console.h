@@ -65,7 +65,7 @@ public:
         // write("\x1b[?1049h");
         if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }
         int w = terminal->width();
-        int h = 8;
+        int h = 5;
         // resize(terminal->width(), terminal->height());
         // write(Protocol::goto_xy(0, 0));
         // write(Protocol::clear());

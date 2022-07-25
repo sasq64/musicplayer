@@ -89,7 +89,7 @@ static void * psf_file_fopen( const char * uri )
 {
 	FILE *f;
 
-    fprintf(stderr, "OPEN %s\n", uri);
+    //fprintf(stderr, "OPEN %s\n", uri);
 
 	f = fopen(uri, "rb");
 

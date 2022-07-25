@@ -35,7 +35,7 @@ public:
         player.Open(converted);
 
         player.Play();
-        setMeta("length", player.Length());
+        setMeta("length", player.Length(), "format", "V2");
     }
 
     ~V2Player() override

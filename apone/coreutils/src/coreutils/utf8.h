@@ -85,7 +85,7 @@ inline std::u32string utf8_decode(const std::string& txt)
     uint32_t codepoint = 0;
     uint32_t state = 0;
 
-    for (auto s : txt) {
+    for (uint8_t s : txt) {
         if (decode(&state, &codepoint, s) == 0) {
             if (codepoint <= 0xffff) {
                 result.push_back(static_cast<wchar_t>(codepoint));

@@ -320,7 +320,7 @@ struct uade_file *uade_load_amiga_file(const char *name, const char *playerdir,
         fprintf(stderr, "File not found %s", fname);
 		return NULL;
     }
-    fprintf(stderr, "Loading %s", fname);
+    //fprintf(stderr, "Loading %s", fname);
 
     return uade_file_load(fname);
 }

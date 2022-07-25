@@ -9,6 +9,8 @@
 #include <coreutils/utils.h>
 
 #include <csignal>
+#include <deque>
+#include <fcntl.h>
 #include <readerwriterqueue.h>
 
 #include "resampler.h"
@@ -48,8 +50,11 @@ public:
         logging::setLevel(logging::Level::Warning);
 
         auto xd = utils::get_exe_dir();
+        auto home = utils::get_home_dir();
         auto searchPath = std::vector{fs::absolute(xd / ".." / "data"),
                                       fs::absolute(xd / ".." / ".." / "data"),
+                                      home / ".local" / "share" / "musix",
+                                      home / ".config" / "musix",
                                       fs::path("/usr/share/musix"),
                                       fs::path("/usr/local/share/musix")};
         fs::path dataPath;
@@ -70,9 +75,33 @@ public:
         });
     }
 
+    std::deque<fs::path> play_list;
+
     void play(fs::path const& name) override
     {
+        play_list.push_back(name);
+        if (player == nullptr) { play_next(); }
+    }
+
+    void clear() override
+    {
         player = nullptr;
+        play_list.clear();
+    }
+    using clk = std::chrono::system_clock;
+    std::chrono::time_point<clk> start_time;
+
+    uint32_t last_secs = 0;
+    uint32_t length = 0;
+
+    void play_next()
+    {
+        player = nullptr;
+        if (play_list.empty()) { return; }
+
+        auto name = play_list.front();
+        play_list.pop_front();
+
         for (const auto& plugin : musix::ChipPlugin::getPlugins()) {
             if (plugin->canHandle(name.string())) {
                 if (auto* ptr = plugin->fromFile(name)) {
@@ -82,15 +111,21 @@ public:
                 }
             }
         }
-        if (!player) { printf("No plugin could handle file\n"); }
+        if (!player) {
+            return;
+        }
 
+        length = 0;
+        infoList.clear();
+        infoList.emplace_back("init", ""s);
         player->onMeta([this](auto&& meta_list, auto* player) {
             for (auto&& name : meta_list) {
                 auto&& val = player->meta(name);
                 infoList.emplace_back(name, val);
+                if (name == "length") { length = std::get<uint32_t>(val); }
             }
         });
-
+        start_time = clk::now();
         _current_song = player->getMetaInt("startSong");
     }
 
@@ -101,18 +136,35 @@ public:
         return result;
     }
 
-    void next() override { player->seekTo(++_current_song); }
+    void next() override
+    {
+        play_next();
+        // player->seekTo(++_current_song);
+    }
 
-    void prev() override { player->seekTo(--_current_song); }
+    void set_song(int song) override { player->seekTo(song); }
 
     void update() override
     {
-        if (player == nullptr) { return; }
+        if (player == nullptr) {
+            play_next();
+            return;
+        }
+
+        uint32_t secs = (std::chrono::duration_cast<std::chrono::seconds>(
+                             clk::now() - start_time))
+                            .count();
+        if (secs != last_secs) {
+            if (infoList.empty()) { infoList.emplace_back("seconds", secs); }
+            last_secs = secs;
+        }
+
         std::array<int16_t, 1024 * 16> temp{};
         fifo.setHz(player->getHZ());
         auto rc =
             player->getSamples(temp.data(), static_cast<int>(temp.size()));
         if (rc > 0) { fifo.write(&temp[0], &temp[1], rc); }
+        if (rc <= 0 || (length > 0 && secs > length)) { play_next(); }
     }
 };
 
@@ -124,26 +176,28 @@ class ThreadedPlayer : public MusicPlayer
 
     struct Next
     {};
-    struct Prev
-    {};
     struct Play
     {
         fs::path name;
     };
+    struct SetSong
+    {
+        int song;
+    };
 
-    using Command = std::variant<Next, Prev, Play>;
+    using Command = std::variant<Next, SetSong, Play>;
 
     moodycamel::ReaderWriterQueue<Command> commands;
     moodycamel::ReaderWriterQueue<std::vector<Info>> infos;
 
     void handle_cmd(Next const&) { player.next(); }
-    void handle_cmd(Prev const&) { player.prev(); }
+    void handle_cmd(SetSong const& cmd) { player.set_song(cmd.song); }
     void handle_cmd(Play const& cmd) { player.play(cmd.name); }
 
     void update() override
     {
         Command cmd;
-        if (commands.try_dequeue(cmd)) {
+        while (commands.try_dequeue(cmd)) {
             std::visit([&](auto&& cmd) { handle_cmd(cmd); }, cmd);
         }
         auto&& info = player.get_info();
@@ -164,7 +218,7 @@ class ThreadedPlayer : public MusicPlayer
 public:
     void play(fs::path const& name) override { commands.emplace(Play{name}); }
     void next() override { commands.emplace(Next{}); }
-    void prev() override { commands.emplace(Prev{}); }
+    void set_song(int song) override { commands.emplace(SetSong{song}); }
 
     std::vector<Info> get_info() override
     {
@@ -199,14 +253,18 @@ public:
 
         if (!fs::exists(fifo_out)) { mkfifo(fifo_out.c_str(), 0777); }
 
-        //puts("open");
+        // puts("open");
         int fd = open(fifo_out.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         infile = fdopen(fd, "r");
 
         int test_fd = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
         if (test_fd > 0) {
-            //puts("Someone at the other end");
+            // puts("Someone at the other end");
             cmdfile = fdopen(test_fd, "w");
+            int rc = 1;
+            std::array<char, 128> temp;
+            while (fgets(temp.data(), temp.size(), infile) != nullptr) {}
+
             fputs(fmt::format("d{}\n", fs::current_path().string()).c_str(),
                   cmdfile);
             fflush(cmdfile);
@@ -223,7 +281,7 @@ public:
 
         fd = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
         cmdfile = fdopen(fd, "w");
-        //puts("Done");
+        // puts("Done");
 
         pid_t pid = fork();
         if (pid < 0) { exit(EXIT_FAILURE); }
@@ -246,14 +304,15 @@ public:
         bool quit = false;
         while (!quit) {
             l.resize(128);
-            if (fgets(l.data(), 128, myfile) != nullptr) {
+            while (fgets(l.data(), 128, myfile) != nullptr) {
                 l.resize(strlen(l.data()) - 1);
                 if (l[0] == '>') {
                     player.play(l.substr(1));
                 } else if (l[0] == 'n') {
                     player.next();
-                } else if (l[0] == 'p') {
-                    player.prev();
+                } else if (l[0] == 's') {
+                    auto song = std::stoi(l.substr(1));
+                    player.set_song(song);
                 } else if (l[0] == 'q') {
                     quit = true;
                 } else if (l[0] == 'd') {
@@ -269,14 +328,15 @@ public:
                     }
                     fflush(outfile);
                 }
-            } else {
-                std::this_thread::sleep_for(100ms);
+                l.resize(128);
             }
             auto allInfo = player.get_info();
             if (!allInfo.empty()) {
                 // puts("info");
                 for (auto&& info : allInfo) {
-                    currentInfo[info.first] = info.second;
+                    if (info.first != "init") {
+                        currentInfo[info.first] = info.second;
+                    }
                     auto line = fmt::format(
                         "i{}\t{}\n", info.first,
                         std::visit([](auto v) { return fmt::format("{}", v); },
@@ -287,6 +347,7 @@ public:
                 fflush(outfile);
                 // puts("info done");
             }
+            std::this_thread::sleep_for(10ms);
         }
         exit(0);
     }
@@ -316,9 +377,9 @@ public:
         fflush(cmdfile);
     }
 
-    void prev() override
+    void set_song(int song) override
     {
-        fputs("p\n", cmdfile);
+        fputs(fmt::format("s{}\n", song).c_str(), cmdfile);
         fflush(cmdfile);
     }
 
@@ -336,9 +397,9 @@ public:
                 auto [meta, val] = utils::splitn<2>(line.substr(1), "\t"s);
                 // fmt::print("{}={}\n", meta, val);
                 if (utils::startsWith(meta, "song") || meta == "length" ||
-                    meta == "startSong") {
+                    meta == "startSong" || meta == "seconds") {
                     result.emplace_back(meta,
-                                        static_cast<uint32_t>(std::stoi(val)));
+                                        static_cast<uint32_t>(std::stol(val)));
                 } else {
                     result.emplace_back(meta, val);
                 }
@@ -347,12 +408,8 @@ public:
         }
         return result;
     }
-    void detach() override
-    {
-        detached = true;
-    }
+    void detach() override { detached = true; }
 };
-
 
 std::unique_ptr<MusicPlayer> MusicPlayer::create()
 {

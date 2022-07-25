@@ -23,7 +23,8 @@ public:
 
             auto lib = tags["_lib"];
 
-            int seconds = psf.songLength();
+            uint32_t seconds = psf.songLength();
+            if (seconds > 10000) { seconds = 0; }
 
             setMeta("composer", tags["artist"], "sub_title", tags["title"],
                     "game", tags["game"],

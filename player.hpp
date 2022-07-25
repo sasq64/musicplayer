@@ -10,11 +10,12 @@ struct MusicPlayer
 {
     virtual ~MusicPlayer() = default;
     static std::unique_ptr<MusicPlayer> create();
-    //virtual void run() {}
     virtual void update() {}
+    virtual void clear() {}
     virtual void play(std::filesystem::path const& fileName) {}
+
     virtual void next() {}
-    virtual void prev() {}
+    virtual void set_song(int song) {}
 
     virtual void detach() {}
 

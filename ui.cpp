@@ -86,7 +86,7 @@ int main(int argc, char** argv)
     auto prev_button = ui::icon_button(ui::icons::left_circled, 1.2);
 
     next_button.on_click = [&](auto&&) { player->next(); };
-    prev_button.on_click = [&](auto&&) { player->prev(); };
+//    prev_button.on_click = [&](auto&&) { player->prev(); };
 
     //auto open_button = ui::button("Open", 1.0F, ui::colors::medium_blue);
     //auto open_button = blue_button("Open");

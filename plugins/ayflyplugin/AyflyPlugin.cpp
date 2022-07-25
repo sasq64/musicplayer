@@ -19,7 +19,8 @@ public:
         const auto* songAuthor = ay_getsongauthor(aysong);
         unsigned long len = ay_getsonglength(aysong) / 50;
         if (len > 1000) { len = 0; }
-        setMeta("title", songName, "composer", songAuthor, "length", len);
+        setMeta("title", songName, "composer", songAuthor, "length", len,
+                "format", "AY (Spectrum)");
     }
 
     ~AyflyPlayer() override
@@ -29,7 +30,8 @@ public:
 
     int getSamples(int16_t* target, int noSamples) override
     {
-        int rc = ay_rendersongbuffer(aysong, reinterpret_cast<unsigned char*>(target), noSamples);
+        int rc = ay_rendersongbuffer(
+            aysong, reinterpret_cast<unsigned char*>(target), noSamples);
         return rc / 2;
     }
 
