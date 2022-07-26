@@ -99,12 +99,12 @@ public:
         player = nullptr;
         if (play_list.empty()) { return; }
 
-        auto name = play_list.front();
+        auto songFile = play_list.front();
         play_list.pop_front();
 
         for (const auto& plugin : musix::ChipPlugin::getPlugins()) {
-            if (plugin->canHandle(name.string())) {
-                if (auto* ptr = plugin->fromFile(name)) {
+            if (plugin->canHandle(songFile.string())) {
+                if (auto* ptr = plugin->fromFile(songFile)) {
                     player = std::shared_ptr<musix::ChipPlayer>(ptr);
                     pluginName = plugin->name();
                     break;
@@ -118,7 +118,8 @@ public:
         length = 0;
         infoList.clear();
         infoList.emplace_back("init", ""s);
-        player->onMeta([this](auto&& meta_list, auto* player) {
+        infoList.emplace_back("filename", songFile.string());
+        player->onMeta([this](auto&& meta_list, auto*) {
             for (auto&& name : meta_list) {
                 auto&& val = player->meta(name);
                 infoList.emplace_back(name, val);
@@ -139,10 +140,13 @@ public:
     void next() override
     {
         play_next();
-        // player->seekTo(++_current_song);
     }
 
-    void set_song(int song) override { player->seekTo(song); }
+    void set_song(int song) override {
+        if(player->seekTo(song)) {
+            start_time = clk::now();
+        }
+    }
 
     void update() override
     {
@@ -164,7 +168,11 @@ public:
         auto rc =
             player->getSamples(temp.data(), static_cast<int>(temp.size()));
         if (rc > 0) { fifo.write(&temp[0], &temp[1], rc); }
-        if (rc <= 0 || (length > 0 && secs > length)) { play_next(); }
+        if (rc <= 0 || (length > 0 && secs > length)) {
+            if (!play_list.empty()) {
+                play_next();
+            }
+        }
     }
 };
 
@@ -184,13 +192,15 @@ class ThreadedPlayer : public MusicPlayer
     {
         int song;
     };
+    struct Clear {};
 
-    using Command = std::variant<Next, SetSong, Play>;
+    using Command = std::variant<Next, SetSong, Play, Clear>;
 
     moodycamel::ReaderWriterQueue<Command> commands;
     moodycamel::ReaderWriterQueue<std::vector<Info>> infos;
 
     void handle_cmd(Next const&) { player.next(); }
+    void handle_cmd(Clear const&) { player.clear(); }
     void handle_cmd(SetSong const& cmd) { player.set_song(cmd.song); }
     void handle_cmd(Play const& cmd) { player.play(cmd.name); }
 
@@ -218,6 +228,7 @@ class ThreadedPlayer : public MusicPlayer
 public:
     void play(fs::path const& name) override { commands.emplace(Play{name}); }
     void next() override { commands.emplace(Next{}); }
+    void clear() override { commands.emplace(Clear{}); }
     void set_song(int song) override { commands.emplace(SetSong{song}); }
 
     std::vector<Info> get_info() override
@@ -310,6 +321,8 @@ public:
                     player.play(l.substr(1));
                 } else if (l[0] == 'n') {
                     player.next();
+                } else if (l[0] == 'c') {
+                    player.clear();
                 } else if (l[0] == 's') {
                     auto song = std::stoi(l.substr(1));
                     player.set_song(song);
@@ -374,6 +387,12 @@ public:
     void next() override
     {
         fputs("n\n", cmdfile);
+        fflush(cmdfile);
+    }
+
+    void clear() override
+    {
+        fputs("c\n", cmdfile);
         fflush(cmdfile);
     }
 

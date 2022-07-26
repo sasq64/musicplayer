@@ -95,8 +95,8 @@ struct LocalTerminal : public Terminal
             target.resize(size);
         }
         auto rc = ::read(0, target.data(), size - 1);
-        if (rc == 0) { return false; }
-        if (rc < 0) { throw std::exception(); }
+        if (rc <= 0) { return false; }
+        //if (rc < 0) { throw std::exception(); }
         target[rc] = 0;
         return true;
     }

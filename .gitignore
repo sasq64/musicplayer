@@ -8,5 +8,8 @@ compile_commands.json
 fixes.yaml
 perf.data
 tidy.log
-build/
+.cache/
+.idea/
+cmake-build-*/
+builds/
 

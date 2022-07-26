@@ -110,8 +110,19 @@ public:
         LOGD("UADE FILE {}", currentFileName.string());
         if (uade_play(currentFileName.c_str(), -1, state) == 1) {
             songInfo = uade_get_song_info(state);
-            const char* modname = songInfo->modulename;
-            if (strcmp(modname, "<no songtitle>") == 0) { modname = ""; }
+            std::string modname = songInfo->modulename;
+            if (modname == "<no songtitle>") { modname = ""; }
+            if (modname == "")
+            {
+                fs::path p = currentFileName;
+                auto stem = p.stem().string();
+                auto file_name = p.filename().string();
+                if (utils::startsWith(file_name, "mdat")) {
+                    modname = file_name.substr(5);
+                } else {
+                    modname = stem;
+                }
+            }
             setMeta(
                 "songs", songInfo->subsongs.max - songInfo->subsongs.min + 1,
                 "startsong", songInfo->subsongs.def - songInfo->subsongs.min,

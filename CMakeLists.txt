@@ -15,8 +15,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (WIN32)
   # HACK to make an empty unistd.h available only to Windows
-  include_directories(externa￣l/win)
+  include_directories(external/win)
 endif()
+
 add_subdirectory(external/zlib)
 set(ZLIB_LIBRARIES zlibstatic)
 set(ZLIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/zlib ${CMAKE_BINARY_DIR}/external/zlib)
@@ -26,10 +27,7 @@ target_include_directories(_zlib INTERFACE ${ZLIB_INCLUDE_DIRS})
 add_library(ZLIB::ZLIB ALIAS _zlib)
 
 add_subdirectory(external/fmt)
-option(ELEMENTS_BUILD_EXAMPLES "" OFF)
-add_subdirectory(external/elements)
 add_subdirectory(external/readerwriterqueue)
-add_subdirectory(external/portable-file-dialogs)
 add_subdirectory(external/ansi)
 
 add_subdirectory(${APONE}/coreutils coreutils)
@@ -79,7 +77,6 @@ endif()
 
 add_subdirectory(plugins)
 
-
 add_executable(play main.cpp resampler.cpp ui/panel.cpp player.cpp resampler.cpp)
 target_link_libraries(play PUBLIC ansi fmt::fmt ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive readerwriterqueue ${THREAD_LIB})
@@ -92,35 +89,3 @@ if(APPLE)
   include_directories(SYSTEM /usr/local/include /opt/homebrew/include)
   link_directories(/usr/local/lib /opt/homebrew/lib)
 endif()
-
-# find_package(OpenGL)
-# find_package(GLEW REQUIRED)
-# find_package(SDL2 REQUIRED)
-# message(INFO ${SDL2_INCLUDE_DIRS})
-
-# add_library(imgui STATIC
-#     imgui/imgui.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp
-#     imgui/imgui_widgets.cpp
-#     imgui/backends/imgui_impl_glfw.cpp
-#     imgui/backends/imgui_impl_opengl3.cpp
-#     ImGui-Addons/FileBrowser/ImGuiFileBrowser.cpp
-#     )
-# target_link_libraries(imgui PUBLIC OpenGL::GL GLEW::GLEW SDL2 glfw)
-# target_include_directories(imgui PUBLIC imgui ImGui-Addons/FileBrowser)
-
-add_executable(player ui.cpp player.cpp resampler.cpp)
-target_link_libraries(player PRIVATE cycfi::elements
-    portable_file_dialogs
-fmt::fmt ${MUSICPLAYER_PLUGINS} readerwriterqueue
-    apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
-if(APPLE)
-target_link_libraries(player PRIVATE "-framework Cocoa" "-framework IOKit")
-endif()
-
-if(NOT WIN32)
-add_executable(musixtest testmain.cpp test.cpp stil_test.cpp)
-target_link_libraries(musixtest fmt::fmt ${MUSICPLAYER_PLUGINS}
-    coreutils crypto archive)
-endif()
-
-install(TARGETS musix DESTINATION .)

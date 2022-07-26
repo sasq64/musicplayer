@@ -187,7 +187,10 @@ public:
         if (!target.empty() && target[0] == 0x1b && target[1] == '[') {
             auto [row, col] = utils::splitn<2>(target.substr(2), ";"s);
             col = col.substr(0, col.length() - 1);
-            return {std::stoi(col), std::stoi(row)};
+            if (!col.empty() && !row.empty()) {
+                //fmt::print("{};{}\n", col, row);
+                return {std::stoi(col), std::stoi(row)};
+            }
         }
         return {-1, -1};
     }

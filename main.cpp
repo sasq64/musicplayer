@@ -32,6 +32,10 @@ std::string make_title(std::unordered_map<std::string, Meta> const& meta)
             title = fmt::format("{} ({})", title, sub_title);
         }
     }
+    if (title.empty()) {
+        auto fn = std::get<std::string>(meta.at("filename"));
+        title = fs::path(fn).stem();
+    }
     if (!title.empty() && !composer.empty()) {
         title = fmt::format("{} / {}", title, composer);
     }
@@ -48,6 +52,7 @@ int main(int argc, const char** argv)
     int startSong = -1;
     bool pipe = false;
     bool bg = false;
+    std::vector<fs::path> songFiles;
     auto music_player = MusicPlayer::create();
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -58,12 +63,22 @@ int main(int argc, const char** argv)
                 pipe = true;
             } else if (opt == "d") {
                 bg = true;
+            } else if (opt == "n") {
+                music_player->next();
+                music_player->detach();
+                return 0;
             }
-
 
         } else {
             songFile = argv[i];
-            music_player->play(songFile);
+            songFiles.emplace_back(songFile);
+        }
+    }
+
+    if (!songFiles.empty()) {
+        music_player->clear();
+        for (auto&& sf : songFiles) {
+            music_player->play(sf);
         }
     }
 
@@ -89,7 +104,9 @@ int main(int argc, const char** argv)
 
     panel.box(0, 2, 16, 2, 0xff00ffff);
     panel.box(23, 2, 8, 2, 0xff00ffff);
+    panel.box(31, 2, 9, 2, 0xff00ffff);
     panel.draw_text("SONG", 18, 3);
+    panel.draw_text("FORMAT", 33, 3);
     // panel.draw_text("Composer", 1, 2);
     // panel.draw_text("Copyright", 1, 3);
     // panel.draw_text("Format", 1, 4);
@@ -105,6 +122,7 @@ int main(int argc, const char** argv)
     int songs = 0;
     int secs = 0;
     int length = 0;
+    std::string file_name;
 
     auto clear_meta = [&] {
         meta.clear();
@@ -112,7 +130,9 @@ int main(int argc, const char** argv)
         meta["sub_title"] = ""s;
         meta["game"] = ""s;
         meta["composer"] = ""s;
+        meta["filename"] = ""s;
         song = songs = secs = length = 0;
+        file_name = "";
     };
     clear_meta();
 
@@ -122,11 +142,9 @@ int main(int argc, const char** argv)
             return;
         }
         meta[name] = val;
-        if (name == "composer") {
-            // panel.clear(11, 2, 30, 1);
-            // panel.draw_text(std::get<std::string>(val), 11, 2);
-            // } else if (name == "copyright") {
-            //     panel.draw_text(std::get<std::string>(val), 11, 3);
+        if (name == "filename") {
+            auto f = std::get<std::string>(val);
+            file_name = fs::path(f).stem().string();
         } else if (name == "length") {
             length = std::get<uint32_t>(val);
         } else if (name == "song") {
@@ -134,17 +152,13 @@ int main(int argc, const char** argv)
         } else if (name == "songs") {
             songs = std::get<uint32_t>(val);
         } else if (name == "format") {
-            panel.clear(40, 3, con_width - 40 - 1, 1);
-            panel.draw_text(std::get<std::string>(val), 40, 3);
+            panel.clear(42, 3, con_width - 42 - 1, 1);
+            panel.draw_text(std::get<std::string>(val), 42, 3);
         } else if (name == "seconds") {
             secs = std::get<uint32_t>(val);
         }
 
         auto title = make_title(meta);
-        /* if (title.empty()) { */
-        /*     fs::path p = songFile; */
-        /*     title = p.filename().stem().string(); */
-        /* } */
         panel.clear(1, 1, con_width - 2, 1);
         panel.draw_text(title, 2, 1);
         panel.draw_text(fmt::format("{:02}/{:02}", song + 1, songs), 25, 3);
@@ -189,6 +203,7 @@ int main(int argc, const char** argv)
                 music_player->detach();
                 quit = true;
             }
+            if (key == 'q') { quit = true; }
             if (key == KEY_ENTER || key == 'n') { music_player->next(); }
             if (key == KEY_RIGHT) { music_player->set_song(++song); }
             if (key == KEY_LEFT) { music_player->set_song(--song); }

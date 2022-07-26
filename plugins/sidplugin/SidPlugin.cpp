@@ -147,7 +147,7 @@ private:
     STIL::STILSong stilInfo;
 };
 
-static const std::set<std::string> supported_ext = {"sid"};
+static const std::set<std::string> supported_ext = {"sid", "psid"};
 
 SidPlugin::SidPlugin(std::string const& configDir)
 {
