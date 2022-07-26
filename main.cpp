@@ -47,6 +47,7 @@ int main(int argc, const char** argv)
     std::string songFile;
     int startSong = -1;
     bool pipe = false;
+    bool bg = false;
     auto music_player = MusicPlayer::create();
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -55,12 +56,20 @@ int main(int argc, const char** argv)
                 startSong = std::stoi(argv[++i]);
             } else if (opt == "p") {
                 pipe = true;
+            } else if (opt == "d") {
+                bg = true;
             }
+
 
         } else {
             songFile = argv[i];
             music_player->play(songFile);
         }
+    }
+
+    if (bg) {
+        music_player->detach();
+        return 0;
     }
 
     /* if (!songFile.empty()) { */
