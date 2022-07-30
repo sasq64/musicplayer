@@ -48,7 +48,7 @@ struct Panel : public bbs::Console
         if (h < 0) { h = height - y; }
         auto lines = utils::text_wrap(text, w, 0);
         // lines = utils::split(std::string(text), "\n");
-        uint32_t fg = 0;//0xffffff00;
+        uint32_t fg = 0xffffff00;
         uint32_t bg = color;
         for (auto const& l : lines) {
             put(l, x, y, fg, bg);

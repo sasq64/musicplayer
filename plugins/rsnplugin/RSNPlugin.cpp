@@ -41,7 +41,8 @@ public:
         player = std::shared_ptr<ChipPlayer>(plugin->fromFile(songs[song]));
         if (player) {
             setMeta("sub_title", player->getMeta("sub_title"), "length",
-                    player->getMeta("length"));
+                    player->getMetaInt("length"),
+                    "song", song);
             if (seconds > 0) {
                 player->seekTo(-1, seconds);
             }

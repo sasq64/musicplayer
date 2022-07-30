@@ -2,6 +2,9 @@
 all : builds/debug builds/debug/Makefile
 	make -j8 -C builds/debug
 
+install:
+	make install -C builds/debug
+
 builds/debug :
 	mkdir -p builds/debug
 

@@ -69,15 +69,14 @@ public:
             gme_info_t* track = nullptr;
             gme_track_info(emu.get(), &track, song);
             setMeta("sub_title", track->song, "length",
-                    track->length > 0 ? track->length / 1000 : 0);
+                    track->length > 0 ? track->length / 1000 : 0, "song",
+                    static_cast<uint32_t>(song));
 
             gme_start_track(emu.get(), song);
             started = true;
             gme_free_info(track);
         }
-        if (seconds >= 0) {
-            gme_seek(emu.get(), seconds);
-        }
+        if (seconds >= 0) { gme_seek(emu.get(), seconds); }
         return true;
     }
 

@@ -10,6 +10,7 @@ struct MusicPlayer
 {
     virtual ~MusicPlayer() = default;
     static std::unique_ptr<MusicPlayer> create();
+static std::unique_ptr<MusicPlayer> createWriter();
     virtual void update() {}
     virtual void clear() {}
     virtual void play(std::filesystem::path const& fileName) {}

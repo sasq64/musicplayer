@@ -40,11 +40,10 @@ add_subdirectory(psf)
 add_subdirectory(stil)
 
 set(MUSICPLAYER_PLUGINS
-    #tfmxplugin
     adplugin
     aoplugin
     ayflyplugin
-    ffmpegplugin
+    # ffmpegplugin
     gmeplugin
     gsfplugin
     heplugin
@@ -61,11 +60,11 @@ set(MUSICPLAYER_PLUGINS
     usfplugin
     rsnplugin
     s98plugin
-    # viceplugin
-    # mp3plugin
-    # MSVC incompatible
-    # Obsolete
     sidplugin
+    # MSVC incompatible
+    # mp3plugin
+    # Obsolete
+    # tfmxplugin
     # sexypsfplugin
     # modplugin
 )
@@ -77,9 +76,11 @@ endif()
 
 add_subdirectory(plugins)
 
-add_executable(play main.cpp resampler.cpp ui/panel.cpp player.cpp resampler.cpp)
-target_link_libraries(play PUBLIC ansi fmt::fmt ${MUSICPLAYER_PLUGINS}
+add_executable(msxp main.cpp resampler.cpp ui/panel.cpp player.cpp resampler.cpp)
+target_link_libraries(msxp PUBLIC ansi fmt::fmt ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive readerwriterqueue ${THREAD_LIB})
+
+install(TARGETS msxp DESTINATION /usr/local/bin)
 
 add_library(musix SHARED lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}

@@ -8,7 +8,6 @@
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
 
-#include <csignal>
 #include <deque>
 #include <fcntl.h>
 #include <readerwriterqueue.h>
@@ -32,17 +31,15 @@ class Player : public MusicPlayer
 {
 
     std::shared_ptr<musix::ChipPlayer> player;
-    std::string pluginName;
     std::vector<Info> infoList;
 
     Resampler<32768> fifo{44100};
     AudioPlayer audioPlayer{44100};
-    int _current_song{};
 
 public:
     std::shared_ptr<musix::ChipPlayer> get_player() { return player; }
 
-    Player()
+    static inline void CreatePlugins()
     {
         using musix::ChipPlayer;
         using musix::ChipPlugin;
@@ -51,7 +48,8 @@ public:
 
         auto xd = utils::get_exe_dir();
         auto home = utils::get_home_dir();
-        auto searchPath = std::vector{fs::absolute(xd / ".." / "data"),
+        auto searchPath = std::vector{fs::absolute(xd / "data"),
+                                      fs::absolute(xd / ".." / "data"),
                                       fs::absolute(xd / ".." / ".." / "data"),
                                       home / ".local" / "share" / "musix",
                                       home / ".config" / "musix",
@@ -68,7 +66,26 @@ public:
             throw musix::player_exception("Could not find data directory");
         }
         ChipPlugin::createPlugins(dataPath.string());
+    }
 
+    static inline std::shared_ptr<musix::ChipPlayer>
+    createPlayer(fs::path const& songFile)
+    {
+        std::shared_ptr<musix::ChipPlayer> player;
+        for (const auto& plugin : musix::ChipPlugin::getPlugins()) {
+            if (plugin->canHandle(songFile.string())) {
+                if (auto* ptr = plugin->fromFile(songFile)) {
+                    player = std::shared_ptr<musix::ChipPlayer>(ptr);
+                    break;
+                }
+            }
+        }
+        return player;
+    }
+
+    Player()
+    {
+        CreatePlugins();
         audioPlayer.play([&](int16_t* ptr, int size) {
             auto count = fifo.read(ptr, size);
             if (count <= 0) { memset(ptr, 0, size * 2); }
@@ -88,11 +105,11 @@ public:
         player = nullptr;
         play_list.clear();
     }
-    using clk = std::chrono::system_clock;
-    std::chrono::time_point<clk> start_time;
 
     uint32_t last_secs = 0;
+    uint64_t micro_seconds = 0;
     uint32_t length = 0;
+    uint32_t songs = 0;
 
     void play_next()
     {
@@ -101,19 +118,10 @@ public:
 
         auto songFile = play_list.front();
         play_list.pop_front();
+        songs = length = 0;
 
-        for (const auto& plugin : musix::ChipPlugin::getPlugins()) {
-            if (plugin->canHandle(songFile.string())) {
-                if (auto* ptr = plugin->fromFile(songFile)) {
-                    player = std::shared_ptr<musix::ChipPlayer>(ptr);
-                    pluginName = plugin->name();
-                    break;
-                }
-            }
-        }
-        if (!player) {
-            return;
-        }
+        player = createPlayer(songFile);
+        if (!player) { return; }
 
         length = 0;
         infoList.clear();
@@ -124,10 +132,10 @@ public:
                 auto&& val = player->meta(name);
                 infoList.emplace_back(name, val);
                 if (name == "length") { length = std::get<uint32_t>(val); }
+                if (name == "songs") { songs = std::get<uint32_t>(val); }
             }
         });
-        start_time = clk::now();
-        _current_song = player->getMetaInt("startSong");
+        micro_seconds = 0;
     }
 
     std::vector<Info> get_info() override
@@ -137,15 +145,12 @@ public:
         return result;
     }
 
-    void next() override
-    {
-        play_next();
-    }
+    void next() override { play_next(); }
 
-    void set_song(int song) override {
-        if(player->seekTo(song)) {
-            start_time = clk::now();
-        }
+    void set_song(int song) override
+    {
+        if (song < 0 || song >= songs) { return; }
+        if (player->seekTo(song)) { micro_seconds = 0; }
     }
 
     void update() override
@@ -155,25 +160,84 @@ public:
             return;
         }
 
-        uint32_t secs = (std::chrono::duration_cast<std::chrono::seconds>(
-                             clk::now() - start_time))
-                            .count();
+        uint32_t secs = micro_seconds / 1000000;
+
         if (secs != last_secs) {
             if (infoList.empty()) { infoList.emplace_back("seconds", secs); }
             last_secs = secs;
         }
 
         std::array<int16_t, 1024 * 16> temp{};
-        fifo.setHz(player->getHZ());
+        auto hz = player->getHZ();
+        fifo.setHz(hz);
         auto rc =
             player->getSamples(temp.data(), static_cast<int>(temp.size()));
-        if (rc > 0) { fifo.write(&temp[0], &temp[1], rc); }
+        if (rc > 0) {
+            fifo.write(&temp[0], &temp[1], rc);
+            micro_seconds += (static_cast<uint64_t>(rc) * (1000000 / 2) / hz);
+        }
         if (rc <= 0 || (length > 0 && secs > length)) {
-            if (!play_list.empty()) {
-                play_next();
-            }
+            if (!play_list.empty()) { play_next(); }
         }
     }
+};
+
+class OutPlayer : public MusicPlayer
+{
+
+    std::shared_ptr<musix::ChipPlayer> player;
+    std::vector<Info> infoList;
+    Resampler<32768> fifo{44100};
+
+public:
+    OutPlayer() { Player::CreatePlugins(); }
+
+    void play(fs::path const& name) override
+    {
+        auto out_fd = dup(STDOUT_FILENO);
+        close(STDOUT_FILENO);
+        player = Player::createPlayer(name);
+
+        uint32_t length = 0;
+        uint32_t songs = 0;
+        player->onMeta([&](auto&& meta_list, auto*) {
+            for (auto&& name : meta_list) {
+                auto&& val = player->meta(name);
+                infoList.emplace_back(name, val);
+                if (name == "length") { length = std::get<uint32_t>(val); }
+                if (name == "songs") { songs = std::get<uint32_t>(val); }
+            }
+        });
+
+        if (length <= 0) { length = 60 * 4; }
+
+        uint64_t micro_seconds = 0;
+
+        std::array<int16_t, 1024 * 16> temp{};
+        bool done = false;
+        while (!done) {
+            auto hz = player->getHZ();
+            fifo.setHz(hz);
+            auto rc =
+                player->getSamples(temp.data(), static_cast<int>(temp.size()));
+            if (rc > 0) {
+                fifo.write(&temp[0], &temp[1], rc);
+                micro_seconds +=
+                    (static_cast<uint64_t>(rc) * (1000000 / 2) / hz);
+            } else {
+                done = true;
+            }
+            if (micro_seconds / 1000000 > length) {
+                done = true;
+            }
+
+            auto count = fifo.read(temp.data(), temp.size());
+            write(out_fd, temp.data(), count*2);
+        }
+    }
+    void next() override {}
+    void clear() override {}
+    void set_song(int song) override {}
 };
 
 class ThreadedPlayer : public MusicPlayer
@@ -181,18 +245,12 @@ class ThreadedPlayer : public MusicPlayer
     Player player;
     std::thread playThread;
     std::atomic<bool> quit{false};
-
-    struct Next
-    {};
-    struct Play
-    {
-        fs::path name;
-    };
-    struct SetSong
-    {
-        int song;
-    };
+    // clang-format off
+    struct Next {};
+    struct Play { fs::path name; };
+    struct SetSong { int song; };
     struct Clear {};
+    // clang-format on
 
     using Command = std::variant<Next, SetSong, Play, Clear>;
 
@@ -204,7 +262,7 @@ class ThreadedPlayer : public MusicPlayer
     void handle_cmd(SetSong const& cmd) { player.set_song(cmd.song); }
     void handle_cmd(Play const& cmd) { player.play(cmd.name); }
 
-    void update() override
+    void read_commands()
     {
         Command cmd;
         while (commands.try_dequeue(cmd)) {
@@ -219,8 +277,8 @@ class ThreadedPlayer : public MusicPlayer
         playThread = std::thread([this]() {
             while (!quit) {
                 player.update();
-                update();
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                read_commands();
+                std::this_thread::sleep_for(10ms);
             }
         });
     }
@@ -248,7 +306,6 @@ public:
 
 class PipePlayer : public MusicPlayer
 {
-    int childPid = -1;
     FILE* infile;
     FILE* cmdfile;
 
@@ -264,7 +321,6 @@ public:
 
         if (!fs::exists(fifo_out)) { mkfifo(fifo_out.c_str(), 0777); }
 
-        // puts("open");
         int fd = open(fifo_out.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         infile = fdopen(fd, "r");
 
@@ -297,19 +353,20 @@ public:
         pid_t pid = fork();
         if (pid < 0) { exit(EXIT_FAILURE); }
         if (pid > 0) {
-            childPid = pid;
+            // In parent, return
             return;
-            // exit(EXIT_SUCCESS);
         }
         // Child starting
+        // puts("Redirecting stdout");
         umask(0);
         auto sid = setsid();
         if (sid < 0) { exit(EXIT_FAILURE); }
+        freopen((utils::get_home_dir() / ".musix.stdout").c_str(), "w", stdout);
 
-        // close(STDIN_FILENO);
+        close(STDIN_FILENO);
         // close(STDOUT_FILENO);
         // close(STDERR_FILENO);
-        // puts("player");
+        puts("Creating player");
         ThreadedPlayer player;
         std::string l;
         bool quit = false;
@@ -317,6 +374,7 @@ public:
             l.resize(128);
             while (fgets(l.data(), 128, myfile) != nullptr) {
                 l.resize(strlen(l.data()) - 1);
+                fmt::print("Got command '{}'\n", l);
                 if (l[0] == '>') {
                     player.play(l.substr(1));
                 } else if (l[0] == 'n') {
@@ -345,16 +403,19 @@ public:
             }
             auto allInfo = player.get_info();
             if (!allInfo.empty()) {
-                // puts("info");
+                fmt::print("Got {} infos from player\n", allInfo.size());
                 for (auto&& info : allInfo) {
                     if (info.first != "init") {
                         currentInfo[info.first] = info.second;
+                    } else {
+                        fmt::print("Clearing\n");
+                        currentInfo.clear();
                     }
                     auto line = fmt::format(
                         "i{}\t{}\n", info.first,
                         std::visit([](auto v) { return fmt::format("{}", v); },
                                    info.second));
-                    // puts(line.c_str());
+                    fmt::print("Info: {}", line.substr(1));
                     fputs(line.c_str(), outfile);
                 }
                 fflush(outfile);
@@ -362,6 +423,7 @@ public:
             }
             std::this_thread::sleep_for(10ms);
         }
+        puts("Player process exiting");
         exit(0);
     }
 
@@ -433,4 +495,9 @@ public:
 std::unique_ptr<MusicPlayer> MusicPlayer::create()
 {
     return std::make_unique<PipePlayer>();
+}
+
+std::unique_ptr<MusicPlayer> MusicPlayer::createWriter()
+{
+    return std::make_unique<OutPlayer>();
 }

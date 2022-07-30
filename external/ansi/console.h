@@ -54,23 +54,19 @@ public:
     };
 
     std::unique_ptr<Terminal> terminal;
-    bool useColors = false;
+    bool useColors = true;
+    bool altMode = false;
 
-    explicit Console(std::unique_ptr<Terminal> terminal_)
-        : terminal(std::move(terminal_))
+    // Partial screen console
+    explicit Console(std::unique_ptr<Terminal> _terminal, int _height)
+        : terminal(std::move(_terminal))
     {
-
+        useColors = false;
         put_fg = cur_fg;
         put_bg = cur_bg;
-        // write("\x1b[?1049h");
         if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }
-        int w = terminal->width();
-        int h = 5;
-        // resize(terminal->width(), terminal->height());
-        // write(Protocol::goto_xy(0, 0));
-        // write(Protocol::clear());
 
-        resize(w, h);
+        resize(terminal->width(), _height);
         for (int y = 0; y < height; y++) {
             puts("");
         }
@@ -80,11 +76,25 @@ public:
         write("\x1b[?25l");
     }
 
+    // Fullscreen console on alt
+    explicit Console(std::unique_ptr<Terminal> terminal_)
+        : terminal(std::move(terminal_))
+    {
+        put_fg = cur_fg;
+        put_bg = cur_bg;
+        altMode = true;
+        write("\x1b[?1049h");
+        if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }
+        resize(terminal->width(), terminal->height());
+        write(Protocol::goto_xy(0, 0));
+        write(Protocol::clear());
+        write("\x1b[?25l");
+    }
+
     Console() = default;
 
     Console(int w, int h)
     {
-
         put_fg = cur_fg;
         put_bg = cur_bg;
         resize(w, h);
@@ -95,7 +105,7 @@ public:
         puts("");
         if (terminal != nullptr) {
             write("\x1b[?25h");
-            // write("\x1b[?1049l");
+            if (altMode) { write("\x1b[?1049l"); }
         }
     }
 
@@ -176,7 +186,7 @@ public:
         put_y = y;
     }
 
-    virtual std::pair<int, int> get_xy()
+    std::pair<int, int> get_xy()
     {
         write("\x1b[6n");
         fflush(stdout);
@@ -188,7 +198,7 @@ public:
             auto [row, col] = utils::splitn<2>(target.substr(2), ";"s);
             col = col.substr(0, col.length() - 1);
             if (!col.empty() && !row.empty()) {
-                //fmt::print("{};{}\n", col, row);
+                // fmt::print("{};{}\n", col, row);
                 return {std::stoi(col), std::stoi(row)};
             }
         }

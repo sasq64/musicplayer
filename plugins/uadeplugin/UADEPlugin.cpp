@@ -51,11 +51,11 @@ public:
         fs::path fileName = name;
 
         auto ext = fileName.extension();
-/*
-        if (ext == ".INS") {
-            fileName.replace_extension(".ins");
-        }
-*/
+        /*
+                if (ext == ".INS") {
+                    fileName.replace_extension(".ins");
+                }
+        */
 
         if (utils::startsWith(name, "Env:")) {
             fileName = fs::path(playerdir) / "ENV" / &name[4];
@@ -112,8 +112,7 @@ public:
             songInfo = uade_get_song_info(state);
             std::string modname = songInfo->modulename;
             if (modname == "<no songtitle>") { modname = ""; }
-            if (modname == "")
-            {
+            if (modname.empty()) {
                 fs::path p = currentFileName;
                 auto stem = p.stem().string();
                 auto file_name = p.filename().string();
@@ -126,7 +125,7 @@ public:
             setMeta(
                 "songs", songInfo->subsongs.max - songInfo->subsongs.min + 1,
                 "startsong", songInfo->subsongs.def - songInfo->subsongs.min,
-                "length", static_cast<int>(songInfo->duration), "title",
+                "length", static_cast<uint32_t>(songInfo->duration), "title",
                 modname, "format", songInfo->playername);
             valid = true;
         }
@@ -168,8 +167,10 @@ public:
 
     bool seekTo(int song, int /*seconds*/) override
     {
+        if (song < 0) { return false; }
         uade_seek(UADE_SEEK_SUBSONG_RELATIVE, 0, song + songInfo->subsongs.min,
                   state);
+        setMeta("song", song);
         return true;
     }
 
@@ -255,7 +256,7 @@ static const std::set<std::string> supported_ext{
     "tronic",    "ufo",          "mod15_ust",   "vss",          "wb",
     "ym",        "ml",           "mod15_st-iv", "agi",          "tpu",
     "qpa",       "sqt",          "qts",         "ftm",          "sdata",
-"dux"};
+    "dux"};
 
 bool UADEPlugin::canHandle(const std::string& name)
 {

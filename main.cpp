@@ -42,6 +42,11 @@ std::string make_title(std::unordered_map<std::string, Meta> const& meta)
     return title;
 }
 
+template <typename... A> std::string to_string(std::variant<A...> const& v)
+{
+    return std::visit([](auto&& x) { return fmt::format("{}", x); }, v);
+}
+
 int main(int argc, const char** argv)
 {
     // if (argc < 2) { return 0; }
@@ -50,22 +55,33 @@ int main(int argc, const char** argv)
 
     std::string songFile;
     int startSong = -1;
-    bool pipe = false;
+    bool show = false;
+    bool verbose = false;
+    bool output = true;
     bool bg = false;
+    bool writeOut = false;
+    std::string command;
+    std::string report;
+
     std::vector<fs::path> songFiles;
-    auto music_player = MusicPlayer::create();
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             auto opt = std::string_view(&argv[i][1]);
             if (opt == "song" || opt == "s") {
                 startSong = std::stoi(argv[++i]);
             } else if (opt == "p") {
-                pipe = true;
+                report = std::string(argv[++i]);
+                bg = true;
+            } else if (opt == "v") {
+                verbose = true;
+                output = false;
             } else if (opt == "d") {
                 bg = true;
+            } else if (opt == "o") {
+                writeOut = true;
             } else if (opt == "n") {
-                music_player->next();
-                music_player->detach();
+                command = "next";
+                bg = true;
                 return 0;
             }
 
@@ -75,6 +91,9 @@ int main(int argc, const char** argv)
         }
     }
 
+    auto music_player =
+        writeOut ? MusicPlayer::createWriter() : MusicPlayer::create();
+
     if (!songFiles.empty()) {
         music_player->clear();
         for (auto&& sf : songFiles) {
@@ -82,39 +101,51 @@ int main(int argc, const char** argv)
         }
     }
 
+    if (!report.empty()) {
+        while (true) {
+            auto&& allInfo = music_player->get_info();
+            for (auto&& info : allInfo) {
+                fmt::print("{}\n", info.first);
+                if (info.first == report) {
+                    auto value = std::get<std::string>(info.second);
+                    fmt::print("{}", value);
+                    return 0;
+                }
+            }
+            std::this_thread::sleep_for(10ms);
+        }
+    }
+
+    if (writeOut) { return 0; }
+
+    if (command == "n") { music_player->next(); }
+
     if (bg) {
         music_player->detach();
         return 0;
     }
 
-    /* if (!songFile.empty()) { */
-    /*     music_player->play(songFile); */
-    /* } */
-
     std::unique_ptr<bbs::Terminal> term =
         std::make_unique<bbs::LocalTerminal>();
     term->open();
-    auto con = std::make_shared<bbs::Console>(std::move(term));
+    auto con = std::make_shared<bbs::Console>(std::move(term), 5);
 
     auto con_width = con->get_width();
-    // con->fill(0xff0000ff, 0x000000ff);
     Panel panel{con, 0, 0, con_width, 8};
-    panel.box(0, 0, con_width - 1, 2, 0xff00ffff);
-    panel.box(0, 2, con_width - 1, 2, 0xff00ffff);
+    if (output) {
+        // con->fill(0xff0000ff, 0x000000ff);
+        panel.box(0, 0, con_width - 1, 2, 0xff00ffff);
+        panel.box(0, 2, con_width - 1, 2, 0xff00ffff);
 
-    panel.box(0, 2, 16, 2, 0xff00ffff);
-    panel.box(23, 2, 8, 2, 0xff00ffff);
-    panel.box(31, 2, 9, 2, 0xff00ffff);
-    panel.draw_text("SONG", 18, 3);
-    panel.draw_text("FORMAT", 33, 3);
-    // panel.draw_text("Composer", 1, 2);
-    // panel.draw_text("Copyright", 1, 3);
-    // panel.draw_text("Format", 1, 4);
-    // panel.draw_text("Length", 1, 5);
-    panel.flush();
-    panel.refresh();
-    con->flush();
-    bool output = true;
+        panel.box(0, 2, 16, 2, 0xff00ffff);
+        panel.box(23, 2, 8, 2, 0xff00ffff);
+        panel.box(31, 2, 9, 2, 0xff00ffff);
+        panel.draw_text("SONG", 18, 3);
+        panel.draw_text("FORMAT", 33, 3);
+        panel.flush();
+        panel.refresh();
+        con->flush();
+    }
 
     std::unordered_map<std::string, Meta> meta;
 
@@ -131,12 +162,15 @@ int main(int argc, const char** argv)
         meta["game"] = ""s;
         meta["composer"] = ""s;
         meta["filename"] = ""s;
-        song = songs = secs = length = 0;
+        song = secs = length = 0;
+        songs = 1;
         file_name = "";
     };
     clear_meta();
 
     auto update_meta = [&](std::string const& name, auto val) {
+        if (verbose) { fmt::print("{}={}\n", name, to_string(val)); }
+        if (!output) { return; }
         if (name == "init") {
             clear_meta();
             return;
@@ -183,31 +217,28 @@ int main(int argc, const char** argv)
     auto start = clk::now();
     int64_t last_secs = -1;
     while (!quit) {
-        auto secs = (std::chrono::duration_cast<std::chrono::seconds>(
-                         clk::now() - start))
-                        .count();
+        auto&& info = music_player->get_info();
+        for (auto&& [name, val] : info) {
+            update_meta(name, val);
+        }
         if (output) {
-            auto&& info = music_player->get_info();
-            for (auto&& [name, val] : info) {
-                update_meta(name, val);
-            }
 
-            if (info.empty()) {
+            if (!info.empty()) {
                 panel.refresh();
                 con->flush();
             }
-
-            auto key = con->read_key();
-            if (key == KEY_NONE) { std::this_thread::sleep_for(100ms); }
-            if (key == KEY_ESCAPE) {
-                music_player->detach();
-                quit = true;
-            }
-            if (key == 'q') { quit = true; }
-            if (key == KEY_ENTER || key == 'n') { music_player->next(); }
-            if (key == KEY_RIGHT) { music_player->set_song(++song); }
-            if (key == KEY_LEFT) { music_player->set_song(--song); }
         }
+
+        auto key = con->read_key();
+        if (key == KEY_NONE) { std::this_thread::sleep_for(100ms); }
+        if (key == KEY_ESCAPE) {
+            music_player->detach();
+            quit = true;
+        }
+        if (key == 'q') { quit = true; }
+        if (key == KEY_ENTER || key == 'n') { music_player->next(); }
+        if (key == KEY_RIGHT) { music_player->set_song(song + 1); }
+        if (key == KEY_LEFT) { music_player->set_song(song - 1); }
     }
     music_player = nullptr;
     return 0;
