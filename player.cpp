@@ -32,6 +32,7 @@ class Player : public MusicPlayer
 
     std::shared_ptr<musix::ChipPlayer> player;
     std::vector<Info> infoList;
+    int startSong = -1;
 
     Resampler<32768> fifo{44100};
     AudioPlayer audioPlayer{44100};
@@ -123,6 +124,11 @@ public:
         player = createPlayer(songFile);
         if (!player) { return; }
 
+        if (startSong >= 0) {
+            player->seekTo(startSong, -1);
+            startSong = -1;
+        }
+
         length = 0;
         infoList.clear();
         infoList.emplace_back("init", ""s);
@@ -149,6 +155,9 @@ public:
 
     void set_song(int song) override
     {
+        if (player == nullptr) {
+            startSong = song;
+        }
         if (song < 0 || song >= songs) { return; }
         if (player->seekTo(song)) { micro_seconds = 0; }
     }
@@ -188,6 +197,7 @@ class OutPlayer : public MusicPlayer
     std::shared_ptr<musix::ChipPlayer> player;
     std::vector<Info> infoList;
     Resampler<32768> fifo{44100};
+    int startSong = -1;
 
 public:
     OutPlayer() { Player::CreatePlugins(); }
@@ -197,6 +207,10 @@ public:
         auto out_fd = dup(STDOUT_FILENO);
         close(STDOUT_FILENO);
         player = Player::createPlayer(name);
+        if (player == nullptr) { return; }
+        if (startSong >= 0) {
+            player->seekTo(startSong, -1);
+        }
 
         uint32_t length = 0;
         uint32_t songs = 0;
@@ -237,7 +251,9 @@ public:
     }
     void next() override {}
     void clear() override {}
-    void set_song(int song) override {}
+    void set_song(int song) override {
+        startSong = song;
+    }
 };
 
 class ThreadedPlayer : public MusicPlayer

@@ -59,7 +59,9 @@ int main(int argc, const char** argv)
     bool verbose = false;
     bool output = true;
     bool bg = false;
+    bool clear = true;
     bool writeOut = false;
+    bool quitPlayer = false;
     std::string command;
     std::string report;
 
@@ -77,12 +79,15 @@ int main(int argc, const char** argv)
                 output = false;
             } else if (opt == "d") {
                 bg = true;
+            } else if (opt == "a") {
+                clear = false;
             } else if (opt == "o") {
                 writeOut = true;
+            } else if (opt == "q") {
+                quitPlayer = true;
             } else if (opt == "n") {
                 command = "next";
                 bg = true;
-                return 0;
             }
 
         } else {
@@ -94,8 +99,19 @@ int main(int argc, const char** argv)
     auto music_player =
         writeOut ? MusicPlayer::createWriter() : MusicPlayer::create();
 
-    if (!songFiles.empty()) {
+    if (quitPlayer) {
         music_player->clear();
+        music_player = nullptr;
+        return 0;
+    }
+
+    if (startSong > 0) {
+        music_player->set_song(startSong-1);
+    }
+    if (!songFiles.empty()) {
+        if (clear) {
+            music_player->clear();
+        }
         for (auto&& sf : songFiles) {
             music_player->play(sf);
         }
@@ -118,7 +134,7 @@ int main(int argc, const char** argv)
 
     if (writeOut) { return 0; }
 
-    if (command == "n") { music_player->next(); }
+    if (command == "next") { music_player->next(); }
 
     if (bg) {
         music_player->detach();
