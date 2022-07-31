@@ -49,13 +49,10 @@ template <typename... A> std::string to_string(std::variant<A...> const& v)
 
 int main(int argc, const char** argv)
 {
-    // if (argc < 2) { return 0; }
-
     logging::setLevel(logging::Level::Info);
 
     std::string songFile;
     int startSong = -1;
-    bool show = false;
     bool verbose = false;
     bool output = true;
     bool bg = false;
@@ -93,6 +90,14 @@ int main(int argc, const char** argv)
         } else {
             songFile = argv[i];
             songFiles.emplace_back(songFile);
+        }
+    }
+
+    if (isatty(fileno(stdin)) == 0) {
+        bg = true;
+        std::string line;
+        while(std::getline(std::cin, line)) {
+            songFiles.emplace_back(line);
         }
     }
 
@@ -231,7 +236,6 @@ int main(int argc, const char** argv)
 
     std::array<int16_t, 1024 * 16> temp{};
     auto start = clk::now();
-    int64_t last_secs = -1;
     while (!quit) {
         auto&& info = music_player->get_info();
         for (auto&& [name, val] : info) {
@@ -253,8 +257,8 @@ int main(int argc, const char** argv)
         }
         if (key == 'q') { quit = true; }
         if (key == KEY_ENTER || key == 'n') { music_player->next(); }
-        if (key == KEY_RIGHT) { music_player->set_song(song + 1); }
-        if (key == KEY_LEFT) { music_player->set_song(song - 1); }
+        if (key == KEY_RIGHT || key == ']') { music_player->set_song(song + 1); }
+        if (key == KEY_LEFT || key == '[') { music_player->set_song(song - 1); }
     }
     music_player = nullptr;
     return 0;
