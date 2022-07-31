@@ -18,6 +18,8 @@ if (WIN32)
   include_directories(external/win)
 endif()
 
+find_package(Threads)
+
 add_subdirectory(external/zlib)
 set(ZLIB_LIBRARIES zlibstatic)
 set(ZLIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/zlib ${CMAKE_BINARY_DIR}/external/zlib)
@@ -69,24 +71,19 @@ set(MUSICPLAYER_PLUGINS
     # modplugin
 )
 
-if(WIN32)
-else()
-set(THREAD_LIB pthread)
-endif()
-
 add_subdirectory(plugins)
 
 add_library(musix SHARED lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
-    coreutils crypto archive ${THREAD_LIB})
+    coreutils crypto archive Threads::Threads)
 
 add_executable(play simple.cpp resampler.cpp)
 target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
-    apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
+    apone::coreutils audioplayer apone::crypto archive Threads::Threads)
 
 add_executable(msxp main.cpp resampler.cpp ui/panel.cpp player.cpp resampler.cpp)
 target_link_libraries(msxp PUBLIC ansi fmt::fmt ${MUSICPLAYER_PLUGINS}
-    apone::coreutils audioplayer apone::crypto archive readerwriterqueue ${THREAD_LIB})
+    apone::coreutils audioplayer apone::crypto archive readerwriterqueue Threads::Threads)
 
 install(TARGETS msxp DESTINATION /usr/local/bin)
 

@@ -155,9 +155,7 @@ public:
 
     void set_song(int song) override
     {
-        if (player == nullptr) {
-            startSong = song;
-        }
+        if (player == nullptr) { startSong = song; }
         if (song < 0 || song >= songs) { return; }
         if (player->seekTo(song)) { micro_seconds = 0; }
     }
@@ -208,9 +206,7 @@ public:
         close(STDOUT_FILENO);
         player = Player::createPlayer(name);
         if (player == nullptr) { return; }
-        if (startSong >= 0) {
-            player->seekTo(startSong, -1);
-        }
+        if (startSong >= 0) { player->seekTo(startSong, -1); }
 
         uint32_t length = 0;
         uint32_t songs = 0;
@@ -241,19 +237,17 @@ public:
             } else {
                 done = true;
             }
-            if (micro_seconds / 1000000 > length) {
-                done = true;
-            }
+            if (micro_seconds / 1000000 > length) { done = true; }
 
             auto count = fifo.read(temp.data(), temp.size());
-            write(out_fd, temp.data(), count*2);
+            if(write(out_fd, temp.data(), count * 2) <= 0) {
+                done = true;
+            }
         }
     }
     void next() override {}
     void clear() override {}
-    void set_song(int song) override {
-        startSong = song;
-    }
+    void set_song(int song) override { startSong = song; }
 };
 
 class ThreadedPlayer : public MusicPlayer
@@ -377,7 +371,10 @@ public:
         umask(0);
         auto sid = setsid();
         if (sid < 0) { exit(EXIT_FAILURE); }
-        freopen((utils::get_home_dir() / ".musix.stdout").c_str(), "w", stdout);
+        if (freopen((utils::get_home_dir() / ".musix.stdout").c_str(), "w",
+                    stdout) == nullptr) {
+            // Oh well
+        }
 
         close(STDIN_FILENO);
         // close(STDOUT_FILENO);
