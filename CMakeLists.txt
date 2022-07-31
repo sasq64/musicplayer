@@ -76,15 +76,19 @@ endif()
 
 add_subdirectory(plugins)
 
+add_library(musix SHARED lib.cpp)
+target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
+    coreutils crypto archive ${THREAD_LIB})
+
+add_executable(play simple.cpp resampler.cpp)
+target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
+    apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
+
 add_executable(msxp main.cpp resampler.cpp ui/panel.cpp player.cpp resampler.cpp)
 target_link_libraries(msxp PUBLIC ansi fmt::fmt ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive readerwriterqueue ${THREAD_LIB})
 
 install(TARGETS msxp DESTINATION /usr/local/bin)
-
-add_library(musix SHARED lib.cpp)
-target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
-    coreutils crypto archive ${THREAD_LIB})
 
 if(APPLE)
   include_directories(SYSTEM /usr/local/include /opt/homebrew/include)

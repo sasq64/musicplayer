@@ -38,7 +38,7 @@ Copy `msxp` to your path and the `data` directory as
 
 `[ENTER]` for next file
 `[LEFT]` / `[RIGHT]` for sub song
-`ESC` to detach and keep playing
+`[ESC]` to detach and keep playing
 `q` to quit
 
 ### Converting to MP3
