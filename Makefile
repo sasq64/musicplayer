@@ -1,13 +1,14 @@
 
-all : builds/debug builds/debug/Makefile
-	make -j8 -C builds/debug
+all : build build/Makefile
+	make -j8 -C build
 
 install:
-	make install -C builds/debug
+	cp build/msxp /usr/local/bin
+	cp -a data /usr/local/share/musix
 
-builds/debug :
-	mkdir -p builds/debug
+build :
+	mkdir -p build
 
-builds/debug/Makefile :
-	(cd builds/debug ; cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -G"Unix Makefiles" ../..)
+build/Makefile :
+	(cd build ; cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -G"Unix Makefiles" ..)
 
