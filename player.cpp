@@ -114,8 +114,8 @@ public:
 
     void play_next()
     {
-        player = nullptr;
         if (play_list.empty()) { return; }
+        player = nullptr;
 
         auto songFile = play_list.front();
         play_list.pop_front();
@@ -180,11 +180,11 @@ public:
         auto rc =
             player->getSamples(temp.data(), static_cast<int>(temp.size()));
         if (rc > 0) {
-            fifo.write(&temp[0], &temp[1], rc);
+            fifo.write(temp.data(), temp.data() + 1, rc);
             micro_seconds += (static_cast<uint64_t>(rc) * (1000000 / 2) / hz);
         }
         if (rc <= 0 || (length > 0 && secs > length)) {
-            if (!play_list.empty()) { play_next(); }
+            play_next();
         }
     }
 };
@@ -202,7 +202,7 @@ public:
 
     void play(fs::path const& name) override
     {
-        auto out_fd = dup(STDOUT_FILENO);
+        auto out_fd = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC);
         close(STDOUT_FILENO);
         player = Player::createPlayer(name);
         if (player == nullptr) { return; }
@@ -231,7 +231,7 @@ public:
             auto rc =
                 player->getSamples(temp.data(), static_cast<int>(temp.size()));
             if (rc > 0) {
-                fifo.write(&temp[0], &temp[1], rc);
+                fifo.write(temp.data(), temp.data() + 1, rc);
                 micro_seconds +=
                     (static_cast<uint64_t>(rc) * (1000000 / 2) / hz);
             } else {
@@ -240,9 +240,7 @@ public:
             if (micro_seconds / 1000000 > length) { done = true; }
 
             auto count = fifo.read(temp.data(), temp.size());
-            if(write(out_fd, temp.data(), count * 2) <= 0) {
-                done = true;
-            }
+            if (write(out_fd, temp.data(), count * 2) <= 0) { done = true; }
         }
     }
     void next() override {}
@@ -338,8 +336,7 @@ public:
         if (test_fd > 0) {
             // puts("Someone at the other end");
             cmdfile = fdopen(test_fd, "w");
-            int rc = 1;
-            std::array<char, 128> temp;
+            std::array<char, 128> temp{};
             while (fgets(temp.data(), temp.size(), infile) != nullptr) {}
 
             fputs(fmt::format("d{}\n", fs::current_path().string()).c_str(),
@@ -361,7 +358,7 @@ public:
         // puts("Done");
 
         pid_t pid = fork();
-        if (pid < 0) { exit(EXIT_FAILURE); }
+        if (pid < 0) { throw musix::player_exception("Could not fork"); }
         if (pid > 0) {
             // In parent, return
             return;
@@ -370,7 +367,7 @@ public:
         // puts("Redirecting stdout");
         umask(0);
         auto sid = setsid();
-        if (sid < 0) { exit(EXIT_FAILURE); }
+        if (sid < 0) { throw musix::player_exception("Could not setsid("); }
         if (freopen((utils::get_home_dir() / ".musix.stdout").c_str(), "w",
                     stdout) == nullptr) {
             // Oh well
@@ -437,7 +434,7 @@ public:
             std::this_thread::sleep_for(10ms);
         }
         puts("Player process exiting");
-        exit(0);
+        exit(0); // NOLINT
     }
 
     bool detached = false;

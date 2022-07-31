@@ -61,7 +61,7 @@ public:
     explicit Console(std::unique_ptr<Terminal> _terminal, int _height)
         : terminal(std::move(_terminal))
     {
-        useColors = false;
+        useColors = true;
         put_fg = cur_fg;
         put_bg = cur_bg;
         if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }

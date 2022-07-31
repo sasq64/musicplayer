@@ -14,8 +14,8 @@ struct Panel : public bbs::Console
 {
     Panel(std::shared_ptr<bbs::Console> _console, int _x, int _y, int _w,
           int _h, uint32_t _color = 0, int _margin = 1)
-        : console{std::move(_console)}, xpos{_x}, ypos{_y}, width{_w},
-          height{_h}, color{_color}, margin{_margin}
+        : width{_w}, height{_h}, console{std::move(_console)}, xpos{_x},
+          ypos{_y}, color{_color}, margin{_margin}
     {
         grid.resize(width * height);
         clear();

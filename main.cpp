@@ -230,19 +230,13 @@ int main(int argc, const char** argv)
     static std::atomic<bool> quit{false};
 
     std::signal(SIGINT, [](int) { quit = true; });
-    // std::signal(SIGSTOP, [](int) { quit = true; });
 
-    using clk = std::chrono::system_clock;
-
-    std::array<int16_t, 1024 * 16> temp{};
-    auto start = clk::now();
     while (!quit) {
         auto&& info = music_player->get_info();
         for (auto&& [name, val] : info) {
             update_meta(name, val);
         }
         if (output) {
-
             if (!info.empty()) {
                 panel.refresh();
                 con->flush();
