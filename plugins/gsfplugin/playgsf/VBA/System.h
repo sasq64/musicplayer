@@ -20,6 +20,8 @@
 #ifndef VBA_SYSTEM_H
 #define VBA_SYSTEM_H
 
+#include <cstdint>
+
 #include "unzip.h"
 
 #ifndef NULL

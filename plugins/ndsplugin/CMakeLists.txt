@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.12 )
 project(cpp-mods.musicplayer.ndsplugin)
 
 set(SOURCE_FILES
@@ -18,9 +18,11 @@ set(SOURCE_FILES
     nds/vio2sf/desmume/thumb_instructions.c
 )
 
-add_library(ndsplugin ${SOURCE_FILES})
-target_include_directories(ndsplugin PRIVATE nds/vio2sf nds/vio2sf/desmume nds)
-target_link_libraries(ndsplugin PRIVATE psf coreutils)
-target_compile_definitions(ndsplugin PRIVATE -DLSB_FIRST -DHAVE_STDINT_H)
+add_library(nds ${SOURCE_FILES})
+target_include_directories(nds PRIVATE nds/vio2sf nds/vio2sf/desmume nds)
+target_link_libraries(nds PRIVATE psf coreutils)
+target_compile_definitions(nds PRIVATE -DLSB_FIRST -DHAVE_STDINT_H)
 # -D_strnicmp=strncasecmp)
 
+add_library(ndsplugin OBJECT ndsplugin_register.cpp)
+target_link_libraries(ndsplugin PRIVATE nds)

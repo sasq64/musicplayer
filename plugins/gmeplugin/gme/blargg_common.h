@@ -52,7 +52,7 @@ public:
 		size_ = n;
 		return 0;
 	}
-	void clear() { void* p = begin_; begin_ = 0; size_ = 0; free( p ); }
+	void clear() { free( begin_ ); begin_ = nullptr; size_ = 0; }
 	T& operator [] ( size_t n ) const
 	{
 		assert( n <= size_ ); // <= to allow past-the-end value
@@ -60,39 +60,24 @@ public:
 	}
 };
 
+// Use to force disable exceptions for allocations of a class
+#include <new>
 #ifndef BLARGG_DISABLE_NOTHROW
-	// throw spec mandatory in ISO C++ if operator new can return NULL
-	#if __cplusplus >= 199711 || __GNUC__ >= 3
-		#define BLARGG_THROWS( spec ) throw spec
-	#else
-		#define BLARGG_THROWS( spec )
-	#endif
 	#define BLARGG_DISABLE_NOTHROW \
-		void* operator new ( size_t s ) BLARGG_THROWS(()) { return malloc( s ); }\
-		void operator delete ( void* p ) { free( p ); }
-	#define BLARGG_NEW new
-#else
-	#include <new>
-	#define BLARGG_NEW new (std::nothrow)
+		void* operator new ( size_t s ) noexcept { return malloc( s ); }\
+		void* operator new ( size_t s, const std::nothrow_t& ) noexcept { return malloc( s ); }\
+		void operator delete ( void* p ) noexcept { free( p ); }
 #endif
+
+// Use to force disable exceptions for a specific allocation no matter what class
+#define BLARGG_NEW new (std::nothrow)
 
 // BLARGG_4CHAR('a','b','c','d') = 'abcd' (four character integer constant)
 #define BLARGG_4CHAR( a, b, c, d ) \
 	((a&0xFF)*0x1000000L + (b&0xFF)*0x10000L + (c&0xFF)*0x100L + (d&0xFF))
 
-// BOOST_STATIC_ASSERT( expr ): Generates compile error if expr is 0.
-#ifndef BOOST_STATIC_ASSERT
-	#ifdef _MSC_VER
-		// MSVC6 (_MSC_VER < 1300) fails for use of __LINE__ when /Zl is specified
-		#define BOOST_STATIC_ASSERT( expr ) \
-			void blargg_failed_( int (*arg) [2 / (int) !!(expr) - 1] )
-	#else
-		// Some other compilers fail when declaring same function multiple times in class,
-		// so differentiate them by line
-		#define BOOST_STATIC_ASSERT( expr ) \
-			void blargg_failed_( int (*arg) [2 / !!(expr) - 1] [__LINE__] )
-	#endif
-#endif
+#define BLARGG_2CHAR( a, b ) \
+	((a&0xFF)*0x100L + (b&0xFF))
 
 // BLARGG_COMPILER_HAS_BOOL: If 0, provides bool support for old compiler. If 1,
 // compiler is assumed to support bool. If undefined, availability is determined.
@@ -118,6 +103,16 @@ public:
 	const bool false = 0;
 #endif
 
+#if defined(__has_cpp_attribute)
+# if __has_cpp_attribute(maybe_unused)
+#  define BLARGG_MAYBE_UNUSED [[maybe_unused]]
+# endif
+#endif
+
+#ifndef BLARGG_MAYBE_UNUSED
+# define BLARGG_MAYBE_UNUSED
+#endif
+
 // blargg_long/blargg_ulong = at least 32 bits, int if it's big enough
 
 #if INT_MAX < 0x7FFFFFFF || LONG_MAX == 0x7FFFFFFF
@@ -132,51 +127,12 @@ public:
 	typedef unsigned blargg_ulong;
 #endif
 
-// BOOST::int8_t etc.
+// int8_t etc.
 
-// HAVE_STDINT_H: If defined, use <stdint.h> for int8_t etc.
-#if defined (HAVE_STDINT_H)
+// TODO: Add CMake check for this, although I'd likely just point affected
+// persons to a real compiler...
+#if 1 || defined (HAVE_STDINT_H)
 	#include <stdint.h>
-	#define BOOST
-
-// HAVE_INTTYPES_H: If defined, use <stdint.h> for int8_t etc.
-#elif defined (HAVE_INTTYPES_H)
-	#include <inttypes.h>
-	#define BOOST
-
-#else
-	struct BOOST
-	{
-		#if UCHAR_MAX == 0xFF && SCHAR_MAX == 0x7F
-			typedef signed char     int8_t;
-			typedef unsigned char   uint8_t;
-		#else
-			// No suitable 8-bit type available
-			typedef struct see_blargg_common_h int8_t;
-			typedef struct see_blargg_common_h uint8_t;
-		#endif
-		
-		#if USHRT_MAX == 0xFFFF
-			typedef short           int16_t;
-			typedef unsigned short  uint16_t;
-		#else
-			// No suitable 16-bit type available
-			typedef struct see_blargg_common_h int16_t;
-			typedef struct see_blargg_common_h uint16_t;
-		#endif
-		
-		#if ULONG_MAX == 0xFFFFFFFF
-			typedef long            int32_t;
-			typedef unsigned long   uint32_t;
-		#elif UINT_MAX == 0xFFFFFFFF
-			typedef int             int32_t;
-			typedef unsigned int    uint32_t;
-		#else
-			// No suitable 32-bit type available
-			typedef struct see_blargg_common_h int32_t;
-			typedef struct see_blargg_common_h uint32_t;
-		#endif
-	};
 #endif
 
 #if __GNUC__ >= 3

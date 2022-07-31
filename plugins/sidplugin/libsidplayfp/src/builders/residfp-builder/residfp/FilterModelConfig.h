@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2016 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2022 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2004,2010 Dag Lem
  *
@@ -23,9 +23,9 @@
 #ifndef FILTERMODELCONFIG_H
 #define FILTERMODELCONFIG_H
 
-#include <memory>
+#include <algorithm>
+#include <cassert>
 
-#include "Dac.h"
 #include "Spline.h"
 
 #include "sidcxx11.h"
@@ -33,25 +33,9 @@
 namespace reSIDfp
 {
 
-class Integrator;
-
-/**
- * Calculate parameters for 6581 filter emulation.
- */
 class FilterModelConfig
 {
-private:
-    static const unsigned int DAC_BITS = 11;
-
-private:
-    static std::unique_ptr<FilterModelConfig> instance;
-    // This allows access to the private constructor
-#ifdef HAVE_CXX11
-    friend std::unique_ptr<FilterModelConfig>::deleter_type;
-#else
-    friend class std::auto_ptr<FilterModelConfig>;
-#endif
-
+protected:
     const double voice_voltage_range;
     const double voice_DC_voltage;
 
@@ -62,18 +46,9 @@ private:
     //@{
     const double Vdd;
     const double Vth;           ///< Threshold voltage
-    const double Ut;            ///< Thermal voltage: Ut = k*T/q = 8.61734315e-5*T ~ 26mV
-    const double k;             ///< Gate coupling coefficient: K = Cox/(Cox+Cdep) ~ 0.7
-    const double uCox;          ///< u*Cox
-    const double WL_vcr;        ///< W/L for VCR
-    const double WL_snake;      ///< W/L for "snake"
-    const double kVddt;         ///< k * (Vdd - Vth)
-    //@}
-
-    /// DAC parameters.
-    //@{
-    const double dac_zero;
-    const double dac_scale;
+    const double Ut;            ///< Thermal voltage: Ut = kT/q = 8.61734315e-5*T ~ 26mV
+    const double uCox;          ///< Transconductance coefficient: u*Cox
+    const double Vddt;          ///< Vdd - Vth
     //@}
 
     // Derived stuff
@@ -83,67 +58,107 @@ private:
     /// Fixed point scaling for 16 bit op-amp output.
     const double N16;
 
+    /// Current factor coefficient for op-amp integrators.
+    const double currFactorCoeff;
+
     /// Lookup tables for gain and summer op-amps in output stage / filter.
     //@{
-    unsigned short* mixer[8];
-    unsigned short* summer[5];
-    unsigned short* gain[16];
-    //@}
-
-    /// DAC lookup table
-    Dac dac;
-
-    /// VCR - 6581 only.
-    //@{
-    unsigned short vcr_kVg[1 << 16];
-    unsigned short vcr_n_Ids_term[1 << 16];
+    unsigned short* mixer[8];       //-V730_NOINIT this is initialized in the derived class constructor
+    unsigned short* summer[5];      //-V730_NOINIT this is initialized in the derived class constructor
+    unsigned short* gain_vol[16];   //-V730_NOINIT this is initialized in the derived class constructor
+    unsigned short* gain_res[16];   //-V730_NOINIT this is initialized in the derived class constructor
     //@}
 
     /// Reverse op-amp transfer function.
-    unsigned short opamp_rev[1 << 16];
+    unsigned short opamp_rev[1 << 16]; //-V730_NOINIT this is initialized in the derived class constructor
 
 private:
-    double getDacZero(double adjustment) const { return dac_zero - (adjustment - 0.5) * 2.; }
+    FilterModelConfig (const FilterModelConfig&) DELETE;
+    FilterModelConfig& operator= (const FilterModelConfig&) DELETE;
 
-    FilterModelConfig();
-    ~FilterModelConfig();
+protected:
+    /**
+     * @param vvr voice voltage range
+     * @param vdv voice DC voltage
+     * @param c   capacitor value
+     * @param vdd Vdd
+     * @param vth threshold voltage
+     * @param ucox u*Cox
+     * @param ominv opamp min voltage
+     * @param omaxv opamp max voltage
+     */
+    FilterModelConfig(
+        double vvr,
+        double vdv,
+        double c,
+        double vdd,
+        double vth,
+        double ucox,
+        const Spline::Point *opamp_voltage,
+        int opamp_size
+    );
+
+    ~FilterModelConfig()
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            delete [] mixer[i];
+        }
+
+        for (int i = 0; i < 5; i++)
+        {
+            delete [] summer[i];
+        }
+
+        for (int i = 0; i < 16; i++)
+        {
+            delete [] gain_vol[i];
+            delete [] gain_res[i];
+        }
+    }
 
 public:
-    static FilterModelConfig* getInstance();
+    unsigned short** getGainVol() { return gain_vol; }
+    unsigned short** getGainRes() { return gain_res; }
+    unsigned short** getSummer() { return summer; }
+    unsigned short** getMixer() { return mixer; }
 
     /**
      * The digital range of one voice is 20 bits; create a scaling term
      * for multiplication which fits in 11 bits.
      */
-    int getVoiceScaleS14() const { return static_cast<int>((norm * ((1 << 14) - 1)) * voice_voltage_range); }
+    int getVoiceScaleS11() const { return static_cast<int>((norm * ((1 << 11) - 1)) * voice_voltage_range); }
 
     /**
      * The "zero" output level of the voices.
      */
-    int getVoiceDC() const { return static_cast<int>(N16 * (voice_DC_voltage - vmin)); }
+    int getNormalizedVoiceDC() const { return static_cast<int>(N16 * (voice_DC_voltage - vmin)); }
 
-    unsigned short** getGain() { return gain; }
+    inline unsigned short getOpampRev(int i) const { return opamp_rev[i]; }
+    inline double getVddt() const { return Vddt; }
+    inline double getVth() const { return Vth; }
+    inline double getVoiceDCVoltage() const { return voice_DC_voltage; }
 
-    unsigned short** getSummer() { return summer; }
+    // helper functions
+    inline unsigned short getNormalizedValue(double value) const
+    {
+        const double tmp = N16 * (value - vmin);
+        assert(tmp > -0.5 && tmp < 65535.5);
+        return static_cast<unsigned short>(tmp + 0.5);
+    }
 
-    unsigned short** getMixer() { return mixer; }
+    inline unsigned short getNormalizedCurrentFactor(double wl) const
+    {
+        const double tmp = (1 << 13) * currFactorCoeff * wl;
+        assert(tmp > -0.5 && tmp < 65535.5);
+        return static_cast<unsigned short>(tmp + 0.5);
+    }
 
-    /**
-     * Construct an 11 bit cutoff frequency DAC output voltage table.
-     * Ownership is transferred to the requester which becomes responsible
-     * of freeing the object when done.
-     *
-     * @param adjustment
-     * @return the DAC table
-     */
-    unsigned short* getDAC(double adjustment) const;
-
-    /**
-     * Construct an integrator solver.
-     *
-     * @return the integrator
-     */
-    std::unique_ptr<Integrator> buildIntegrator();
+    inline unsigned short getNVmin() const {
+        const double tmp = N16 * vmin;
+        assert(tmp > -0.5 && tmp < 65535.5);
+        return static_cast<unsigned short>(tmp + 0.5);
+    }
 };
 
 } // namespace reSIDfp

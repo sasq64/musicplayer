@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2016 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2021 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2000 Simon White
  *
@@ -97,6 +97,12 @@ const uint_least16_t SIDTUNE_R64_MIN_LOAD_ADDR = 0x07e8;
 SidTuneBase* SidTuneBase::load(const char* fileName, const char **fileNameExt,
                  bool separatorIsSlash)
 {
+    return load(nullptr, fileName, fileNameExt, separatorIsSlash);
+}
+
+SidTuneBase* SidTuneBase::load(LoaderFunc loader, const char* fileName,
+                 const char **fileNameExt, bool separatorIsSlash)
+{
     if (fileName == nullptr)
         return nullptr;
 
@@ -105,7 +111,7 @@ SidTuneBase* SidTuneBase::load(const char* fileName, const char **fileNameExt,
     if (strcmp(fileName, "-") == 0)
         return getFromStdIn();
 #endif
-    return getFromFiles(fileName, fileNameExt, separatorIsSlash);
+    return getFromFiles(loader, fileName, fileNameExt, separatorIsSlash);
 }
 
 SidTuneBase* SidTuneBase::read(const uint_least8_t* sourceBuffer, uint_least32_t bufferLen)
@@ -358,9 +364,17 @@ void SidTuneBase::createNewFileName(std::string& destString,
 
 SidTuneBase* SidTuneBase::getFromFiles(const char* fileName, const char **fileNameExtensions, bool separatorIsSlash)
 {
+    return getFromFiles(nullptr, fileName, fileNameExtensions, separatorIsSlash);
+}
+
+SidTuneBase* SidTuneBase::getFromFiles(LoaderFunc loader, const char* fileName, const char **fileNameExtensions, bool separatorIsSlash)
+{
     buffer_t fileBuf1;
 
-    loadFile(fileName, fileBuf1);
+    if (loader == nullptr)
+        loader = (LoaderFunc) loadFile;
+
+    loader(fileName, fileBuf1);
 
     // File loaded. Now check if it is in a valid single-file-format.
     std::unique_ptr<SidTuneBase> s(PSID::load(fileBuf1));
@@ -385,7 +399,7 @@ SidTuneBase* SidTuneBase::getFromFiles(const char* fileName, const char **fileNa
                     {
                         buffer_t fileBuf2;
 
-                        loadFile(fileName2.c_str(), fileBuf2);
+                        loader(fileName2.c_str(), fileBuf2);
                         // Check if tunes in wrong order and therefore swap them here
                         if (stringutils::equal(fileNameExtensions[n], ".mus"))
                         {
@@ -398,7 +412,7 @@ SidTuneBase* SidTuneBase::getFromFiles(const char* fileName, const char **fileNa
                         }
                         else
                         {
-                            std::unique_ptr<SidTuneBase> s2(MUS::load(fileBuf1, true));
+                            std::unique_ptr<SidTuneBase> s2(MUS::load(fileBuf1, fileBuf2, 0, true));
                             if (s2.get() != nullptr)
                             {
                                 s2->acceptSidTune(fileName, fileName2.c_str(), fileBuf1, separatorIsSlash);

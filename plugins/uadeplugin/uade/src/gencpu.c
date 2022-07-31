@@ -19,6 +19,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include <ctype.h>
+#include <string.h>
 
 #include "options.h"
 #include "readcpu.h"

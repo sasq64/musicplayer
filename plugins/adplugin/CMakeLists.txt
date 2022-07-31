@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.adplugin)
 
 set(SOURCE_FILES
@@ -12,6 +12,7 @@ set(SOURCE_FILES
         adplug/adl.cpp
         adplug/adlibemu.c
         adplug/adplug.cpp
+        adplug/adlib.cpp
         adplug/adtrack.cpp
         adplug/amd.cpp
         adplug/bam.cpp
@@ -62,9 +63,23 @@ set(SOURCE_FILES
         adplug/u6m.cpp
         adplug/xad.cpp
         adplug/xsm.cpp
+        adplug/mdi.cpp
+        adplug/got.cpp
+        adplug/mus.cpp
+        adplug/vgm.cpp
+        adplug/sop.cpp
+        adplug/herad.cpp
+        adplug/cmfmcsop.cpp
 )
 
-add_library(adplugin ${SOURCE_FILES})
-target_include_directories(adplugin PRIVATE opl libbinio adplug)
-target_link_libraries(adplugin PRIVATE coreutils)
+add_library(adplug STATIC ${SOURCE_FILES})
+target_include_directories(adplug PRIVATE opl libbinio adplug)
+target_compile_definitions(adplug PRIVATE ADPLUG_VERSION="2.3.2-beta")
+if(NOT WIN32)
+  target_compile_definitions(adplug PRIVATE stricmp=strcasecmp)
+  target_compile_options(adplug PRIVATE -Wno-register)
+endif()
+target_link_libraries(adplug PRIVATE coreutils)
 
+add_library(adplugin OBJECT adplugin_register.cpp)
+target_link_libraries(adplugin PRIVATE adplug)

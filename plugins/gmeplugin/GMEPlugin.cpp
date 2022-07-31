@@ -1,9 +1,9 @@
-
 #include "GMEPlugin.h"
 #include "../../chipplayer.h"
+
 #include <coreutils/log.h>
-#include <coreutils/utils.h>
 #include <coreutils/ptr.h>
+#include <coreutils/utils.h>
 
 #include "gme/gme.h"
 
@@ -14,12 +14,16 @@ namespace musix {
 class GMEPlayer : public ChipPlayer
 {
 public:
-    GMEPlayer(const std::string& fileName) : started(false), ended(false)
+    explicit GMEPlayer(const std::string& fileName)
+        : started(false), ended(false)
     {
-        gme_err_t err = gme_open_file(fileName.c_str(), &utils::raw_ptr(emu), 44100);
-        if (err) throw player_exception("Could not load GME music");
+        gme_err_t err =
+            gme_open_file(fileName.c_str(), &utils::raw_ptr(emu), 44100);
+        if (err != nullptr) {
+            throw player_exception("Could not load GME music");
+        }
 
-        gme_info_t* track0;
+        gme_info_t* track0 = nullptr;
 
         gme_track_info(emu.get(), &track0, 0);
 
@@ -33,13 +37,13 @@ public:
 
     int getSamples(int16_t* target, int noSamples) override
     {
-        gme_err_t err;
+        gme_err_t err = nullptr;
         if (!started) {
             err = gme_start_track(emu.get(), 0);
             started = true;
         }
 
-        if (!ended && gme_track_ended(emu.get())) {
+        if (!ended && (gme_track_ended(emu.get()) != 0)) {
             LOGD("## GME HAS ENDED");
             ended = true;
         }
@@ -53,7 +57,7 @@ public:
         return noSamples;
     }
 
-    virtual bool seekTo(int song, int seconds) override
+    bool seekTo(int song, int seconds) override
     {
         if (song >= 0) {
 
@@ -62,29 +66,29 @@ public:
                 ended = false;
             }
 
-            gme_info_t* track;
+            gme_info_t* track = nullptr;
             gme_track_info(emu.get(), &track, song);
             setMeta("sub_title", track->song, "length",
-                    track->length > 0 ? track->length / 1000 : 0);
+                    track->length > 0 ? track->length / 1000 : 0, "song",
+                    static_cast<uint32_t>(song));
 
             gme_start_track(emu.get(), song);
             started = true;
             gme_free_info(track);
         }
-        if (seconds >= 0) gme_seek(emu.get(), seconds);
+        if (seconds >= 0) { gme_seek(emu.get(), seconds); }
         return true;
     }
 
 private:
-    std::unique_ptr<Music_Emu, void (*)(Music_Emu*)> emu{ nullptr, gme_delete };
+    std::unique_ptr<Music_Emu, void (*)(Music_Emu*)> emu{nullptr, gme_delete};
     bool started;
     bool ended;
 };
 
-static const std::set<std::string> supported_ext = { "emul", "spc",  "gym",
-                                                     "nsf",  "nsfe", "gbs",
-                                                     "ay",   "sap",  "vgm",
-                                                     "vgz",  "hes",  "kss" };
+static const std::set<std::string> supported_ext = {
+    "emul", "spc", "gym", "nsf", "nsfe", "gbs",
+    "ay",   "sap", "vgm", "vgz", "hes",  "kss"};
 
 bool GMEPlugin::canHandle(const std::string& name)
 {
@@ -93,12 +97,7 @@ bool GMEPlugin::canHandle(const std::string& name)
 
 ChipPlayer* GMEPlugin::fromFile(const std::string& name)
 {
-    try {
-        return new GMEPlayer{ name };
-    } catch (player_exception& e) {
-        LOGW("Failed");
-        return nullptr;
-    }
+    return new GMEPlayer{name};
 };
 
 } // namespace musix

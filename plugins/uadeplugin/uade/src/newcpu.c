@@ -1069,6 +1069,8 @@ void m68k_reset (void)
   }
 #endif
 
+    if(regs.pc_p == NULL)
+        m68k_setpc(regs.pc);
   fill_prefetch_0 ();
   regs.kick_mask = 0xF80000;
   regs.s = 1;

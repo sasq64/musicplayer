@@ -4,3 +4,12 @@ obj/
 _cache
 *.sublime-*
 .tags*
+compile_commands.json
+fixes.yaml
+perf.data
+tidy.log
+.cache/
+.idea/
+cmake-build-*/
+builds/
+

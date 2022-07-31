@@ -16,8 +16,8 @@ int joy_arch_init(void)
     return 0;
 }
 
-int userport_joystick_enable;
-int userport_joystick_type;
+
+
 
 void userport_joystick_store_pa2(BYTE value) {}
 void userport_joystick_store_pbx(BYTE value) {}

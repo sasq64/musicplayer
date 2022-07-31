@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.ayflyplugin)
 
 
@@ -19,5 +19,8 @@ add_definitions(-DDISABLE_AUDIO)
 ##find_package(ZLIB REQUIRED)
 #include_directories(${ZLIB_INCLUDE_DIRS})
 
-add_library(ayflyplugin AyflyPlugin.cpp ${SOURCE_FILES})
-target_link_libraries(ayflyplugin PRIVATE coreutils ${ZLIB_LIBRARIES})
+add_library(ayfly AyflyPlugin.cpp ${SOURCE_FILES})
+target_link_libraries(ayfly PRIVATE coreutils ${ZLIB_LIBRARIES})
+
+add_library(ayflyplugin OBJECT ayflyplugin_register.cpp)
+target_link_libraries(ayflyplugin PRIVATE ayfly)

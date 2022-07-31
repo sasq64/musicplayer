@@ -4,12 +4,15 @@
 
 namespace musix {
 
-class HEPlugin : public ChipPlugin {
+class HEPlugin : public ChipPlugin
+{
 public:
-    HEPlugin(const std::string& biosFileName) : biosFileName(biosFileName) {}
-    virtual std::string name() const override { return "HEPlugin"; }
-    virtual bool canHandle(const std::string& name) override;
-    virtual ChipPlayer* fromFile(const std::string& fileName) override;
+    explicit HEPlugin(const std::string& biosFileName)
+        : biosFileName(biosFileName)
+    {}
+    std::string name() const override { return "HEPlugin"; }
+    bool canHandle(const std::string& name) override;
+    ChipPlayer* fromFile(const std::string& fileName) override;
 
 private:
     std::string biosFileName;

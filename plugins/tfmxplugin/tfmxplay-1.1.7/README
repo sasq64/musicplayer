@@ -1,0 +1,116 @@
+                          ########========------+
+                          | tfmx-play/SDL 1.1.7 |
+                          +-------========#######
+
+      --== writing to a file is possible again, on Linux as well ==--
+
+written by Jonathan H. Pickard <marxmarv@antigates.com>
+(the domain seems to have gone offline)
+maintained by Neochrome <neko@netcologne.de>
+oversampling code by Peter Schlaile <udbz@rz.uni-karlsruhe.de>
+bugfix by Stefan Ohlsson <stefan@starship.pp.se>
+NetBSD patches by Thomas Klausner <wiz@danbala.tuwien.ac.at>
+bugreports by Michael Schwendt <mschwendt@yahoo.com>
+original MacOS-X port (PortAudio) by Ben Shanfelder <unity4u2@yahoo.com>
+TFMX format detection code from UADE contributed by Michael Doering
+	<mldoering@gmx.net>
+even more help and bugreports also by Michael Doering <mldoering@gmx.net>
+bugreports and -fixes by Sven Janssen <sven@stalkingwolf.de>
+bug report/feature-request by Raik Lieske <raik.lieske@gmx.net>
+rewritten sound buffer handling by Ralf Hoffmann <ralf@boomerangsworld.de>
+
+USE
+---
+Rule "ichiban" (#1) is that -h shows the usage.  All the info about the cool
+features is in here (though you won't need to know if you just want to use
+this as backend for Sakuraplayer/TFMXcess/kTFXshell...)
+
+COPYRIGHT
+---------
+tfmx-play is (C) 1996/2000 by Jonathan H. Pickard and David Banz.
+It is free software, released under the GPL (see file "COPYING").
+
+KNOWN BUGS
+----------
+Currently not all TFMX files are played correctly.
+
+One (possibly packed) version of the Z-Out theme sounds weird and 
+used to segfault the SDL-version on MacOSX (it now just enters an endless
+loop), the PortAudio-version does not crash, but it sounds
+weird as well, on Linux-x86 it works fine.
+Looks like a byteorder-bug or (evil, evil!) alignment-bug which is triggered
+there...
+The Z-Out theme available from http://exotica.fix.no does work fine.
+
+Performance is worse than the old non-portable OSS implementation for Linux,
+but almost all machines today should be able handle it.
+If you come up with a way to optimize performance, any hints and patches
+are welcome! :)
+
+########## the following section is mostly taken from jhp's original readme ###
+
+This version includes stereo "blend" to make better sound for headphone
+wearers.  Degrees of blend run from 2 (full stereo) to 0 (full mono).  Note
+that this is changed from prior versions which had blend!  I decided to have
+one level of blend that I considered comfortable to keep from slowing things
+too severely.
+
+This version also includes a simple low-pass filter with four settings: off,
+high, medium, and low (describing the cutoff frequencies).  Don't ask me to
+give you exact ratios of the cutoff frequencies; I don't know or understand
+the math behind weighted-sum filters.  Approximately, though, the time
+constants of the filter are: high=1.2, medium=1.5, low=2.4, referenced to
+the playback frequency.  This sounds reasonable-ish.  If anyone has the real
+numbers, please send 'em.
+
+This player should play _most_ stuff.  I know for a fact that it plays all
+_my_ stuff rather well =:^) , and I did use some twisted TFMX constructs in
+places.  Otherwise known to play are MasterBlazer, Apidya (mostly), Turrican
+II and III, and JimPower.  Most TFMX-1.5 stuff (Turrican, et al) sound
+broken in some places, and admittedly, it's not my highest priority to fix
+it.
+NOTE: Turrican III title tune could use a little patch if you don't hear any
+lead lines in song 1.  History behind this was, the module as ripped crashed
+most TFMX players.  I modified the thing with a hex editor (converting the
+offending commands to wait's) and passed the version around.  Unfortunately,
+the wait paralyzed the whole soundmacro for 5 seconds before it would give
+us audio.  Anyway, I have the (un?)fixed MDAT available.  Email me if you
+need it and you can't find elsewhere.
+
+#################################################### jph section ends here ###
+
+Here are some more tunes I have tested:
+
+MUDS (OK, check it out - it's brilliant!)
+R-Type Theme (mostly OK, a short part is broken)
+Z-Out (OK, except for one (packed?) version of the title tune, which causes
+      a segfault and sounds pretty wrong otherwise on MacOSX)
+The Oath (OK)
+Curse of Ra (seems to be OK, but I'm not entirely sure)
+Der Patrizier (OK)
+Logical (OK)
+Oops-Up (OK...unless you have an unsupported rip)
+Factor-5 Turrican 1 Musicdisk (OK)
+The Secret of Monkey Island (mostly OK)
+GemX Theme (broken, JHP was working on this one, but never finished it - the
+hack should automatically be activated, it can be forced with "-G")
+GemX Ingame (OK)
+Danger Freak Theme (OK, command-line switch "-D" should no longer be needed)
+BC Kid (OK, except for the Factor 5 tune, which does not play at all)
+Battle Isle (OK)
+Carl Lewis Challenge (OK)
+Grand Monster Slam (OK)
+Hard'n'Heavy (seems OK, but not 100% sure)
+
+WANT TO HELP ?
+--------------
+If you want to contribute to this project, just contact me
+(neko@netcologne.de), help is always apprectiated.
+
+UPDATES, ETC.
+-------------
+Look for the latest TFMX tools for Linux here:
+http://darkstar.tabu.stw-bonn.de/~neo/audio.html
+
+For more cool stuff go here:
+http://darkstar.tabu.stw-bonn.de/~neo/

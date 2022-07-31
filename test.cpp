@@ -1,32 +1,68 @@
 #include "catch.hpp"
 
-//#include "src/modutils.h"
 #include "chipplugin.h"
 #include "plugins/plugins.h"
 
 #include <array>
-#include <coreutils/file.h>
 #include <coreutils/log.h>
+#include <coreutils/utils.h>
+#include <filesystem>
 #include <numeric>
 #include <string>
+namespace fs = std::filesystem;
+
+static fs::path findProjectDir()
+{
+    auto current = fs::absolute(".");
+
+    while (!current.empty()) {
+        if (fs::exists(current / "testmus")) { return current; }
+        current = current.parent_path();
+    }
+    return {};
+}
+
+inline fs::path projDir()
+{
+    static fs::path projectDir = findProjectDir();
+    return projectDir;
+}
+
+static auto dataDir = projDir() / "data";
 
 template <typename PLUGIN, typename... ARGS>
 int testPlugin(std::string const& dir, std::string const& exclude,
                const ARGS&... args)
 {
+    auto realDir = projDir() / dir;
+
+    std::vector<std::string> ex;
+    if (!exclude.empty()) { ex = utils::split(exclude, ";"); }
+
     std::array<int16_t, 8192> buffer;
     PLUGIN plugin{args...};
     printf("---- %s ----\n", plugin.name().c_str());
     logging::setLevel(logging::Level::Warning);
     int total = 0;
     int working = 0;
-    for (auto f : utils::File{dir}.listFiles()) {
-        if (exclude != "" && f.getName().find(exclude) != std::string::npos)
-            continue;
+    for (auto const& f : utils::listFiles(realDir, false, false)) {
+        bool play = true;
+        //printf("%s against '%s'\n", f.c_str(), exclude.c_str());
+        for (auto const& e : ex) {
+            if (f.string().find(e) != std::string::npos) { play = false; }
+        }
+        //printf("GO %s\n", play ? "PLAY" : "NO");
+
+        if (!play) { continue; }
 
         int64_t sum = 0;
-        printf("Trying %s\n", f.getName().c_str());
-        auto* player = plugin.fromFile(f.getName());
+        //printf("Trying %s\n", f.string().c_str());
+        musix::ChipPlayer* player = nullptr;
+        try {
+            player = plugin.fromFile(f.string());
+        } catch (musix::player_exception& pe) {
+            printf("Exception %s\n", pe.what());
+        }
         if (player) {
             // puts("Player created");
             int count = 15;
@@ -34,28 +70,29 @@ int testPlugin(std::string const& dir, std::string const& exclude,
                 int rc = player->getSamples(&buffer[0], buffer.size());
                 // REQUIRE(rc > 0);
                 if (rc > 0) {
-                    sum = std::accumulate((uint16_t*)&buffer[0],
-                                          (uint16_t*)&buffer[rc], (int64_t)0);
+                    sum = std::accumulate(
+                        reinterpret_cast<uint16_t*>(&buffer[0]),
+                        reinterpret_cast<uint16_t*>(&buffer[rc]),
+                        static_cast<int64_t>(0));
                     // REQUIRE(sum != 0);
-                    if (sum > 0) {
-                        break;
-                    }
+                    if (sum > 0) { break; }
                     count--;
-                } else
+                } else {
                     break;
+                }
             }
             delete player;
         }
 
         bool madeSound = (sum > 0);
 
-        if (madeSound)
-            working++;
+        if (madeSound) { working++; }
         total++;
 
-        printf("#### Playing %s : %s\n", f.getName().c_str(),
+        printf("#### Playing %s : %s\n", f.string().c_str(),
                player ? (madeSound ? "OK" : "NO SOUND") : "FAILED");
     }
+    if (total == 0) { return 100; }
     int percent = working * 100 / total;
     printf("PERCENT %d\n\n", percent);
     return percent;
@@ -71,12 +108,15 @@ TEST_CASE("gme", "[music]")
 
 TEST_CASE("adlib", "[music]")
 {
-    testPlugin<musix::AdPlugin>("testmus/adlib", "", "data");
+    REQUIRE(testPlugin<musix::AdPlugin>("testmus/adlib/working", ".dat;.ins",
+                                        dataDir) == 100);
+    REQUIRE(testPlugin<musix::AdPlugin>("testmus/adlib/nowork", ".dat;.ins",
+                                        dataDir) == 0);
 }
 
 TEST_CASE("uade", "[music]")
 {
-    testPlugin<musix::UADEPlugin>("testmus/uade", "smp", "data");
+    testPlugin<musix::UADEPlugin>("testmus/uade", "smp", dataDir);
 }
 
 TEST_CASE("openmpt", "[music]")
@@ -96,7 +136,7 @@ TEST_CASE("nds", "[music]")
 
 TEST_CASE("psx", "[music]")
 {
-    testPlugin<musix::HEPlugin>("testmus/psx", "lib", "data/hebios.bin");
+    testPlugin<musix::HEPlugin>("testmus/psx", "lib", dataDir / "hebios.bin");
 }
 
 TEST_CASE("zx", "[music]")
@@ -104,21 +144,24 @@ TEST_CASE("zx", "[music]")
     testPlugin<musix::AyflyPlugin>("testmus/zx", "");
 }
 
+#if 0
 TEST_CASE("vicemd5", "[viceplugin]")
 {
     //; /MUSICIANS/G/Galway_Martin/Comic_Bakery.sid
     // 8ffecb26d6ff34e3 947abb1b90e1779b=
     // 3:09 0:34 0:50 0:03 0:03 0:12 0:01 0:01 0:02 0:08 0:01 0:01 0:03 0:01
     musix::VicePlugin plugin;
-    plugin.setDataDir("data");
+    plugin.setDataDir(projDir() / "data");
     plugin.readLengths();
-    auto lengths = plugin.findLengths(0x8ffecb26d6ff34e3);
+    auto lengths = musix::VicePlugin::findLengths(0x8ffecb26d6ff34e3);
     REQUIRE(lengths.size() == 14);
     REQUIRE(lengths[0] == 3 * 60 + 9);
     REQUIRE(lengths[1] == 34);
 
-    auto key = musix::VicePlugin::calculateMD5("music/C64/Comic_Bakery.sid");
+    auto key = musix::VicePlugin::calculateMD5(projDir() / "music" / "C64" /
+                                               "Comic_Bakery.sid");
     LOGI("KEY %x", key);
 
     REQUIRE(key == 0x8ffecb26d6ff34e3);
 }
+#endif

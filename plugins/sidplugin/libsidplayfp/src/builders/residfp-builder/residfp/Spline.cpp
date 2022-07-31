@@ -27,13 +27,13 @@
 namespace reSIDfp
 {
 
-Spline::Spline(const Point input[], size_t inputLength) :
-    params(inputLength),
+Spline::Spline(const std::vector<Point> &input) :
+    params(input.size()),
     c(&params[0])
 {
-    assert(inputLength > 2);
+    assert(input.size() > 2);
 
-    const size_t coeffLength = inputLength - 1;
+    const size_t coeffLength = input.size() - 1;
 
     std::vector<double> dxs(coeffLength);
     std::vector<double> ms(coeffLength);
@@ -90,7 +90,7 @@ Spline::Spline(const Point input[], size_t inputLength) :
 
 Spline::Point Spline::evaluate(double x) const
 {
-    if (x < c->x1 || x > c->x2)
+    if ((x < c->x1) || (x > c->x2))
     {
         for (size_t i = 0; i < params.size(); i++)
         {

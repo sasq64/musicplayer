@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.0)
 project(cpp-mods.musicplayer.mdxplugin)
 
 set(SOURCE_FILES
@@ -12,6 +12,9 @@ set(SOURCE_FILES
     mdxmini/src/nlg.c
 )
 
-add_library(mdxplugin MDXPlugin.cpp ${SOURCE_FILES})
-target_include_directories(mdxplugin PRIVATE mdxmini/src)
-target_link_libraries(mdxplugin PRIVATE coreutils)
+add_library(mdxmini MDXPlugin.cpp ${SOURCE_FILES})
+target_include_directories(mdxmini PRIVATE mdxmini/src)
+target_link_libraries(mdxmini PRIVATE coreutils)
+
+add_library(mdxplugin OBJECT mdxplugin_register.cpp)
+target_link_libraries(mdxplugin PRIVATE mdxmini)

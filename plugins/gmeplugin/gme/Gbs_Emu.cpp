@@ -1,4 +1,4 @@
-// Game_Music_Emu 0.6.0. http://www.slack.net/~ant/
+// Game_Music_Emu https://bitbucket.org/mpyne/game-music-emu/
 
 #include "Gbs_Emu.h"
 
@@ -101,7 +101,7 @@ static Music_Emu* new_gbs_emu () { return BLARGG_NEW Gbs_Emu ; }
 static Music_Emu* new_gbs_file() { return BLARGG_NEW Gbs_File; }
 
 static gme_type_t_ const gme_gbs_type_ = { "Game Boy", 0, &new_gbs_emu, &new_gbs_file, "GBS", 1 };
-gme_type_t const gme_gbs_type = &gme_gbs_type_;
+extern gme_type_t const gme_gbs_type = &gme_gbs_type_;
 
 // Setup
 
@@ -147,16 +147,19 @@ void Gbs_Emu::set_voice( int i, Blip_Buffer* c, Blip_Buffer* l, Blip_Buffer* r )
 
 void Gbs_Emu::set_bank( int n )
 {
-	blargg_long addr = rom.mask_addr( n * (blargg_long) bank_size );
-	if ( addr == 0 && rom.size() > bank_size )
+	// Only valid for MBC1 cartridges, but hopefully shouldn't hurt
+	n &= 0x1f;
+	if (n == 0)
 	{
-		// TODO: what is the correct behavior? Current Game & Watch Gallery
-		// rip requires that this have no effect or set to bank 1.
-		//debug_printf( "Selected ROM bank 0\n" );
-		return;
-		//n = 1;
+		n = 1;
 	}
-	cpu::map_code( bank_size, bank_size, rom.at_addr( addr ) );
+	
+	blargg_long addr = n * (blargg_long) bank_size;
+	if (addr > rom.size())
+	{
+		return;
+	}
+	cpu::map_code( bank_size, bank_size, rom.at_addr( rom.mask_addr( addr ) ) );
 }
 
 void Gbs_Emu::update_timer()
@@ -175,7 +178,7 @@ void Gbs_Emu::update_timer()
 		play_period = blip_time_t (play_period / tempo());
 }
 
-static BOOST::uint8_t const sound_data [Gb_Apu::register_count] = {
+static uint8_t const sound_data [Gb_Apu::register_count] = {
 	0x80, 0xBF, 0x00, 0x00, 0xBF, // square 1
 	0x00, 0x3F, 0x00, 0x00, 0xBF, // square 2
 	0x7F, 0xFF, 0x9F, 0x00, 0xBF, // wave
@@ -205,8 +208,8 @@ blargg_err_t Gbs_Emu::start_track_( int track )
 	RETURN_ERR( Classic_Emu::start_track_( track ) );
 	
 	memset( ram, 0, 0x4000 );
-	memset( ram + 0x4000, 0xFF, 0x1F80 );
-	memset( ram + 0x5F80, 0, sizeof ram - 0x5F80 );
+	memset( ram + 0x4000, 0xFF, 0x1F00 );
+	memset( ram + 0x5F00, 0, sizeof ram - 0x5F00 );
 	ram [hi_page] = 0; // joypad reads back as 0
 	
 	apu.reset();

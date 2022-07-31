@@ -1,6 +1,6 @@
 // Sega Master System/Mark III, Sega Genesis/Mega Drive, BBC Micro VGM music file emulator
 
-// Game_Music_Emu 0.6.0
+// Game_Music_Emu https://bitbucket.org/mpyne/game-music-emu/
 #ifndef VGM_EMU_H
 #define VGM_EMU_H
 
@@ -16,6 +16,8 @@ public:
 	// True if custom buffer and custom equalization are supported
 	// TODO: move into Music_Emu and rename to something like supports_custom_buffer()
 	bool is_classic_emu() const { return !uses_fm; }
+	
+	blargg_err_t set_multi_channel ( bool is_enabled ) override;
 	
 	// Disable running FM chips at higher than normal rate. Will result in slightly
 	// more aliasing of high notes.
@@ -60,16 +62,16 @@ public:
 	Vgm_Emu();
 	~Vgm_Emu();
 protected:
-	blargg_err_t track_info_( track_info_t*, int track ) const;
-	blargg_err_t load_mem_( byte const*, long );
-	blargg_err_t set_sample_rate_( long sample_rate );
-	blargg_err_t start_track_( int );
-	blargg_err_t play_( long count, sample_t* );
-	blargg_err_t run_clocks( blip_time_t&, int );
-	void set_tempo_( double );
-	void mute_voices_( int mask );
-	void set_voice( int, Blip_Buffer*, Blip_Buffer*, Blip_Buffer* );
-	void update_eq( blip_eq_t const& );
+	blargg_err_t track_info_( track_info_t*, int track ) const override;
+	blargg_err_t load_mem_( byte const*, long ) override;
+	blargg_err_t set_sample_rate_( long sample_rate ) override;
+	blargg_err_t start_track_( int ) override;
+	blargg_err_t play_( long count, sample_t* ) override;
+	blargg_err_t run_clocks( blip_time_t&, int ) override;
+	void set_tempo_( double ) override;
+	void mute_voices_( int mask ) override;
+	void set_voice( int, Blip_Buffer*, Blip_Buffer*, Blip_Buffer* ) override;
+	void update_eq( blip_eq_t const& ) override;
 private:
 	// removed; use disable_oversampling() and set_tempo() instead
 	Vgm_Emu( bool oversample, double tempo = 1.0 );

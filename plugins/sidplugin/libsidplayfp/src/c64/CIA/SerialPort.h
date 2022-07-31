@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2015 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2020 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2009-2014 VICE Project
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2000 Simon White
@@ -26,49 +26,70 @@
 
 #include "interrupt.h"
 
+#include "Event.h"
+
 namespace libsidplayfp
 {
 
-class SerialPort
+class MOS652X;
+
+class SerialPort : private Event
 {
 private:
-    InterruptSource *interruptSource;
+    /// Pointer to the MOS6526 which this Serial Port belongs to.
+    MOS652X &parent;
+
+    /// Event context.
+    EventScheduler &eventScheduler;
+
+    EventCallback<SerialPort> flipCntEvent;
+    EventCallback<SerialPort> flipFakeEvent;
+    EventCallback<SerialPort> startSdrEvent;
+
+    event_clock_t lastSync;
 
     int count;
 
-    bool buffered;
+    uint8_t cnt;
+    uint8_t cntHistory;
 
-    uint8_t out;
+    bool loaded;
+    bool pending;
+
+    bool forceFinish;
+
+    bool model4485;
+
+private:
+    void event() override;
+
+    void flipCnt();
+    void flipFake();
+
+    void doStartSdr();
+
+    void syncCntHistory();
 
 public:
-    explicit SerialPort(InterruptSource *intSource) :
-        interruptSource(intSource)
+    explicit SerialPort(EventScheduler &scheduler, MOS652X &parent) :
+        Event("Serial Port interrupt"),
+        parent(parent),
+        eventScheduler(scheduler),
+        flipCntEvent("flip CNT", *this, &SerialPort::flipCnt),
+        flipFakeEvent("flip fake", *this, &SerialPort::flipFake),
+        startSdrEvent("start SDR", *this, &SerialPort::doStartSdr),
+        model4485(false)
     {}
 
-    void reset()
-    {
-        out = 0;
-        count = 0;
-        buffered = false;
-    }
+    void reset();
 
-    void setBuffered() { buffered = true; }
+    void setModel4485(bool is4485) { model4485 = is4485; }
 
-    void handle(uint8_t serialDataReg)
-    {
-        if (count && --count == 0)
-        {
-            interruptSource->trigger(InterruptSource::INTERRUPT_SP);
-        }
+    void startSdr();
 
-        if (count == 0 && buffered)
-        {
-            out = serialDataReg;
-            buffered = false;
-            count = 16;
-            // Output rate 8 bits at ta / 2
-        }
-    }
+    void switchSerialDirection(bool input);
+
+    void handle();
 };
 
 }

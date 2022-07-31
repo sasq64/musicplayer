@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.uade)
 
 if(WIN32)
@@ -68,10 +68,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cpuemu.c ${CMAKE_CURRENT_B
     DEPENDS $<TARGET_FILE:gencpu>
     COMMENT "Running gencpu")
 
-add_library(uade OBJECT ${UADE_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/cpuemu.c ${CMAKE_CURRENT_BINARY_DIR}/cpudefs.c ${CMAKE_CURRENT_BINARY_DIR}/cpustbl.c)
-target_link_libraries(uade PRIVATE ws2_32)
+add_library(uade STATIC UADEPlugin.cpp ${UADE_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/cpuemu.c ${CMAKE_CURRENT_BINARY_DIR}/cpudefs.c ${CMAKE_CURRENT_BINARY_DIR}/cpustbl.c)
 target_compile_definitions(uade PRIVATE -DPART_1 -DPART_2 -DPART_3 -DPART_4 -DPART_5 -DPART_6 -DPART_7 -DPART_8)
-#target_compile_options(uade PRIVATE -Wno-format -Wno-implicit-function-declaration)
+
 target_include_directories(uade PRIVATE
     bencode/include
     uade/
@@ -80,8 +79,9 @@ target_include_directories(uade PRIVATE
     uade/src/frontends/include/
     uade/src/frontends/common/
 )
+target_link_libraries(uade PRIVATE coreutils ${EXTRA_LIBS})
 
-add_library(uadeplugin STATIC UADEPlugin.cpp)
-target_link_libraries(uadeplugin PRIVATE uade coreutils ${EXTRA_LIBS})
+add_library(uadeplugin OBJECT uadeplugin_register.cpp)
+target_link_libraries(uadeplugin PRIVATE uade)
 target_include_directories(uadeplugin PRIVATE uade/src/frontends/include)
 

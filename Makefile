@@ -1,10 +1,13 @@
 
-all : build build/Makefile
-	make -j8 -C build
+all : builds/debug builds/debug/Makefile
+	make -j8 -C builds/debug
 
-build :
-	mkdir build
+install:
+	make install -C builds/debug
 
-build/Makefile :
-	(cd build ; cmake -G"Unix Makefiles" ..)
+builds/debug :
+	mkdir -p builds/debug
+
+builds/debug/Makefile :
+	(cd builds/debug ; cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -G"Unix Makefiles" ../..)
 

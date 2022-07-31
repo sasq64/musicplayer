@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 project(musicplayer)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
+include(FetchContent)
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
@@ -10,20 +10,40 @@ endif()
 
 set(APONE apone)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if (WIN32)
+  # HACK to make an empty unistd.h available only to Windows
+  include_directories(external/win)
+endif()
 
 add_subdirectory(external/zlib)
 set(ZLIB_LIBRARIES zlibstatic)
 set(ZLIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/zlib ${CMAKE_BINARY_DIR}/external/zlib)
+add_library(_zlib INTERFACE)
+target_link_libraries(_zlib INTERFACE ${ZLIB_LIBRARIES})
+target_include_directories(_zlib INTERFACE ${ZLIB_INCLUDE_DIRS})
+add_library(ZLIB::ZLIB ALIAS _zlib)
+
+add_subdirectory(external/fmt)
+add_subdirectory(external/readerwriterqueue)
+add_subdirectory(external/ansi)
+
+add_subdirectory(${APONE}/coreutils coreutils)
+add_subdirectory(${APONE}/crypto crypto)
+add_subdirectory(${APONE}/audioplayer audioplayer)
+add_subdirectory(${APONE}/archive archive)
+
 
 add_subdirectory(psf)
+add_subdirectory(stil)
 
 set(MUSICPLAYER_PLUGINS
     adplugin
     aoplugin
     ayflyplugin
-    ffmpegplugin
+    # ffmpegplugin
     gmeplugin
     gsfplugin
     heplugin
@@ -40,11 +60,11 @@ set(MUSICPLAYER_PLUGINS
     usfplugin
     rsnplugin
     s98plugin
-    viceplugin
+    sidplugin
     # MSVC incompatible
     # mp3plugin
     # Obsolete
-    # sidplugin
+    # tfmxplugin
     # sexypsfplugin
     # modplugin
 )
@@ -56,22 +76,21 @@ endif()
 
 add_subdirectory(plugins)
 
-add_subdirectory(${APONE}/coreutils coreutils)
-add_subdirectory(${APONE}/crypto crypto)
-add_subdirectory(${APONE}/audioplayer audioplayer)
-add_subdirectory(${APONE}/archive archive)
-
-add_executable(play main.cpp)
-target_link_libraries(play PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
-    coreutils audioplayer crypto archive ${THREAD_LIB})
-
-add_library(musix STATIC lib.cpp)
-target_link_libraries(musix PUBLIC plugin_register ${MUSICPLAYER_PLUGINS}
+add_library(musix SHARED lib.cpp)
+target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive ${THREAD_LIB})
 
-if(NOT WIN32)
-add_executable(testing testmain.cpp test.cpp)
-target_link_libraries(testing plugin_register ${MUSICPLAYER_PLUGINS} coreutils crypto archive)
-endif()
+add_executable(play simple.cpp resampler.cpp)
+target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
+    apone::coreutils audioplayer apone::crypto archive ${THREAD_LIB})
 
-install(TARGETS musix DESTINATION .)
+add_executable(msxp main.cpp resampler.cpp ui/panel.cpp player.cpp resampler.cpp)
+target_link_libraries(msxp PUBLIC ansi fmt::fmt ${MUSICPLAYER_PLUGINS}
+    apone::coreutils audioplayer apone::crypto archive readerwriterqueue ${THREAD_LIB})
+
+install(TARGETS msxp DESTINATION /usr/local/bin)
+
+if(APPLE)
+  include_directories(SYSTEM /usr/local/include /opt/homebrew/include)
+  link_directories(/usr/local/lib /opt/homebrew/lib)
+endif()

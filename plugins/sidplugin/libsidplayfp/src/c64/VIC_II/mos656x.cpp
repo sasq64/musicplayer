@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2016 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2021 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2009-2014 VICE Project
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2001 Simon White
@@ -27,6 +27,7 @@
 //     http://www.uni-mainz.de/~bauec002/VIC-Article.gz
 //
 // MOS 6572 info taken from http://solidstate.com.ar/wp/?p=200
+// MOS 6573 info taken from http://csdb.dk/forums/?roomid=11&topicid=123713
 
 #include "mos656x.h"
 
@@ -48,16 +49,17 @@ const MOS656X::model_data_t MOS656X::modelData[] =
     {263, 65, &MOS656X::clockNTSC},     // NTSC-M   (MOS6567R8)
     {312, 63, &MOS656X::clockPAL},      // PAL-B    (MOS6569R1, MOS6569R3)
     {312, 65, &MOS656X::clockNTSC},     // PAL-N    (MOS6572)
+    {263, 65, &MOS656X::clockNTSC},     // PAL-M    (MOS6573)
 };
 
 const char *MOS656X::credits()
 {
     return
-            "MOS6567/6569/6572 (VIC II) Emulation:\n"
+            "MOS6567/6569/6572/6573 (VIC II) Emulation:\n"
             "\tCopyright (C) 2001 Simon White\n"
             "\tCopyright (C) 2007-2010 Antti Lankila\n"
             "\tCopyright (C) 2009-2014 VICE Project\n"
-            "\tCopyright (C) 2011-2016 Leandro Nini\n";
+            "\tCopyright (C) 2011-2021 Leandro Nini\n";
 }
 
 
@@ -66,7 +68,8 @@ MOS656X::MOS656X(EventScheduler &scheduler) :
     eventScheduler(scheduler),
     sprites(regs),
     badLineStateChangeEvent("Update AEC signal", *this, &MOS656X::badLineStateChange),
-    rasterYIRQEdgeDetectorEvent("RasterY changed", *this, &MOS656X::rasterYIRQEdgeDetector)
+    rasterYIRQEdgeDetectorEvent("RasterY changed", *this, &MOS656X::rasterYIRQEdgeDetector),
+    lightpenTriggerEvent("Trigger lightpen", *this, &MOS656X::lightpenTrigger)
 {
     chip(MOS6569);
 }
@@ -161,19 +164,19 @@ void MOS656X::write(uint_least8_t addr, uint8_t data)
         // This is the funniest part... handle bad line tricks.
         const bool wasBadLinesEnabled = areBadLinesEnabled;
 
-        if (rasterY == FIRST_DMA_LINE && lineCycle == 0)
+        if ((rasterY == FIRST_DMA_LINE) && (lineCycle == 0))
         {
             areBadLinesEnabled = readDEN();
         }
 
-        if (oldRasterY() == FIRST_DMA_LINE && readDEN())
+        if ((oldRasterY() == FIRST_DMA_LINE) && readDEN())
         {
             areBadLinesEnabled = true;
         }
 
-        if ((oldYscroll != yscroll || areBadLinesEnabled != wasBadLinesEnabled)
-            && rasterY >= FIRST_DMA_LINE
-            && rasterY <= LAST_DMA_LINE)
+        if (((oldYscroll != yscroll) || (areBadLinesEnabled != wasBadLinesEnabled))
+            && (rasterY >= FIRST_DMA_LINE)
+            && (rasterY <= LAST_DMA_LINE))
         {
             // Check whether bad line state has changed.
             const bool wasBadLine = (wasBadLinesEnabled && (oldYscroll == (rasterY & 7)));
@@ -203,7 +206,7 @@ void MOS656X::write(uint_least8_t addr, uint8_t data)
                 }
 
                 if (isBadLine != oldBadLine)
-                        eventScheduler.schedule(badLineStateChangeEvent, 0, EVENT_CLOCK_PHI1);
+                    eventScheduler.schedule(badLineStateChangeEvent, 0, EVENT_CLOCK_PHI1);
             }
         }
     }
@@ -255,7 +258,7 @@ void MOS656X::handleIrqState()
 
 void MOS656X::event()
 {
-    const event_clock_t cycles = eventScheduler.getTime(rasterClk, eventScheduler.phase());
+    const event_clock_t cycles = eventScheduler.getTime(eventScheduler.phase()) - rasterClk;
 
     event_clock_t delay;
 
@@ -313,7 +316,7 @@ event_clock_t MOS656X::clockPAL()
     case 6:
         endDma<5>();
 
-        delay = sprites.isDma(0xc0) ? 2 : 4;
+        delay = sprites.isDma(0xc0) ? 2 : 5;
         break;
 
     case 7:
@@ -421,7 +424,7 @@ event_clock_t MOS656X::clockNTSC()
         endDma<3>();
 
         // No sprites before next compulsory cycle
-        if (!sprites.isDma(0xf8))
+        if (!sprites.isDma(0xf0))
             delay = 10;
         break;
 
@@ -440,7 +443,7 @@ event_clock_t MOS656X::clockNTSC()
     case 5:
         endDma<5>();
 
-        delay = sprites.isDma(0xc0) ? 2 : 4;
+        delay = sprites.isDma(0xc0) ? 2 : 6;
         break;
 
     case 6:
@@ -484,7 +487,11 @@ event_clock_t MOS656X::clockNTSC()
     case 15:
         sprites.updateMcBase();
 
-        delay = 40;
+        delay = 39;
+        break;
+
+    case 54:
+        setBA(true);
         break;
 
     case 55:
@@ -535,7 +542,7 @@ event_clock_t MOS656X::clockNTSC()
         break;
 
     default:
-        delay = 55 - lineCycle;
+        delay = 54 - lineCycle;
     }
 
     return delay;
@@ -580,7 +587,7 @@ event_clock_t MOS656X::clockOldNTSC()
     case 6:
         endDma<5>();
 
-        delay = sprites.isDma(0xc0) ? 2 : 4;
+        delay = sprites.isDma(0xc0) ? 2 : 5;
         break;
 
     case 7:
@@ -619,7 +626,11 @@ event_clock_t MOS656X::clockOldNTSC()
     case 15:
         sprites.updateMcBase();
 
-        delay = 40;
+        delay = 39;
+        break;
+
+    case 54:
+        setBA(true);
         break;
 
     case 55:
@@ -638,7 +649,7 @@ event_clock_t MOS656X::clockOldNTSC()
         startDma<1>();
 
         // No sprites before next compulsory cycle
-        delay = (!sprites.isDma(0x1f)) ? 7 : 2;
+        delay = sprites.isDma(0x1f) ? 2 : 7;
         break;
 
     case 58:
@@ -665,7 +676,7 @@ event_clock_t MOS656X::clockOldNTSC()
         break;
 
     default:
-        delay = 55 - lineCycle;
+        delay = 54 - lineCycle;
     }
 
     return delay;
@@ -673,15 +684,9 @@ event_clock_t MOS656X::clockOldNTSC()
 
 void MOS656X::triggerLightpen()
 {
-    // Synchronise simulation
-    sync();
-
     lpAsserted = true;
 
-    if (lp.trigger(lineCycle, rasterY))
-    {
-        activateIRQFlag(IRQ_LIGHTPEN);
-    }
+    eventScheduler.schedule(lightpenTriggerEvent, 1);
 }
 
 void MOS656X::clearLightpen()

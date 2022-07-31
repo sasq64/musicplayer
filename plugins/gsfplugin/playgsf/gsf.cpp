@@ -8,18 +8,11 @@
 
 #include <string.h>
 
-#ifndef LINUX
-#include <windows.h>
-#endif
 #include <stdio.h>
 
-#ifdef LINUX
 #include <stdarg.h>
-#include "types.h"
-#endif
 
 int emulating = 0;
-
 
 
 struct EmulatedSystem emulator;
@@ -73,25 +66,6 @@ bool systemCanChangeSoundQuality()
 
 extern "C"
 {
-
-/*
-
-void DisplayError (char * Message, ...) {
-	char Msg[400];
-	va_list ap;
-
-	va_start( ap, Message );
-	vsprintf( Msg, Message, ap );
-	va_end( ap );
-#ifndef LINUX
-	MessageBox(NULL,Msg,"Error",MB_OK|MB_ICONERROR|MB_SETFOREGROUND);
-#else
-	fprintf(stderr, "%s\n", Message);
-#endif
-	//SetActiveWindow(hMainWindow);
-}
-
-*/
 
 int GSFRun(const char *);
 
@@ -197,28 +171,28 @@ void GSFClose(void)
 
 #define EMU_COUNT 250000
 
-BOOL EmulationLoop(void) 
+bool EmulationLoop(void) 
 {
   if(emulating /*&& !paused*/) {
     for(int i = 0; i < 2; i++) {
 		CPULoop(EMU_COUNT);
  
-	    return TRUE;
+	    return true;
 	}
   }
-  return FALSE;
+  return false;
 
 }
 
 
-BOOL IsValidGSF ( BYTE Test[4] ) {
-	if ( *((DWORD *)&Test[0]) == 0x22465350 ) { return TRUE; }
-	return FALSE;
+bool IsValidGSF ( uint8_t Test[4] ) {
+	if ( *((uint32_t *)&Test[0]) == 0x22465350 ) { return true; }
+	return false;
 }
 
-BOOL IsTagPresent ( BYTE Test[5] ) {
-	if ( *((DWORD *)&Test[0]) == 0x4741545b && Test[4]==0x5D) {return TRUE;}
-	return FALSE;
+bool IsTagPresent ( uint8_t Test[5] ) {
+	if ( *((uint32_t *)&Test[0]) == 0x4741545b && Test[4]==0x5D) {return true;}
+	return false;
 }
 
 

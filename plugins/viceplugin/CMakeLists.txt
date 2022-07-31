@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.viceplugin)
 
 set(SOURCE_FILES
@@ -143,9 +143,27 @@ set(SOURCE_FILES
 
 #find_package(ZLIB REQUIRED)
 
-add_library(viceplugin ${SOURCE_FILES})
-target_link_libraries(viceplugin PRIVATE coreutils crypto ${ZLIB_LIBRARIES})
-include_directories(viceplugin PRIVATE
+if(NOT TARGET apone::coreutils)
+    add_subdirectory(${APONE}/coreutils coreutils)
+endif()
+
+if(NOT TARGET apone::crypto)
+    add_subdirectory(${APONE}/crypto crypto)
+endif()
+
+if(NOT TARGET fmt::fmt)
+    add_subdirectory(../../external/fmt)
+endif()
+
+if(NOT TARGET ZLIB::ZLIB)
+    find_package(ZLIB)
+endif()
+
+
+
+add_library(viceplayer ${SOURCE_FILES})
+target_link_libraries(viceplayer PRIVATE apone::coreutils apone::crypto ZLIB::ZLIB)
+include_directories(viceplayer PRIVATE
     .
     common
     common/readline
@@ -164,6 +182,8 @@ include_directories(viceplugin PRIVATE
     vice/vdrive
     vice/vicii
     vice/rtc
-    ${ZLIB_INCLUDE_DIRS}
 )
+
+add_library(viceplugin OBJECT viceplugin_register.cpp)
+target_link_libraries(viceplugin PRIVATE viceplayer)
 

@@ -24,6 +24,7 @@
 #define OPAMP_H
 
 #include <memory>
+#include <vector>
 
 #include "Spline.h"
 
@@ -36,9 +37,9 @@ namespace reSIDfp
  * Find output voltage in inverting gain and inverting summer SID op-amp
  * circuits, using a combination of Newton-Raphson and bisection.
  *
- *                ---R2--
+ *               +---R2--+
  *               |       |
- *     vi ---R1-----[A>----- vo
+ *     vi ---R1--o--[A>--o-- vo
  *               vx
  *
  * From Kirchoff's current law it follows that
@@ -71,7 +72,7 @@ private:
     /// Current root position (cached as guess to speed up next iteration)
     mutable double x;
 
-    const double kVddt;
+    const double Vddt;
     const double vmin;
     const double vmax;
 
@@ -85,12 +86,12 @@ public:
      * @param opamplength length of the opamp array
      * @param kVddt transistor dt parameter (in volts)
      */
-    OpAmp(const Spline::Point opamp[], int opamplength, double kVddt) :
+    OpAmp(const std::vector<Spline::Point> &opamp, double Vddt) :
         x(0.),
-        kVddt(kVddt),
-        vmin(opamp[0].x),
-        vmax(opamp[opamplength - 1].x),
-        opamp(new Spline(opamp, opamplength)) {}
+        Vddt(Vddt),
+        vmin(opamp.front().x),
+        vmax(opamp.back().x),
+        opamp(new Spline(opamp)) {}
 
     void reset() const
     {

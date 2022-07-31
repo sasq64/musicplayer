@@ -14,7 +14,7 @@
  * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * players.h - Players enumeration, by Simon Peter <dn.tlp@gmx.net>
  */
@@ -98,7 +98,7 @@ const CPlayerDesc *CPlayers::lookup_extension(const std::string &extension) cons
 
   for(i = begin(); i != end(); i++)
     for(j = 0; (*i)->get_extension(j); j++)
-      if(!strcasecmp(extension.c_str(), (*i)->get_extension(j)))
+      if(!stricmp(extension.c_str(), (*i)->get_extension(j)))
 	return *i;
 
   return 0;

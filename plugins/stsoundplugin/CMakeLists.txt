@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.0)
 project(cpp-mods.musicplayer.stsoundplugin)
 
 set(SOURCE_FILES
@@ -11,6 +11,9 @@ set(SOURCE_FILES
     StSoundLibrary/LZH/LzhLib.cpp
 )
 
-add_library(stsoundplugin ${SOURCE_FILES})
-target_link_libraries(stsoundplugin PRIVATE coreutils)
+add_library(stsound ${SOURCE_FILES})
+target_link_libraries(stsound PRIVATE coreutils)
+
+add_library(stsoundplugin OBJECT stsoundplugin_register.cpp)
+target_link_libraries(stsoundplugin PRIVATE stsound)
 

@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2014 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2021 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2000 Simon White
  *
@@ -24,6 +24,7 @@
 
 #include <algorithm>
 
+#include "c64/CIA/mos652x.h"
 #include "c64/VIC_II/mos656x.h"
 
 namespace libsidplayfp
@@ -36,6 +37,11 @@ typedef struct
     double powerFreq;          ///< Power line frequency in Herz
     MOS656X::model_t vicModel; ///< Video chip model
 } model_data_t;
+
+typedef struct
+{
+    MOS652X::model_t ciaModel; ///< CIA chip model
+} cia_model_data_t;
 
 /*
  * Color burst frequencies:
@@ -52,6 +58,14 @@ const model_data_t modelData[] =
     {3579545.455, 14., 60., MOS656X::MOS6567R8},    // NTSC-M
     {3579545.455, 14., 60., MOS656X::MOS6567R56A},  // Old NTSC-M
     {3582056.25,  14., 50., MOS656X::MOS6572},      // PAL-N
+    {3575611.49,  14., 50., MOS656X::MOS6573},      // PAL-M
+};
+
+const cia_model_data_t ciaModelData[] =
+{
+    {MOS652X::MOS6526},      // Old
+    {MOS652X::MOS8521},      // New
+    {MOS652X::MOS6526W4485}, // Old week 4485
 };
 
 double c64::getCpuFreq(model_t model)
@@ -62,7 +76,7 @@ double c64::getCpuFreq(model_t model)
 
     // The VIC II produces the two-phase system clock
     // by running the input clock through a divider
-    return crystalFreq/modelData[model].divider;
+    return crystalFreq / modelData[model].divider;
 }
 
 c64::c64() :
@@ -72,6 +86,7 @@ c64::c64() :
     cia1(*this),
     cia2(*this),
     vic(*this),
+    disconnectedBusBank(mmu),
     mmu(eventScheduler, &ioBank)
 {
     resetIoBank();
@@ -129,6 +144,12 @@ void c64::setModel(model_t model)
     cia2.setDayOfTimeRate(rate);
 }
 
+void c64::setCiaModel(cia_model_t model)
+{
+    cia1.setModel(ciaModelData[model].ciaModel);
+    cia2.setModel(ciaModelData[model].ciaModel);
+}
+
 void c64::setBaseSid(c64sid *s)
 {
     sidBank.setSID(s);
@@ -144,7 +165,7 @@ bool c64::addExtraSid(c64sid *s, int address)
 
     // Only allow second SID chip in SID area ($d400-$d7ff)
     // or IO Area ($de00-$dfff)
-    if (idx < 0x4 || (idx > 0x7 && idx < 0xe))
+    if ((idx < 0x4) || ((idx > 0x7) && (idx < 0xe)))
         return false;
 
     // Add new SID bank

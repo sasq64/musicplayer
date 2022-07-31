@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2015 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2021 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2000 Simon White
  *
@@ -24,7 +24,7 @@
 #define SIDTUNE_H
 
 #include <stdint.h>
-#include <memory>
+#include <vector>
 
 #include "sidplayfp/siddefs.h"
 
@@ -49,13 +49,15 @@ private:
     static const char** fileNameExtensions;
 
 private:  // -------------------------------------------------------------
-    std::auto_ptr<libsidplayfp::SidTuneBase> tune;
+    libsidplayfp::SidTuneBase* tune;
 
     const char* m_statusString;
 
     bool m_status;
 
 public:  // ----------------------------------------------------------------
+
+    typedef void (*LoaderFunc)(const char* fileName, std::vector<uint8_t>& bufferRef);
 
     /**
      * Load a sidtune from a file.
@@ -74,6 +76,21 @@ public:  // ----------------------------------------------------------------
      * @param separatorIsSlash
      */
     SidTune(const char* fileName, const char **fileNameExt = 0,
+            bool separatorIsSlash = false);
+
+    /**
+     * Load a sidtune from a file, using a file access callback.
+     *
+     * This function does the same as the above, except that it
+     * accepts a callback function, which will be used to read
+     * all files it accesses.
+     *
+     * @param loader
+     * @param fileName
+     * @param fileNameExt
+     * @param separatorIsSlash
+     */
+    SidTune(LoaderFunc loader, const char* fileName, const char **fileNameExt = 0,
             bool separatorIsSlash = false);
 
     /**
@@ -104,6 +121,16 @@ public:  // ----------------------------------------------------------------
      * @param separatorIsSlash
      */
     void load(const char* fileName, bool separatorIsSlash = false);
+
+    /**
+     * Load a sidtune into an existing object from a file,
+     * using a file access callback.
+     *
+     * @param loader
+     * @param fileName
+     * @param separatorIsSlash
+     */
+    void load(LoaderFunc loader, const char* fileName, bool separatorIsSlash = false);
 
     /**
      * Load a sidtune into an existing object from a buffer.
@@ -156,13 +183,22 @@ public:  // ----------------------------------------------------------------
     bool placeSidTuneInC64mem(libsidplayfp::sidmemory& mem);
 
     /**
-     * Calculates the MD5 hash of the tune.
+     * Calculates the MD5 hash of the tune, old method.
      * Not providing an md5 buffer will cause the internal one to be used.
      * If provided, buffer must be MD5_LENGTH + 1
      *
      * @return a pointer to the buffer containing the md5 string, 0 if no tune is loaded.
      */
     const char *createMD5(char *md5 = 0);
+
+    /**
+     * Calculates the MD5 hash of the tune, new method, introduced in HVSC#68.
+     * Not providing an md5 buffer will cause the internal one to be used.
+     * If provided, buffer must be MD5_LENGTH + 1
+     *
+     * @return a pointer to the buffer containing the md5 string, 0 if no tune is loaded.
+     */
+    const char *createMD5New(char *md5 = 0);
 
     const uint_least8_t* c64Data() const;
 

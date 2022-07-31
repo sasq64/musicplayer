@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.sc68plugin)
 
 set(SOURCE_FILES
@@ -68,7 +68,10 @@ set(SOURCE_FILES
 
 #find_package(ZLIB REQUIRED)
 
-add_library(sc68plugin ${SOURCE_FILES})
-target_include_directories(sc68plugin PRIVATE ${ZLIB_INCLUDE_DIRS} . libsc68/sc68 file68 file68/sc68 unice68 libsc68)
-target_compile_definitions(sc68plugin PRIVATE -DHAVE_CONFIG_H)
-target_link_libraries(sc68plugin PRIVATE coreutils ${ZLIB_LIBRARIES})
+add_library(sc68 ${SOURCE_FILES})
+target_include_directories(sc68 PRIVATE ${ZLIB_INCLUDE_DIRS} . libsc68/sc68 file68 file68/sc68 unice68 libsc68)
+target_compile_definitions(sc68 PRIVATE -DHAVE_CONFIG_H)
+target_link_libraries(sc68 PRIVATE coreutils ${ZLIB_LIBRARIES})
+
+add_library(sc68plugin OBJECT sc68plugin_register.cpp)
+target_link_libraries(sc68plugin PRIVATE sc68)

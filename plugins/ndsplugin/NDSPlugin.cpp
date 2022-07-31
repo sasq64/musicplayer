@@ -47,11 +47,7 @@ bool NDSPlugin::canHandle(const std::string& name) {
 }
 
 ChipPlayer* NDSPlugin::fromFile(const std::string& fileName) {
-    try {
-        return new NDSPlayer{fileName};
-    } catch(player_exception& e) {
-        return nullptr;
-    }
+    return new NDSPlayer{fileName};
 };
 
 } // namespace musix

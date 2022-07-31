@@ -1,7 +1,8 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2016 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2020 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2018 VICE Project
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2004,2010 Dag Lem <resid@nimrod.no>
  *
@@ -24,12 +25,8 @@
 
 #include "EnvelopeGenerator.h"
 
-#include "Dac.h"
-
 namespace reSIDfp
 {
-
-const unsigned int DAC_BITS = 8;
 
 /**
  * Lookup table to convert from attack, decay, or release value to rate
@@ -61,57 +58,6 @@ const unsigned int EnvelopeGenerator::adsrtable[16] =
     0x5237,
     0x64a8
 };
-
-void EnvelopeGenerator::set_exponential_counter()
-{
-    // Check for change of exponential counter period.
-    //
-    // For a detailed description see:
-    // http://ploguechipsounds.blogspot.it/2010/03/sid-6581r3-adsr-tables-up-close.html
-    switch (envelope_counter)
-    {
-    case 0xff:
-        new_exponential_counter_period = 1;
-        break;
-
-    case 0x5d:
-        new_exponential_counter_period = 2;
-        break;
-
-    case 0x36:
-        new_exponential_counter_period = 4;
-        break;
-
-    case 0x1a:
-        new_exponential_counter_period = 8;
-        break;
-
-    case 0x0e:
-        new_exponential_counter_period = 16;
-        break;
-
-    case 0x06:
-        new_exponential_counter_period = 30;
-        break;
-
-    case 0x00:
-        new_exponential_counter_period = 1;
-        next_state = FREEZED;
-        state_pipeline = 2;
-        break;
-    }
-}
-
-void EnvelopeGenerator::setChipModel(ChipModel chipModel)
-{
-    Dac dacBuilder(DAC_BITS);
-    dacBuilder.kinkedDac(chipModel);
-
-    for (unsigned int i = 0; i < (1 << DAC_BITS); i++)
-    {
-        dac[i] = static_cast<float>(dacBuilder.getOutput(i));
-    }
-}
 
 void EnvelopeGenerator::reset()
 {
@@ -149,10 +95,27 @@ void EnvelopeGenerator::writeCONTROL_REG(unsigned char control)
         // The rate counter is never reset, thus there will be a delay before the
         // envelope counter starts counting up (attack) or down (release).
 
-        // Gate bit on:  Start attack, decay, sustain.
-        // Gate bit off: Start release.
-        next_state = gate_next ? ATTACK : RELEASE;
-        state_pipeline = 3;
+        if (gate_next)
+        {
+            // Gate bit on:  Start attack, decay, sustain.
+            next_state = ATTACK;
+            state_pipeline = 2;
+
+            if (resetLfsr || (exponential_pipeline == 2))
+            {
+                envelope_pipeline = (exponential_counter_period == 1) || (exponential_pipeline == 2) ? 2 : 4;
+            }
+            else if (exponential_pipeline == 1)
+            {
+                state_pipeline = 3;
+            }
+        }
+        else
+        {
+            // Gate bit off: Start release.
+            next_state = RELEASE;
+            state_pipeline = envelope_pipeline > 0 ? 3 : 2;
+        }
     }
 }
 

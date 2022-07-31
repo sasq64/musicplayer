@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.0)
 project(cpp-mods.audioplayer)
 
 set(SOURCE_FILES audioplayer.cpp)
@@ -27,4 +27,5 @@ else()
 endif()
 
 add_library(audioplayer ${SOURCE_FILES})
-target_link_libraries(audioplayer ${EXTRA_LIBS})
+target_link_libraries(audioplayer coreutils ${EXTRA_LIBS})
+target_include_directories(audioplayer PUBLIC ..)

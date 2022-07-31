@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.0)
 project(cpp-mods.musicplayer.usfplugin)
 
 set(SOURCE_FILES
@@ -50,18 +50,21 @@ set(SOURCE_FILES
     lazyusf2/si/pif.c
     lazyusf2/si/si_controller.c
     lazyusf2/usf/barray.c
-    #lazyusf2/usf/resampler.c
+    lazyusf2/usf/resampler.c
     lazyusf2/usf/usf.c
     lazyusf2/vi/vi_controller.c
 )
 
 #find_package(ZLIB REQUIRED)
 
-add_library(usfplugin USFPlugin.cpp resampler.c ${SOURCE_FILES})
-target_link_libraries(usfplugin PRIVATE psf coreutils ${ZLIB_LIBRARIES})
+add_library(lazyusf USFPlugin.cpp ${SOURCE_FILES})
+target_link_libraries(lazyusf PRIVATE psf coreutils ${ZLIB_LIBRARIES})
 
 if(MSVC)
-target_compile_options(usfplugin PRIVATE -DNO_ASM)
+target_compile_options(lazyusf PRIVATE -DNO_ASM)
 endif()
 
-target_include_directories(usfplugin PRIVATE ${ZLIB_INCLUDE_DIRS} . lazyusf2 lazyusf2/rsp_hle)
+target_include_directories(lazyusf PRIVATE ${ZLIB_INCLUDE_DIRS} . lazyusf2 lazyusf2/rsp_hle)
+
+add_library(usfplugin OBJECT usfplugin_register.cpp)
+target_link_libraries(usfplugin PRIVATE lazyusf)

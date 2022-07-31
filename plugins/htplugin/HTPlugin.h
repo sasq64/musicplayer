@@ -5,13 +5,14 @@
 
 namespace musix {
 
-class HTPlugin : public ChipPlugin {
+class HTPlugin : public ChipPlugin
+{
 public:
-	virtual std::string name() const override { return "HTPlugin"; }
-	virtual bool canHandle(const std::string &name) override;
-	virtual ChipPlayer *fromFile(const std::string &fileName) override;
+    std::string name() const override { return "HTPlugin"; }
+    bool canHandle(const std::string& name) override;
+    ChipPlayer* fromFile(const std::string& fileName) override;
 };
 
-}
+} // namespace musix
 
 #endif // HTPLAYER_H

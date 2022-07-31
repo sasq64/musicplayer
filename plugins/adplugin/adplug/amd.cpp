@@ -14,7 +14,7 @@
  * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * amd.cpp - AMD Loader by Simon Peter <dn.tlp@gmx.net>
  */
@@ -55,7 +55,7 @@ bool CamdLoader::load(const std::string &filename, const CFileProvider &fp)
      strncmp(header.id, "MaDoKaN96", 9)) { fp.close(f); return false; }
 
   // load section
-  memset(inst, 0, sizeof(struct Instrument));
+  memset(inst, 0, sizeof(*inst));
   f->seek(0);
   f->readString(songname, sizeof(songname));
   f->readString(author, sizeof(author));

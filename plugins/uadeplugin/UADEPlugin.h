@@ -2,20 +2,22 @@
 
 #include "../../chipplugin.h"
 
+#include <filesystem>
+
 namespace musix {
 
 class UADEPlugin : public ChipPlugin {
 public:
-    UADEPlugin(const std::string& dataDir) : dataDir(dataDir) {}
+    explicit UADEPlugin(const std::string& _dataDir) : dataDir(_dataDir) {}
 
-    virtual std::string name() const override { return "UADE"; }
-    virtual bool canHandle(const std::string& name) override;
-    virtual ChipPlayer* fromFile(const std::string& fileName) override;
-	virtual std::vector<std::string> getSecondaryFiles(const std::string &file) override;
-    virtual int priority() override { return -10; }
+    std::string name() const override { return "UADE"; }
+    bool canHandle(const std::string& name) override;
+    ChipPlayer* fromFile(const std::string& fileName) override;
+	std::vector<std::string> getSecondaryFiles(const std::string &file) override;
+    int priority() override { return -10; }
 
 private:
-    std::string dataDir;
+    std::filesystem::path dataDir;
 };
 
 } // namespace musix

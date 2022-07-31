@@ -19,9 +19,10 @@ set(SOURCE_FILES
     ${SOUNDLIB_FILES}
 )
 
-#find_package(ZLIB)
+add_library(openmpt ${SOURCE_FILES})
+target_link_libraries(openmpt PRIVATE apone::coreutils ZLIB::ZLIB)
+target_include_directories(openmpt PRIVATE openmpt openmpt/common .)
+target_compile_definitions(openmpt PRIVATE -DLIBOPENMPT_BUILD -DOPENMPT_VERSION_REVISION=1 -DMPT_CHARSET_CUSTOMUTF8 -DMPT_WITH_ZLIB -DNO_PLUGINS -DNO_REVERB)
 
-add_library(openmptplugin ${SOURCE_FILES})
-target_link_libraries(openmptplugin PRIVATE coreutils ${ZLIB_LIBRARIES})
-target_include_directories(openmptplugin PRIVATE ${ZLIB_INCLUDE_DIRS} openmpt openmpt/common .)
-target_compile_definitions(openmptplugin PRIVATE -DLIBOPENMPT_BUILD -DOPENMPT_VERSION_REVISION=1 -DMPT_CHARSET_CUSTOMUTF8 -DMPT_WITH_ZLIB -DNO_PLUGINS -DNO_REVERB)
+add_library(openmptplugin OBJECT openmptplugin_register.cpp)
+target_link_libraries(openmptplugin PRIVATE openmpt)

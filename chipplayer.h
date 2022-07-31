@@ -4,11 +4,15 @@
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 namespace musix {
+
+using MetaVar = std::variant<std::string, double, uint32_t>;
 
 class player_exception : public std::exception
 {
@@ -29,6 +33,8 @@ public:
     virtual ~ChipPlayer() = default;
     virtual int getSamples(int16_t* target, int size) = 0;
 
+    virtual int getHZ() { return 44100; }
+
     virtual bool setParameter(const std::string& /*name*/, int32_t /*value*/)
     {
         return false;
@@ -39,33 +45,65 @@ public:
         return false;
     }
 
-    virtual std::string getMeta(const std::string& what)
+    std::string getMeta(const std::string& what) const
     {
-        return metaData[what];
+        try {
+            auto const& v = metaData.at(what);
+            if (auto const* ptr = std::get_if<std::string>(&v)) { return *ptr; }
+            if (auto const* ptr = std::get_if<double>(&v)) {
+                return std::to_string(*ptr);
+            }
+            if (auto const* ptr = std::get_if<uint32_t>(&v)) {
+                return std::to_string(*ptr);
+            }
+        } catch (std::out_of_range& _) {
+        }
+        return "";
     };
 
-    virtual bool couldHandle() { return true; }
+    MetaVar const& meta(std::string const& what) { return metaData[what]; }
 
-    int getMetaInt(const std::string& what)
+    uint32_t getMetaInt(const std::string& what)
     {
-        const std::string& data = getMeta(what);
-        if (data == "")
-            return -1;
-        return atoi(data.c_str());
+        auto const& v = metaData[what];
+        if (auto const* ptr = std::get_if<uint32_t>(&v)) {
+            return static_cast<uint32_t>(*ptr);
+        }
+        return 0;
     };
 
     void setMeta()
     {
-        for (const auto& cb : callbacks) {
-            cb(changedMeta, this);
+        if (!changedMeta.empty()) {
+            for (const auto& cb : callbacks) {
+                cb(changedMeta, this);
+            }
+            changedMeta.clear();
         }
-        changedMeta.clear();
+    }
+
+    template <typename T, typename... A,
+              typename = typename std::enable_if<std::is_integral_v<T>>::type>
+    void setMeta(const std::string& what, T value, const A&... args)
+    {
+        metaData[what] = static_cast<uint32_t>(value);
+        changedMeta.push_back(what);
+        setMeta(args...);
     }
 
     template <typename... A>
-    void setMeta(const std::string& what, int value, const A&... args)
+    void setMeta(const std::string& what, double value, const A&... args)
     {
-        metaData[what] = std::to_string(value);
+        metaData[what] = value;
+        changedMeta.push_back(what);
+        setMeta(args...);
+    }
+
+    template <typename... A>
+    void setMeta(const std::string& what, const MetaVar& value,
+                 const A&... args)
+    {
+        metaData[what] = value;
         changedMeta.push_back(what);
         setMeta(args...);
     }
@@ -100,7 +138,7 @@ public:
     }
 
 protected:
-    std::unordered_map<std::string, std::string> metaData;
+    std::unordered_map<std::string, MetaVar> metaData;
     std::vector<Callback> callbacks;
     std::vector<std::string> changedMeta;
 };

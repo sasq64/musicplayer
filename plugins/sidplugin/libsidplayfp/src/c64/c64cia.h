@@ -1,7 +1,7 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2015 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2021 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
  * Copyright 2001 Simon White
  *
@@ -29,7 +29,7 @@
 #include "Banks/Bank.h"
 #include "c64/c64env.h"
 #include "sidendian.h"
-#include "CIA/mos6526.h"
+#include "CIA/mos652x.h"
 
 #include "sidcxx11.h"
 
@@ -43,7 +43,7 @@ namespace libsidplayfp
  *
  * Located at $DC00-$DCFF
  */
-class c64cia1 final : public MOS6526, public Bank
+class c64cia1 final : public MOS652X, public Bank
 {
 private:
     c64env &m_env;
@@ -57,20 +57,24 @@ protected:
 
     void portB() override
     {
-        m_env.lightpen((prb | ~ddrb) & 0x10);
+        const uint8_t pb = prb | ~ddrb;
+        // We should call adjustDataPort here
+        // but we're only interested in bit 4
+        m_env.lightpen(pb & 0x10);
     }
 
 public:
     c64cia1(c64env &env) :
-        MOS6526(env.scheduler()),
+        MOS652X(env.scheduler()),
         m_env(env) {}
 
     void poke(uint_least16_t address, uint8_t value) override
     {
-        write(endian_16lo8(address), value);
+        const uint8_t addr = endian_16lo8(address);
+        write(addr, value);
 
         // Save the value written to Timer A
-        if (address == 0xDC04 || address == 0xDC05)
+        if ((addr == 0x04) || (addr == 0x05))
         {
             if (timerA.getTimer() != 0)
                 last_ta = timerA.getTimer();
@@ -85,7 +89,7 @@ public:
     void reset() override
     {
         last_ta = 0;
-        MOS6526::reset();
+        MOS652X::reset();
     }
 
     uint_least16_t getTimerA() const { return last_ta; }
@@ -98,7 +102,7 @@ public:
  *
  * Located at $DD00-$DDFF
  */
-class c64cia2 : public MOS6526, public Bank
+class c64cia2 : public MOS652X, public Bank
 {
 private:
     c64env &m_env;
@@ -112,17 +116,17 @@ protected:
 
 public:
     c64cia2(c64env &env) :
-        MOS6526(env.scheduler()),
+        MOS652X(env.scheduler()),
         m_env(env) {}
 
     void poke(uint_least16_t address, uint8_t value) override
     {
-        write(address, value);
+        write(endian_16lo8(address), value);
     }
 
     uint8_t peek(uint_least16_t address) override
     {
-        return read(address);
+        return read(endian_16lo8(address));
     }
 };
 

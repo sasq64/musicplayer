@@ -128,10 +128,15 @@ int uade_find_amiga_file(char *realname, size_t maxlen, const char *aname,
 	}
 	ptr = copy;
 	// Deal with windows paths
-	if(ptr[1] == ':' && ptr[2] == '/') {
-		memcpy(dirname, ptr, 3);
-		dirname[3] = 0;
-		ptr += 3;
+	if(ptr[1] == ':' && (ptr[2] == '/' || ptr[2] == '\\')) {
+		char* last0 = strrchr(ptr, '/');
+		char* last1 = strrchr(ptr, '\\');
+		if (last0 > last1) last1 = last0;
+		int n = last1 - ptr + 1;
+		
+		memcpy(dirname, ptr, n);
+		dirname[n] = 0;
+		ptr += n;
 	} else
 	if ((separator = strchr(ptr, (int) ':'))) {
 		len = (int) (separator - ptr);

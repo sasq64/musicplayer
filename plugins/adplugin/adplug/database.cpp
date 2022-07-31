@@ -14,15 +14,15 @@
  * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * database.cpp - AdPlug database class
  * Copyright (c) 2002 Riven the Mage <riven@ok.ru>
  * Copyright (c) 2002, 2003, 2006 Simon Peter <dn.tlp@gmx.net>
  */
 
-#include "binio.h"
-#include "binfile.h"
+#include <binio.h>
+#include <binfile.h>
 #include <string.h>
 
 #include "database.h"
@@ -293,7 +293,6 @@ bool CAdPlugDatabase::CRecord::user_read(std::istream &in, std::ostream &out)
 
 bool CAdPlugDatabase::CRecord::user_write(std::ostream &out)
 {
-    printf("WARNING: call to CAdPlugDatabase::CRecord::user_write(std::ostream &out)\n");
   out << "Record type: ";
   switch(type) {
   case Plain: out << "Plain"; break;
@@ -302,12 +301,11 @@ bool CAdPlugDatabase::CRecord::user_write(std::ostream &out)
   default: out << "*** Unknown ***"; break;
   }
   out << std::endl;
-//  out << "Key: " << std::hex << key.crc16 << ":" << key.crc32 << std::dec << std::endl;
+  out << "Key: " << std::hex << key.crc16 << ":" << key.crc32 << std::dec << std::endl;
   out << "File type: " << filetype << std::endl;
   out << "Comment: " << comment << std::endl;
 
   return user_write_own(out);
-    
 }
 
 /***** CAdPlugDatabase::CRecord::CKey *****/
@@ -328,7 +326,7 @@ void CAdPlugDatabase::CKey::make(binistream &buf)
   static const unsigned short magic16 = 0xa001;
   static const unsigned long  magic32 = 0xedb88320;
 
-  crc16 = 0; crc32 = ~0;
+  crc16 = 0; crc32 = 0xffffffffL;
 
   while(!buf.eof())
     {
@@ -352,6 +350,7 @@ void CAdPlugDatabase::CKey::make(binistream &buf)
 
   crc16 &= 0xffff;
   crc32  = ~crc32;
+  crc32 &= 0xffffffffL;
 }
 
 /***** CInfoRecord *****/

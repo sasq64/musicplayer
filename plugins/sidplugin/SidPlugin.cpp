@@ -1,12 +1,20 @@
+#include "SidPlugin.h"
+#include <coreutils/utils.h>
+#include <coreutils/utf8.h>
+
+#include <STIL.hpp>
+
 #include <builders/residfp-builder/residfp.h>
-#include <math.h>
 #include <sidplayfp/SidInfo.h>
 #include <sidplayfp/SidTune.h>
 #include <sidplayfp/SidTuneInfo.h>
 #include <sidplayfp/sidplayfp.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+
+#include <cstdio>
+#include <memory>
+#include <string>
+
+using namespace std::string_literals;
 
 #ifndef _WIN32
 #    include <libgen.h>
@@ -15,44 +23,34 @@
 #    define strcasecmp _stricmp
 #endif
 
-#include "SidPlugin.h"
-
-#include "../../chipplayer.h"
-#include <coreutils/log.h>
-#include <coreutils/utils.h>
-
 #include <set>
-
-using namespace std;
 
 namespace musix {
 
 class SidPlayer : public ChipPlayer
 {
 public:
-    SidPlayer(const string& fileName)
+    explicit SidPlayer(std::string const& fileName, STIL* stil)
     {
         engine.setRoms(nullptr, nullptr, nullptr);
 
-        rs = new ReSIDfpBuilder("musix");
+        rs = std::make_unique<ReSIDfpBuilder>("musix");
         // Get the number of SIDs supported by the engine
-        unsigned int max_sids = engine.info().maxsids();
+        auto max_sids = engine.info().maxsids();
 
         // Create SID emulators
         rs->create(max_sids);
 
         // Check if builder is ok
         if (!rs->getStatus()) {
-            printf("SidPlugin error %s\n", rs->error());
-            throw player_exception();
+            throw player_exception("SidPlugin error"s + rs->error());
         }
 
-        tune = new SidTune(fileName.c_str());
+        tune = std::make_unique<SidTune>(fileName.c_str());
 
         // CHeck if the tune is valid
         if (!tune->getStatus()) {
-            printf("SidPlugin: tune status %s\n", tune->statusString());
-            throw player_exception();
+            throw player_exception("SidPlugin: tune status: "s + tune->statusString());
         }
 
         // Select default song
@@ -64,59 +62,104 @@ public:
         cfg.samplingMethod = SidConfig::INTERPOLATE;
         cfg.fastSampling = false;
         cfg.playback = SidConfig::MONO;
-        cfg.sidEmulation = rs;
+        cfg.sidEmulation = rs.get();
         cfg.defaultSidModel = SidConfig::MOS8580;
 
         if (!engine.config(cfg)) {
-            printf("Engine error %s\n", engine.error());
-            throw player_exception();
+            throw player_exception("SidPlugin engine error: "s + engine.error());
         }
 
+        const SidTuneInfo* info = tune->getInfo();
+
+        auto title = utils::utf8_encode(info->infoString(0));
+        auto composer = utils::utf8_encode(info->infoString(1));
+        auto copyright = utils::utf8_encode(info->infoString(2));
+
+        auto startSong = info->startSong() - 1;
+
+        tune->selectSong(startSong+1);
         // Load tune into engine
-        if (!engine.load(tune)) {
+        if (!engine.load(tune.get())) {
             printf("Engine error %s\n", engine.error());
             throw player_exception();
         }
+        auto data = utils::read_file(fileName);
+        stilInfo = stil->getInfo(data);
 
-	    const SidTuneInfo* info = tune->getInfo();
-        std::string title = info->infoString(0);
-        std::string composer = info->infoString(1);
-        std::string copyright = info->infoString(1);
+        lengths = stilInfo.lengths;
+        auto length = lengths.empty() ? 0 : lengths[startSong];
 
         setMeta("title", title, "composer", composer, "copyright", copyright,
-                "startSong", info->startSong(), "song", info->startSong());
+                "format", "SID",
+                "startSong", startSong, "song", startSong, "length",
+                length, "songs", info->songs());
+
+        if (!stilInfo.comment.empty()) {
+            setMeta("comment", stilInfo.comment);
+        }
+
+        if (!stilInfo.songs.empty()) {
+            for (auto const& songInfo : stilInfo.songs) {
+                if (songInfo.subSong == startSong+1) {
+                    setMeta("sub_title", songInfo.name);
+                }
+            }
+        }
     }
-    ~SidPlayer() override
-    {
-        engine.stop();
-        delete rs;
-    }
+    ~SidPlayer() override { engine.stop(); }
 
     int getSamples(int16_t* target, int noSamples) override
     {
-        int16_t temp_data[8192];
+        std::array<int16_t, 8192> temp_data;
 
-        int rc = engine.play(temp_data, noSamples/2);
+        auto rc = engine.play(temp_data.data(), noSamples / 2);
 
         for (int i = 0; i < rc; ++i) {
             auto v = temp_data[i];
-            target[i*2] = v;
-            target[i*2+1] = v;
+            target[i * 2] = v;
+            target[i * 2 + 1] = v;
         }
-        return rc*2;
+        return static_cast<int>(rc) * 2;
     }
 
-    virtual bool seekTo(int song, int seconds) override { return true; }
+    bool seekTo(int song, int /*seconds*/) override
+    {
+        tune->selectSong(song + 1);
+        engine.load(tune.get());
+        setMeta("length", lengths.empty() ? 0 : lengths[song], "song", song);
+        if (!stilInfo.songs.empty()) {
+            for (auto const& songInfo : stilInfo.songs) {
+                if (songInfo.subSong == song+1) {
+                    setMeta("sub_title", songInfo.name);
+                }
+            }
+        } else {
+            setMeta("sub_title", "");
+        }
+        return true;
+    }
 
 private:
+    std::vector<uint16_t> lengths;
     sidplayfp engine;
-    ReSIDfpBuilder* rs = nullptr;
-    SidTune* tune = nullptr;
+    std::unique_ptr<ReSIDfpBuilder> rs;
+    std::unique_ptr<SidTune> tune;
+    STIL::STILSong stilInfo;
 };
 
-static const set<string> supported_ext = {"sid"};
+static const std::set<std::string> supported_ext = {"sid", "psid"};
 
-SidPlugin::SidPlugin(std::string const& condifDir) {}
+SidPlugin::SidPlugin(std::string const& configDir)
+{
+    stil = std::make_unique<STIL>(fs::path(configDir));
+    initThread = std::thread([=] {
+        stil->readLengths();
+        stil->readSTIL();
+    });
+}
+SidPlugin::~SidPlugin() {
+    if (initThread.joinable()) { initThread.join(); }
+};
 
 bool SidPlugin::canHandle(const std::string& name)
 {
@@ -125,11 +168,8 @@ bool SidPlugin::canHandle(const std::string& name)
 
 ChipPlayer* SidPlugin::fromFile(const std::string& name)
 {
-    try {
-        return new SidPlayer{name};
-    } catch (player_exception& e) {
-        return nullptr;
-    }
+    if (initThread.joinable()) { initThread.join(); }
+    return new SidPlayer{name, stil.get()};
 };
 
 } // namespace musix

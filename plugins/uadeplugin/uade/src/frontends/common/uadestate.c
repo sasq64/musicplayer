@@ -316,10 +316,13 @@ struct uade_file *uade_load_amiga_file(const char *name, const char *playerdir,
 	if (strchr(name, ':') == NULL && state->rmc != NULL)
 		return uade_rmc_get_file(state->rmc, name);
 
-	if (uade_find_amiga_file(fname, sizeof fname, name, playerdir))
+	if (uade_find_amiga_file(fname, sizeof fname, name, playerdir)) {
+        fprintf(stderr, "File not found %s", fname);
 		return NULL;
+    }
+    //fprintf(stderr, "Loading %s", fname);
 
-	return uade_file_load(fname);
+    return uade_file_load(fname);
 }
 
 void uade_set_amiga_loader(struct uade_file * (*amigaloader)(const char *name, const char *playerdir, void *context, struct uade_state *state),

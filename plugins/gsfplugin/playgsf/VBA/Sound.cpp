@@ -16,20 +16,7 @@
 // along with this program; if not, write to the Free Software Foundation,
 // Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-#ifndef LINUX
-#include <memory.h>
-#include <windows.h>
-#endif
-
-#ifdef LINUX
 #include <string.h>
-#endif
-
-#ifndef LINUX
-#include "in2.h"
-#else
-//#include "..\in2.h"
-#endif
 
 #include "GBA.h"
 #include "Globals.h"
@@ -1423,8 +1410,6 @@ void soundTick()
 }
 #endif 
 
-//#ifndef LINUX
-#if 1
 void soundTick()
 {
 	//if (seek_needed == -1)		//if no seek is needed
@@ -1584,7 +1569,6 @@ void soundTick()
 	}
 //	*/		
 }
-#endif
 
 void soundShutdown()
 {

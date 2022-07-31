@@ -14,11 +14,6 @@
 
 //#if defined(__WIN32__)
 
-#ifdef LINUX
-#include "../types.h"
-#else
-#include <windows.h>
-#endif
 /*
 void DisplayError (char * Message, ...) {
 	char Msg[400];
