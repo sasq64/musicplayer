@@ -1,6 +1,6 @@
 #include "SidPlugin.h"
-#include <coreutils/utils.h>
 #include <coreutils/utf8.h>
+#include <coreutils/utils.h>
 
 #include <STIL.hpp>
 
@@ -50,7 +50,8 @@ public:
 
         // CHeck if the tune is valid
         if (!tune->getStatus()) {
-            throw player_exception("SidPlugin: tune status: "s + tune->statusString());
+            throw player_exception("SidPlugin: tune status: "s +
+                                   tune->statusString());
         }
 
         // Select default song
@@ -66,7 +67,8 @@ public:
         cfg.defaultSidModel = SidConfig::MOS8580;
 
         if (!engine.config(cfg)) {
-            throw player_exception("SidPlugin engine error: "s + engine.error());
+            throw player_exception("SidPlugin engine error: "s +
+                                   engine.error());
         }
 
         const SidTuneInfo* info = tune->getInfo();
@@ -77,7 +79,7 @@ public:
 
         auto startSong = info->startSong() - 1;
 
-        tune->selectSong(startSong+1);
+        tune->selectSong(startSong + 1);
         // Load tune into engine
         if (!engine.load(tune.get())) {
             printf("Engine error %s\n", engine.error());
@@ -90,23 +92,33 @@ public:
         auto length = lengths.empty() ? 0 : lengths[startSong];
 
         setMeta("title", title, "composer", composer, "copyright", copyright,
-                "format", "SID",
-                "startSong", startSong, "song", startSong, "length",
-                length, "songs", info->songs());
+                "format", "SID", "startSong", startSong, "song", startSong,
+                "length", length, "songs", info->songs());
 
-        if (!stilInfo.comment.empty()) {
-            setMeta("comment", stilInfo.comment);
-        }
+        if (!stilInfo.comment.empty()) { setMeta("comment", stilInfo.comment); }
+        updateSongMeta(startSong);
+    }
 
+    ~SidPlayer() override { engine.stop(); }
+
+    void updateSongMeta(int song)
+    {
+        std::string sub;
         if (!stilInfo.songs.empty()) {
             for (auto const& songInfo : stilInfo.songs) {
-                if (songInfo.subSong == startSong+1) {
-                    setMeta("sub_title", songInfo.name);
+                if (songInfo.subSong == song + 1) {
+                    sub = songInfo.name;
+                    if (sub.empty()) {
+                        sub = songInfo.title;
+                        if (!sub.empty() && !songInfo.artist.empty()) {
+                            sub += " / " + songInfo.artist;
+                        }
+                    }
                 }
             }
         }
+        setMeta("sub_title", sub);
     }
-    ~SidPlayer() override { engine.stop(); }
 
     int getSamples(int16_t* target, int noSamples) override
     {
@@ -127,15 +139,7 @@ public:
         tune->selectSong(song + 1);
         engine.load(tune.get());
         setMeta("length", lengths.empty() ? 0 : lengths[song], "song", song);
-        if (!stilInfo.songs.empty()) {
-            for (auto const& songInfo : stilInfo.songs) {
-                if (songInfo.subSong == song+1) {
-                    setMeta("sub_title", songInfo.name);
-                }
-            }
-        } else {
-            setMeta("sub_title", "");
-        }
+        updateSongMeta(song);
         return true;
     }
 
@@ -157,7 +161,8 @@ SidPlugin::SidPlugin(std::string const& configDir)
         stil->readSTIL();
     });
 }
-SidPlugin::~SidPlugin() {
+SidPlugin::~SidPlugin()
+{
     if (initThread.joinable()) { initThread.join(); }
 };
 

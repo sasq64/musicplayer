@@ -6,6 +6,7 @@
 #include <coreutils/split.h>
 #include <coreutils/text.h>
 #include <coreutils/utils.h>
+#include <coreutils/utf8.h>
 
 #include <crypto/md5.h>
 
@@ -127,15 +128,15 @@ void STIL::readSTIL()
                         //fmt::print(">{}\n", songComment);
                     } else {
                         if (what == "TITLE") {
-                            currentInfo.title = content;
+                            currentInfo.title = utils::utf8_encode(content);
                         } else if (what == "COMMENT") {
-                            currentInfo.comment = content;
+                            currentInfo.comment = utils::utf8_encode(content);
                         } else if (what == "AUTHOR") {
-                            currentInfo.author = content;
+                            currentInfo.author = utils::utf8_encode(content);
                         } else if (what == "ARTIST") {
-                            currentInfo.artist = content;
+                            currentInfo.artist = utils::utf8_encode(content);
                         } else if (what == "NAME") {
-                            currentInfo.name = content;
+                            currentInfo.name = utils::utf8_encode(content);
                         }
                         currentSet = true;
                     }
@@ -165,7 +166,7 @@ void STIL::readSTIL()
                         !currentInfo.comment.empty() && songs.empty() &&
                         currentInfo.title.empty() &&
                         currentInfo.name.empty()) {
-                        songComment = content;
+                        songComment = utils::utf8_encode(content);
                     } else {
                         songs.push_back(currentInfo);
                     }
@@ -181,7 +182,7 @@ void STIL::readSTIL()
                 auto colon = l.find(':');
                 if (colon != std::string::npos) {
                     what = utils::lstrip(l.substr(0, colon));
-                    content = l.substr(colon + 1);
+                    content = l.substr(colon + 2);
                     if (what == "TITLE") {
                         if (currentSet && !currentInfo.title.empty()) {
                             songs.push_back(currentInfo);

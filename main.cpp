@@ -214,6 +214,7 @@ int main(int argc, const char** argv)
         }
 
         auto title = make_title(meta);
+        title = title.substr(0, con_width - 3);
         panel.clear(1, 1, con_width - 2, 1);
         panel.draw_text(title, 2, 1);
         panel.draw_text(fmt::format("{:02}/{:02}", song + 1, songs), 25, 3);

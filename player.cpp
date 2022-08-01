@@ -75,9 +75,13 @@ public:
         std::shared_ptr<musix::ChipPlayer> player;
         for (const auto& plugin : musix::ChipPlugin::getPlugins()) {
             if (plugin->canHandle(songFile.string())) {
-                if (auto* ptr = plugin->fromFile(songFile)) {
-                    player = std::shared_ptr<musix::ChipPlayer>(ptr);
-                    break;
+                try {
+                    if (auto* ptr = plugin->fromFile(songFile)) {
+                        player = std::shared_ptr<musix::ChipPlayer>(ptr);
+                        break;
+                    }
+                } catch (musix::player_exception& e) {
+                    player = nullptr;
                 }
             }
         }
@@ -183,9 +187,7 @@ public:
             fifo.write(temp.data(), temp.data() + 1, rc);
             micro_seconds += (static_cast<uint64_t>(rc) * (1000000 / 2) / hz);
         }
-        if (rc <= 0 || (length > 0 && secs > length)) {
-            play_next();
-        }
+        if (rc <= 0 || (length > 0 && secs > length)) { play_next(); }
     }
 };
 
