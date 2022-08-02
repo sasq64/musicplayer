@@ -7,21 +7,24 @@
 
 #include <fmt/format.h>
 
-#include <sol/sol.hpp>
-
 #include <atomic>
 #include <chrono>
 #include <csignal>
+#include <functional>
+#include <locale>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
 
+#include <sol/sol.hpp>
+
 using namespace std::string_literals;
 using namespace std::chrono_literals;
 
-std::string make_title(std::unordered_map<std::string, Meta> const& meta)
+void make_title(std::unordered_map<std::string, Meta>& meta)
 {
     auto title = std::get<std::string>(meta.at("title"));
     auto sub_title = std::get<std::string>(meta.at("sub_title"));
@@ -29,19 +32,31 @@ std::string make_title(std::unordered_map<std::string, Meta> const& meta)
     auto composer = std::get<std::string>(meta.at("composer"));
 
     if (title.empty()) { title = game; }
-    if (!title.empty()) {
-        if (!sub_title.empty()) {
-            title = fmt::format("{} ({})", title, sub_title);
-        }
-    }
+
     if (title.empty()) {
         auto fn = std::get<std::string>(meta.at("filename"));
         title = fs::path(fn).stem();
     }
+
+    meta["fixed_title"] = title;
+
+    if (!title.empty() && !composer.empty()) {
+        meta["title_and_composer"] = fmt::format("{} / {}", title, composer);
+    }
+
+    if (!title.empty()) {
+        if (!sub_title.empty()) {
+            title = fmt::format("{} ({})", title, sub_title);
+            meta["title_and_subtitle"] = title;
+        }
+    }
+
     if (!title.empty() && !composer.empty()) {
         title = fmt::format("{} / {}", title, composer);
+        meta["title_sub_composer"] = title;
     }
-    return title;
+
+    meta["full_title"] = title;
 }
 
 class Panel
@@ -62,20 +77,23 @@ class Panel
     void parse_panel(std::string& panel, int split)
     {
         std::string name;
-        auto panel32 = utils::utf8_decode(panel);
+        // auto panel32 = utils::utf8_decode(panel);
 
         std::vector<std::u32string> lines;
         size_t max_len = 0;
 
-        std::basic_stringstream<char32_t> ss(panel32);
-        std::u32string line;
-        while (std::getline(ss, line, U'\n')) {
-            if (line.empty()) { continue; }
+        std::stringstream ss(panel);
+        std::string lin;
+        while (std::getline(ss, lin, '\n')) {
+            if (lin.empty()) { continue; }
+            lines.push_back(utils::utf8_decode(lin));
+        }
+
+        for (auto& line : lines) {
             auto c = line[split];
             auto add_size = con_width - line.length();
             auto filler = std::u32string(add_size, c);
             line.insert(split, filler);
-            lines.push_back(line);
         }
 
         int x = 0;
@@ -94,7 +112,7 @@ class Panel
                     start = {xx, yy, l};
                     vars[name] = start;
                 }
-                if (var && (c > 'z' || c < 'a')) {
+                if (var && (c > 'z' || c < 'a') && c != '_') {
                     var = false;
                     space = true;
                 }
@@ -121,6 +139,11 @@ public:
     explicit Panel(std::shared_ptr<bbs::Console> _console)
         : console{std::move(_console)}, con_width(console->get_width())
     {
+    }
+
+    void set_panel(std::string const& p = ""s)
+    {
+        if (!p.empty()) { panel = p; }
         parse_panel(panel, 46);
         console->set_color(0x00ff0000, 0x000000ff);
         console->put(panel);
@@ -128,21 +151,41 @@ public:
         put("f", "FORMAT", 0xffff0000);
     }
 
-    void put(std::string const& id, std::string const& value, uint32_t col = 0)
+    void put(std::string const& id, std::string value, uint32_t col = 0)
     {
         auto pos = vars[id];
-        auto [x,y,l] = vars[id];
+        auto [x, y, l] = vars[id];
         console->clear(x, y, l, 1);
+        if (value.length() >= l) { value = value.substr(0, l - 1); }
         console->set_xy(x, y);
-        if (col != 0) {
-            console->set_color(col);
-        }
+        if (col != 0) { console->set_color(col); }
         console->put(value);
     }
 
     void put(std::string const& id, uint32_t value, uint32_t col = 0)
     {
         put(id, std::to_string(value), col);
+    }
+
+    void render(std::unordered_map<std::string, Meta>& meta)
+    {
+        make_title(meta);
+        auto length = std::get<uint32_t>(meta["length"]);
+        auto song = std::get<uint32_t>(meta["song"]);
+        auto songs = std::get<uint32_t>(meta["songs"]);
+        auto secs = std::get<uint32_t>(meta["seconds"]);
+        std::string title = std::get<std::string>(meta["full_title"]);
+        put("title", title, 0xffffff00);
+        put("sng", fmt::format("{:02}/{:02}", song + 1, songs));
+        std::string fmt = std::get<std::string>(meta["format"]);
+        put("fmt", fmt, 0xe0c0ff00);
+
+        if (length == 0) {
+            put("time", fmt::format("{:02}:{:02}", secs / 60, secs % 60));
+        } else {
+            put("time", fmt::format("{:02}:{:02} / {:02}:{:02}", secs / 60,
+                                    secs % 60, length / 60, length % 60));
+        }
     }
 };
 
@@ -158,28 +201,6 @@ int main(int argc, const char** argv)
     sol::state lua;
 
     lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::table);
-
-    using Fn = std::function<void()>;
-    using Arg = std::variant<Fn, double>;
-
-    lua["set_theme"] = [&](sol::table args) {
-        std::string x = args["panel"];
-        std::function<void(sol::table)> fn = args["render_fn"];
-        sol::table t = lua.create_table();
-        t["title"] = "test";
-        t["seconds"] = 123;
-        t["length"] = 123;
-        //fn(t);
-        //fmt::print("set_theme {}\n", x);
-    };
-
-    lua["draw"] = [](std::string const& id, std::string const& txt) {
-
-        fmt::print("{} {}\n", id, txt); 
-    };
-
-
-    lua.script_file("theme.lua");
 
     std::string songFile;
     int startSong = -1;
@@ -281,18 +302,36 @@ int main(int argc, const char** argv)
     auto con = std::make_shared<bbs::Console>(std::move(term), 8, useColors);
     con->set_color(0xff0000ff, 0xff00ff00);
     con->set_xy(0, 0);
-
-    auto con_width = con->get_width();
-
     Panel panel{con};
+
+    std::string panelText;
+
+    lua["set_theme"] = [&](sol::table args) {
+        panelText = args["panel"];
+        sol::lua_value v = args["render_fn"];
+        auto fn = v.as<std::function<void(sol::table)>>();
+        sol::table t = lua.create_table();
+        t["title"] = "test";
+        t["seconds"] = 123;
+        t["length"] = 123;
+        //fn(t);
+    };
+
+    lua["draw"] = [](std::string const& id, std::string const& txt) {
+        fmt::print("{} {}\n", id, txt);
+    };
+
+    auto res = lua.script_file("theme.lua");
+    if (!res.valid()) {
+        fmt::print("ERROR\n");
+    }
+
+    panel.set_panel(panelText);
     con->flush();
 
     std::unordered_map<std::string, Meta> meta;
 
-    int song = 0;
-    int songs = 0;
-    int secs = 0;
-    int length = 0;
+    uint32_t song = 0;
 
     auto clear_meta = [&] {
         meta.clear();
@@ -301,43 +340,9 @@ int main(int argc, const char** argv)
         meta["game"] = ""s;
         meta["composer"] = ""s;
         meta["filename"] = ""s;
-        song = secs = length = 0;
-        songs = 1;
+        song = 0;
     };
     clear_meta();
-
-    auto update_meta = [&](std::string const& name, auto val) {
-        if (verbose) { fmt::print("{}={}\n", name, to_string(val)); }
-        if (!output) { return; }
-        if (name == "init") {
-            clear_meta();
-            return;
-        }
-        meta[name] = val;
-        if (name == "length") {
-            length = std::get<uint32_t>(val);
-        } else if (name == "song") {
-            song = std::get<uint32_t>(val);
-        } else if (name == "songs") {
-            songs = std::get<uint32_t>(val);
-        } else if (name == "format") {
-            panel.put("fmt", std::get<std::string>(val), 0xe0c0ff00);
-        } else if (name == "seconds") {
-            secs = std::get<uint32_t>(val);
-        }
-
-        auto title = make_title(meta);
-        title = title.substr(0, con_width - 3);
-        panel.put("title", title, 0xffffff00);
-        panel.put("sng", fmt::format("{:02}/{:02}", song + 1, songs));
-        if (length == 0) {
-            panel.put("time", fmt::format("{:02}:{:02}", secs / 60, secs % 60));
-        } else {
-            panel.put("time",
-                      fmt::format("{:02}:{:02} / {:02}:{:02}", secs / 60,
-                                  secs % 60, length / 60, length % 60));
-        }
-    };
 
     static std::atomic<bool> quit{false};
 
@@ -346,10 +351,16 @@ int main(int argc, const char** argv)
     while (!quit) {
         auto&& info = music_player->get_info();
         for (auto&& [name, val] : info) {
-            update_meta(name, val);
+            if (name == "init") {
+                clear_meta();
+                continue;
+            }
+            if (name == "song") { song = std::get<uint32_t>(val); }
+            meta[name] = val;
         }
         if (output) {
             if (!info.empty()) {
+                panel.render(meta);
                 con->flush();
             }
         }

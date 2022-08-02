@@ -73,8 +73,8 @@ set(MUSICPLAYER_PLUGINS
     # sexypsfplugin
     # modplugin
 )
-
 add_subdirectory(plugins)
+
 
 add_library(musix SHARED lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
@@ -86,7 +86,7 @@ target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
 
 add_executable(msxp main.cpp resampler.cpp player.cpp resampler.cpp)
 target_compile_definitions(msxp PUBLIC SOL_USING_CXX_LUA)
-target_link_libraries(msxp PUBLIC ansi fmt::fmt lua sol2::sol2 ${MUSICPLAYER_PLUGINS}
+target_link_libraries(msxp PUBLIC ansi fmt::fmt lua sol2::sol2  ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive readerwriterqueue Threads::Threads)
 
 install(TARGETS msxp DESTINATION /usr/local/bin)
