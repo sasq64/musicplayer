@@ -32,6 +32,9 @@ add_subdirectory(external/fmt)
 add_subdirectory(external/readerwriterqueue)
 add_subdirectory(external/ansi)
 
+add_subdirectory(external/lua)
+add_subdirectory(external/sol3)
+
 add_subdirectory(${APONE}/coreutils coreutils)
 add_subdirectory(${APONE}/crypto crypto)
 add_subdirectory(${APONE}/audioplayer audioplayer)
@@ -82,7 +85,8 @@ target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive Threads::Threads)
 
 add_executable(msxp main.cpp resampler.cpp player.cpp resampler.cpp)
-target_link_libraries(msxp PUBLIC ansi fmt::fmt ${MUSICPLAYER_PLUGINS}
+target_compile_definitions(msxp PUBLIC SOL_USING_CXX_LUA)
+target_link_libraries(msxp PUBLIC ansi fmt::fmt lua sol2::sol2 ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive readerwriterqueue Threads::Threads)
 
 install(TARGETS msxp DESTINATION /usr/local/bin)

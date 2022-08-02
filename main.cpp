@@ -7,6 +7,8 @@
 
 #include <fmt/format.h>
 
+#include <sol/sol.hpp>
+
 #include <atomic>
 #include <chrono>
 #include <csignal>
@@ -152,6 +154,32 @@ template <typename... A> std::string to_string(std::variant<A...> const& v)
 int main(int argc, const char** argv)
 {
     logging::setLevel(logging::Level::Info);
+
+    sol::state lua;
+
+    lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::table);
+
+    using Fn = std::function<void()>;
+    using Arg = std::variant<Fn, double>;
+
+    lua["set_theme"] = [&](sol::table args) {
+        std::string x = args["panel"];
+        std::function<void(sol::table)> fn = args["render_fn"];
+        sol::table t = lua.create_table();
+        t["title"] = "test";
+        t["seconds"] = 123;
+        t["length"] = 123;
+        //fn(t);
+        //fmt::print("set_theme {}\n", x);
+    };
+
+    lua["draw"] = [](std::string const& id, std::string const& txt) {
+
+        fmt::print("{} {}\n", id, txt); 
+    };
+
+
+    lua.script_file("theme.lua");
 
     std::string songFile;
     int startSong = -1;
