@@ -15,6 +15,15 @@ function psplit(s)
     return parts
 end
 
+function contains(list, val)
+    for _,v in pairs(list) do
+        if v == val then
+            return true
+        end
+    end
+    return false
+end
+
 function render(meta)
     title = meta.fixed_title
     composer = meta.composer
@@ -22,7 +31,7 @@ function render(meta)
     parts = psplit(meta.filename)
 
     if composer == '' then
-       if #parts > 2 and parts[#parts - 2] == 'MODLAND' then
+       if #parts > 3 and contains(parts, 'MODLAND') then
            composer = parts[#parts - 1]
        else
            composer = '???'
