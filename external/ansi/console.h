@@ -58,10 +58,9 @@ public:
     bool altMode = false;
 
     // Partial screen console
-    explicit Console(std::unique_ptr<Terminal> _terminal, int _height)
-        : terminal(std::move(_terminal))
+    explicit Console(std::unique_ptr<Terminal> _terminal, int _height, bool _colors)
+        : terminal(std::move(_terminal)), useColors(_colors)
     {
-        useColors = false;
         put_fg = cur_fg;
         put_bg = cur_bg;
         if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }
@@ -78,11 +77,11 @@ public:
 
     // Fullscreen console on alt
     explicit Console(std::unique_ptr<Terminal> terminal_)
-        : terminal(std::move(terminal_))
+        : terminal(std::move(terminal_)), altMode(true)
     {
         put_fg = cur_fg;
         put_bg = cur_bg;
-        altMode = true;
+        
         write("\x1b[?1049h");
         if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }
         resize(terminal->width(), terminal->height());
@@ -180,6 +179,16 @@ public:
         utils::fill(grid, Tile{' ', fg, bg, 0});
     }
 
+    void clear(int x, int y, int w, int h)
+    {
+        Tile empty{' ', put_fg, put_bg};
+        for (int yy = y; yy < y + h; yy++) {
+            for (int xx = x; xx < x + w; xx++) {
+                grid[xx + width * yy] = empty;
+            }
+        }
+    }
+
     void set_xy(int32_t x, int32_t y)
     {
         put_x = x;
@@ -211,10 +220,30 @@ public:
         put_bg = bg;
     }
 
+    void set_color(uint32_t fg)
+    {
+        put_fg = fg;
+    }
+
     void put(std::string const& text)
     {
         auto ut = utils::utf8_decode(text);
         for (auto c : ut) {
+            if (c == '\n') {
+                put_y++;
+                put_x = 0;
+                continue;
+            }
+
+            grid[put_x + width * put_y] = {static_cast<Char>(c), put_fg, put_bg,
+                                           0};
+            put_x++;
+        }
+    }
+
+    void put(std::u32string const& text)
+    {
+        for (auto c : text) {
             // TODO: UTF8 decode
             grid[put_x + width * put_y] = {static_cast<Char>(c), put_fg, put_bg,
                                            0};

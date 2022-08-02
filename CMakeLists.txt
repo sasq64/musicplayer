@@ -81,7 +81,7 @@ add_executable(play simple.cpp resampler.cpp)
 target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive Threads::Threads)
 
-add_executable(msxp main.cpp resampler.cpp ui/panel.cpp player.cpp resampler.cpp)
+add_executable(msxp main.cpp resampler.cpp player.cpp resampler.cpp)
 target_link_libraries(msxp PUBLIC ansi fmt::fmt ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive readerwriterqueue Threads::Threads)
 
