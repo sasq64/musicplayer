@@ -1,5 +1,6 @@
 
 #include "player.hpp"
+#include "panel.hpp"
 
 #include <ansi/console.h>
 #include <ansi/unix_terminal.h>
@@ -23,181 +24,49 @@
 
 using namespace std::string_literals;
 using namespace std::chrono_literals;
-
-void make_title(std::unordered_map<std::string, Meta>& meta)
-{
-    auto title = std::get<std::string>(meta.at("title"));
-    auto sub_title = std::get<std::string>(meta.at("sub_title"));
-    auto game = std::get<std::string>(meta.at("game"));
-    auto composer = std::get<std::string>(meta.at("composer"));
-
-    if (title.empty()) { title = game; }
-
-    if (title.empty()) {
-        auto fn = std::get<std::string>(meta.at("filename"));
-        title = fs::path(fn).stem();
-    }
-
-    meta["fixed_title"] = title;
-
-    if (!title.empty() && !composer.empty()) {
-        meta["title_and_composer"] = fmt::format("{} / {}", title, composer);
-    }
-
-    if (!title.empty()) {
-        if (!sub_title.empty()) {
-            title = fmt::format("{} ({})", title, sub_title);
-            meta["title_and_subtitle"] = title;
-        }
-    }
-
-    if (!title.empty() && !composer.empty()) {
-        title = fmt::format("{} / {}", title, composer);
-        meta["title_sub_composer"] = title;
-    }
-
-    meta["full_title"] = title;
-}
-
-class Panel
-{
-    std::shared_ptr<bbs::Console> console;
-    int con_width;
-    using Loc = std::tuple<int, int, int>;
-    std::unordered_map<std::string, Loc> vars;
-
-    std::string panel = R"(
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ $title                                       ┃
-┣━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━┫
-┃ $time         ┃ $s   ┃ $sng  ┃ $f     ┃ $fmt ┃
-┗━━━━━━━━━━━━━━━┻━━━━━━┻━━━━━━━┻━━━━━━━━┻━━━━━━┛
-)";
-
-    void parse_panel(std::string& panel, int split)
-    {
-        std::string name;
-        // auto panel32 = utils::utf8_decode(panel);
-
-        std::vector<std::u32string> lines;
-        size_t max_len = 0;
-
-        std::stringstream ss(panel);
-        std::string lin;
-        while (std::getline(ss, lin, '\n')) {
-            if (lin.empty()) { continue; }
-            lines.push_back(utils::utf8_decode(lin));
-        }
-
-        for (auto& line : lines) {
-            auto c = line[split];
-            auto add_size = con_width - line.length();
-            auto filler = std::u32string(add_size, c);
-            line.insert(split, filler);
-        }
-
-        int x = 0;
-        int y = 0;
-        bool var = false;
-        bool space = false;
-        Loc start;
-        std::u32string out;
-        for (auto& line : lines) {
-            x = 0;
-            for (auto c : line) {
-                if (space && c != ' ') {
-                    space = false;
-                    auto [xx, yy, l] = start;
-                    l = x - xx;
-                    start = {xx, yy, l};
-                    vars[name] = start;
-                }
-                if (var && (c > 'z' || c < 'a') && c != '_') {
-                    var = false;
-                    space = true;
-                }
-                if (var) {
-                    name += static_cast<char>(c);
-                    c = ' ';
-                }
-                if (c == '$') {
-                    name = "";
-                    var = true;
-                    start = {x, y, 0};
-                    c = ' ';
-                }
-                x++;
-                out += c;
-            }
-            out += U'\n';
-            y++;
-        }
-        panel = utils::utf8_encode(out);
-    }
-
-public:
-    explicit Panel(std::shared_ptr<bbs::Console> _console)
-        : console{std::move(_console)}, con_width(console->get_width())
-    {
-    }
-
-    void set_panel(std::string const& p = ""s)
-    {
-        if (!p.empty()) { panel = p; }
-        parse_panel(panel, 46);
-        console->set_color(0x00ff0000, 0x000000ff);
-        console->put(panel);
-        put("s", "SONG", 0xffff0000);
-        put("f", "FORMAT", 0xffff0000);
-    }
-
-    void put(std::string const& id, std::string value, uint32_t col = 0)
-    {
-        auto pos = vars[id];
-        auto [x, y, l] = vars[id];
-        console->clear(x, y, l, 1);
-        if (value.length() >= l) { value = value.substr(0, l - 1); }
-        console->set_xy(x, y);
-        if (col != 0) { console->set_color(col); }
-        console->put(value);
-    }
-
-    void put(std::string const& id, uint32_t value, uint32_t col = 0)
-    {
-        put(id, std::to_string(value), col);
-    }
-
-    void render(std::unordered_map<std::string, Meta>& meta)
-    {
-        make_title(meta);
-        auto length = std::get<uint32_t>(meta["length"]);
-        auto song = std::get<uint32_t>(meta["song"]);
-        auto songs = std::get<uint32_t>(meta["songs"]);
-        auto secs = std::get<uint32_t>(meta["seconds"]);
-        std::string title = std::get<std::string>(meta["title_and_composer"]);
-        std::string sub_title = std::get<std::string>(meta["sub_title"]);
-        if (sub_title.empty()) {
-           sub_title = std::get<std::string>(meta["comment"]);
-        }
-        put("title", title, 0xffffffff);
-        put("sub_title", sub_title, 0xa0a0c000);
-        put("sng", fmt::format("{:02}/{:02}", song + 1, songs));
-        std::string fmt = std::get<std::string>(meta["format"]);
-        put("fmt", fmt, 0xe0c0ff00);
-
-        if (length == 0) {
-            put("time", fmt::format("{:02}:{:02}", secs / 60, secs % 60));
-        } else {
-            put("time", fmt::format("{:02}:{:02} / {:02}:{:02}", secs / 60,
-                                    secs % 60, length / 60, length % 60));
-        }
-    }
-};
-
 template <typename... A> std::string to_string(std::variant<A...> const& v)
 {
     return std::visit([](auto&& x) { return fmt::format("{}", x); }, v);
 }
+
+
+class LuaPanel : public Panel
+{
+    std::function<void(sol::table)> render_fn;
+    std::function<void()> init_fn;
+    sol::state& lua;
+public:
+    explicit LuaPanel(sol::state& _lua, std::shared_ptr<bbs::Console> _console)
+        : lua(_lua), Panel(std::move(_console))
+    {
+    }
+
+    void init()
+    {
+        if (init_fn) {
+            init_fn();
+        }
+    }
+
+    void render(std::unordered_map<std::string, Meta>& meta) override
+    {
+        make_title(meta);
+        sol::table t = lua.create_table();
+        for(auto [name, val] : meta) {
+            std::visit([&,n=name](auto&& v) { t[n] = v; }, val);
+        }
+        render_fn(t);
+    }
+
+    void set_render_fn(std::function<void(sol::table)> const& f) {
+        render_fn = f;
+    }
+    void set_init_fn(std::function<void()> const& f) {
+        init_fn = f;
+    }
+
+};
+
 
 int main(int argc, const char** argv)
 {
@@ -305,33 +174,37 @@ int main(int argc, const char** argv)
         std::make_unique<bbs::LocalTerminal>();
     term->open();
     auto con = std::make_shared<bbs::Console>(std::move(term), 8, useColors);
-    con->set_color(0xff0000ff, 0xff00ff00);
+    con->set_color(0x00ff0000, 0);
     con->set_xy(0, 0);
-    Panel panel{con};
 
-    std::string panelText;
+    LuaPanel panel{lua, con};
+
 
     lua["set_theme"] = [&](sol::table args) {
-        panelText = args["panel"];
+        std::string panelText = args["panel"];
+        int sx = args["stretch_x"];
+        panel.set_panel(panelText, sx);
         sol::lua_value v = args["render_fn"];
-        auto fn = v.as<std::function<void(sol::table)>>();
-        sol::table t = lua.create_table();
-        t["title"] = "test";
-        t["seconds"] = 123;
-        t["length"] = 123;
-        //fn(t);
+        panel.set_render_fn(v.as<std::function<void(sol::table)>>());
+
+        v = args["init_fn"];
+        panel.set_init_fn(v.as<std::function<void()>>());
     };
 
-    lua["draw"] = [](std::string const& id, std::string const& txt) {
-        fmt::print("{} {}\n", id, txt);
+    lua["YELLOW"] = 0xffff00ff;
+    lua["GREEN"] = 0x00ff00ff;
+    lua["WHITE"] = 0xffffffff;
+
+    lua["draw"] = [&](std::string const& id, std::string const& txt, uint32_t color) {
+        //fmt::print("{} {}\n", id, txt);
+        panel.put(id, txt, color);
     };
+
 
     auto res = lua.script_file("theme.lua");
-    if (!res.valid()) {
-        fmt::print("ERROR\n");
-    }
+    if (!res.valid()) { fmt::print("ERROR\n"); }
 
-    panel.set_panel(panelText);
+    panel.init();
     con->flush();
 
     std::unordered_map<std::string, Meta> meta;

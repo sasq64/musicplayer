@@ -1,3 +1,4 @@
+#pragma once
 #include <filesystem>
 #include <memory>
 #include <optional>

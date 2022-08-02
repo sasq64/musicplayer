@@ -6,7 +6,6 @@
 
 #include "../../chipplayer.h"
 
-#include <coreutils/settings.h>
 #include <coreutils/split.h>
 #include <coreutils/utils.h>
 #include <set>
@@ -56,10 +55,10 @@ public:
             module, OPENMPT_MODULE_RENDER_INTERPOLATIONFILTER_LENGTH,
             type == "mod" ? 1 : 0);
 
-        auto& Settings = utils::Settings::getGroup("openmpt");
-        auto separation = Settings.get<double>("separation", 100.0);
+        //auto& Settings = utils::Settings::getGroup("openmpt");
+        auto separation = 100.0;
         openmpt_module_set_render_param(
-            module, OPENMPT_MODULE_RENDER_STEREOSEPARATION_PERCENT, separation);
+           module, OPENMPT_MODULE_RENDER_STEREOSEPARATION_PERCENT, separation);
     }
 
     ~OpenMPTPlayer() override
