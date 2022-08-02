@@ -204,7 +204,7 @@ public:
 
     void play(fs::path const& name) override
     {
-        auto out_fd = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC);
+        auto out_fd = dup(STDOUT_FILENO); // NOLINT
         close(STDOUT_FILENO);
         player = Player::createPlayer(name);
         if (player == nullptr) { return; }
@@ -374,7 +374,6 @@ public:
                     stdout) == nullptr) {
             // Oh well
         }
-
 
         close(STDIN_FILENO);
         // close(STDOUT_FILENO);

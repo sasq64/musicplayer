@@ -114,6 +114,9 @@ public:
                             sub += " / " + songInfo.artist;
                         }
                     }
+                    if (sub.empty()) {
+                        sub = songInfo.comment;
+                    }
                 }
             }
         }

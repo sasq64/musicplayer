@@ -174,8 +174,13 @@ public:
         auto song = std::get<uint32_t>(meta["song"]);
         auto songs = std::get<uint32_t>(meta["songs"]);
         auto secs = std::get<uint32_t>(meta["seconds"]);
-        std::string title = std::get<std::string>(meta["full_title"]);
-        put("title", title, 0xffffff00);
+        std::string title = std::get<std::string>(meta["title_and_composer"]);
+        std::string sub_title = std::get<std::string>(meta["sub_title"]);
+        if (sub_title.empty()) {
+           sub_title = std::get<std::string>(meta["comment"]);
+        }
+        put("title", title, 0xffffffff);
+        put("sub_title", sub_title, 0xa0a0c000);
         put("sng", fmt::format("{:02}/{:02}", song + 1, songs));
         std::string fmt = std::get<std::string>(meta["format"]);
         put("fmt", fmt, 0xe0c0ff00);
@@ -340,6 +345,10 @@ int main(int argc, const char** argv)
         meta["game"] = ""s;
         meta["composer"] = ""s;
         meta["filename"] = ""s;
+        meta["song"] = static_cast<uint32_t>(0);
+        meta["songs"] = static_cast<uint32_t>(0);
+        meta["length"] = static_cast<uint32_t>(0);
+        meta["seconds"] = static_cast<uint32_t>(0);
         song = 0;
     };
     clear_meta();
