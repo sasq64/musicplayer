@@ -33,7 +33,7 @@ function render(meta)
 
     draw('title', title, WHITE)
 
-    draw('sub_title', meta.filename, 0xa0a0a0ff)
+    draw('sub_title', meta.sub_title, 0xa0a0a0ff)
     draw('fmt', meta.format, 0xa0a0ff)
     secs = meta.seconds
     len = meta.length

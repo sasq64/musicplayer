@@ -4,6 +4,7 @@ all : build build/Makefile
 
 install:
 	cp build/msxp /usr/local/bin
+	rm -rf /usr/local/share/musix
 	cp -a data /usr/local/share/musix
 
 build :

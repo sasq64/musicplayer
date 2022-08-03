@@ -200,8 +200,9 @@ int main(int argc, const char** argv)
         panel.put(id, txt, color);
     };
 
+    auto dataPath = MusicPlayer::findDataPath("init.lua");
 
-    auto res = lua.script_file("theme.lua");
+    auto res = lua.script_file(dataPath.string());
     if (!res.valid()) { fmt::print("ERROR\n"); }
 
     panel.init();

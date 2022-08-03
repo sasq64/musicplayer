@@ -40,33 +40,20 @@ class Player : public MusicPlayer
 public:
     std::shared_ptr<musix::ChipPlayer> get_player() { return player; }
 
-    static inline void CreatePlugins()
+    static inline fs::path CreatePlugins()
     {
         using musix::ChipPlayer;
         using musix::ChipPlugin;
 
         logging::setLevel(logging::Level::Warning);
 
-        auto xd = utils::get_exe_dir();
-        auto home = utils::get_home_dir();
-        auto searchPath = std::vector{fs::absolute(xd / "data"),
-                                      fs::absolute(xd / ".." / "data"),
-                                      fs::absolute(xd / ".." / ".." / "data"),
-                                      home / ".local" / "share" / "musix",
-                                      home / ".config" / "musix",
-                                      fs::path("/usr/share/musix"),
-                                      fs::path("/usr/local/share/musix")};
-        fs::path dataPath;
-        for (auto&& p : searchPath) {
-            if (fs::exists(p)) {
-                dataPath = p;
-                break;
-            }
-        }
+        auto dataPath = findDataPath();
+
         if (dataPath.empty()) {
             throw musix::player_exception("Could not find data directory");
         }
         ChipPlugin::createPlugins(dataPath.string());
+        return dataPath;
     }
 
     static inline std::shared_ptr<musix::ChipPlayer>
@@ -146,6 +133,7 @@ public:
             }
         });
         micro_seconds = 0;
+        fifo.silence = 0;
     }
 
     std::vector<Info> get_info() override
@@ -161,7 +149,10 @@ public:
     {
         if (player == nullptr) { startSong = song; }
         if (song < 0 || song >= songs) { return; }
-        if (player->seekTo(song)) { micro_seconds = 0; }
+        if (player->seekTo(song)) {
+            micro_seconds = 0;
+            fifo.silence = 0;
+        }
     }
 
     void update() override
@@ -187,7 +178,10 @@ public:
             fifo.write(temp.data(), temp.data() + 1, rc);
             micro_seconds += (static_cast<uint64_t>(rc) * (1000000 / 2) / hz);
         }
-        if (rc <= 0 || (length > 0 && secs > length)) { play_next(); }
+        if (rc <= 0 || (length > 0 && secs > length) ||
+            (micro_seconds > 5000000 && fifo.silence > 10)) {
+            play_next();
+        }
     }
 };
 

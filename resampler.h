@@ -23,6 +23,7 @@ template <int SIZE> struct Resampler
 {
     int targetHz;
     bool active = false;
+    int silence = 0;
     resampler* samp;
     utils::Ring<int16_t, SIZE> fifo;
     std::array<int16_t, 2> lr{};
@@ -42,6 +43,20 @@ template <int SIZE> struct Resampler
 
     void write(int16_t* left, int16_t* right, size_t size, int stride = 2)
     {
+        int64_t total = 0;
+        for (int i = 0; i < size; i++) {
+            total += (static_cast<int>(left[i]) * static_cast<int>(left[i])) +
+                     (static_cast<int>(right[i]) * static_cast<int>(right[i]));
+        }
+        total /= static_cast<int>(size);
+
+        fflush(stdout);
+        if (total < 16000) {
+            silence++;
+        } else {
+            silence = 0;
+        }
+
         if (!active && stride == 2) {
             fifo.write(left, size);
             return;
