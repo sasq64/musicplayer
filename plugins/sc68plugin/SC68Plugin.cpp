@@ -49,7 +49,7 @@ public:
         } else {
             valid = load(data.data(), static_cast<int>(data.size()));
         }
-        if (valid) { setMeta("format", "SC68"); }
+        if (valid) { setMeta("format", "SC68 (Atari ST)"); }
     }
 
     bool load(uint8_t const* ptr, int size)

@@ -122,11 +122,12 @@ public:
                     modname = stem;
                 }
             }
-            setMeta(
-                "songs", songInfo->subsongs.max - songInfo->subsongs.min + 1,
-                "startsong", songInfo->subsongs.def - songInfo->subsongs.min,
-                "length", static_cast<uint32_t>(songInfo->duration), "title",
-                modname, "format", songInfo->playername);
+            setMeta("songs",
+                    songInfo->subsongs.max - songInfo->subsongs.min + 1,
+                    "startsong",
+                    songInfo->subsongs.def - songInfo->subsongs.min, "length",
+                    static_cast<uint32_t>(songInfo->duration), "title", modname,
+                    "format", fmt::format("{} (Amiga)", songInfo->playername));
             valid = true;
         }
         return valid;
