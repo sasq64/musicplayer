@@ -1,17 +1,16 @@
 
 
 * Play / Pause
-* Previous song
+* Play log
+* Background & foreground colors
+* Define color format & avoid alpha
+* console size -> lua
+* console size from panel size
+* LUA METHODS
+   next/prev song
+   set subtune
+   clear songs
+   add song
 
-More meta:
-  file_size
-  next_song
-  prev_song
-  songs_left
-
-
-Play log
-
-Archive : Copy current to dir
 
 

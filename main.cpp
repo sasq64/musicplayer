@@ -44,7 +44,6 @@ int main(int argc, const char** argv)
     bool quitPlayer = false;
     bool useColors = false;
     std::string command;
-    std::string report;
 
     std::vector<fs::path> songFiles;
     for (int i = 1; i < argc; i++) {
@@ -54,9 +53,6 @@ int main(int argc, const char** argv)
                 startSong = std::stoi(argv[++i]);
             } else if (opt == "color" || opt == "c") {
                 useColors = true;
-            } else if (opt == "r") {
-                report = std::string(argv[++i]);
-                bg = true;
             } else if (opt == "v") {
                 verbose = true;
                 output = false;
@@ -108,25 +104,14 @@ int main(int argc, const char** argv)
         }
     }
 
-    if (!report.empty()) {
-        while (true) {
-            auto&& allInfo = music_player->get_info();
-            for (auto&& info : allInfo) {
-                fmt::print("{}\n", info.first);
-                if (info.first == report) {
-                    auto value = std::get<std::string>(info.second);
-                    fmt::print("{}", value);
-                    return 0;
-                }
-            }
-            std::this_thread::sleep_for(10ms);
-        }
-    }
-
     if (writeOut) { return 0; }
 
-    if (command == "next") { music_player->next(); }
-    if (command == "prev") { music_player->prev(); }
+    if (command == "next") {
+        music_player->next();
+    }
+    if (command == "prev") {
+        music_player->prev();
+    }
 
     if (bg) {
         music_player->detach();
@@ -141,9 +126,9 @@ int main(int argc, const char** argv)
     con->set_xy(0, 0);
 
     Panel panel{con};
-    //panel.set_panel();
     std::unordered_map<std::string, Meta> meta;
-
+ 
+    bool theme_set = false;
     sol::function update_fn;
     std::unordered_map<int, std::function<void()>> mapping;
 
@@ -181,23 +166,21 @@ int main(int argc, const char** argv)
                          }));
 
     lua["set_theme"] = [&](sol::table args) {
+        theme_set = true;
         std::string panelText = args["panel"];
         uint32_t panel_fg = args["panel_fg"];
         uint32_t var_fg = args["var_fg"];
         con->set_color(panel_fg);
         panel.set_color(var_fg, 0);
-        if (!panelText.empty()) {
-            panel.set_panel(panelText);
-        }
+        panel.set_panel(panelText);
         sol::function v = args["init_fn"];
-        if (v.valid()) {
-            v();
-        }
+        if (v.valid()) { v(); }
         update_fn = args["update_fn"];
     };
 
     lua["YELLOW"] = 0xffff00ff;
     lua["GREEN"] = 0x00ff00ff;
+    lua["RED"] = 0xff0000ff;
     lua["WHITE"] = 0xffffffff;
     lua["GRAY"] = 0x808080ff;
     for (int i = KEY_F1; i <= KEY_F8; i++) {
@@ -206,8 +189,13 @@ int main(int argc, const char** argv)
 
     auto dataPath = MusicPlayer::findDataPath("init.lua");
 
-    auto res = lua.script_file(dataPath.string());
-    if (!res.valid()) { fmt::print("ERROR\n"); }
+    if (!dataPath.empty() && fs::exists(dataPath)) {
+        auto res = lua.script_file(dataPath.string());
+        if (!res.valid()) { fmt::print("ERROR\n"); }
+    }
+    if (!theme_set) {
+        panel.set_panel();
+        }
     con->flush();
 
     uint32_t song = 0;

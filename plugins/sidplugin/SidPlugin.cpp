@@ -92,7 +92,7 @@ public:
         auto length = lengths.empty() ? 0 : lengths[startSong];
 
         setMeta("title", title, "composer", composer, "copyright", copyright,
-                "format", "SID", "startSong", startSong, "song", startSong,
+                "format", "SID (C64)", "startSong", startSong, "song", startSong,
                 "length", length, "songs", info->songs());
 
         if (!stilInfo.comment.empty()) { setMeta("comment", stilInfo.comment); }
