@@ -60,20 +60,20 @@ std::vector<uint8_t> STIL::calculateMD5(std::vector<uint8_t> const& data)
     auto offset = (version == 2) ? 126 : 120;
 
     MD5 md5;
-    md5.add(data, offset);
-    md5.add(initAdr);
-    md5.add(playAdr);
-    md5.add(songs);
+    md5.add(data, 0);//offset);
+    /* md5.add(initAdr); */
+    /* md5.add(playAdr); */
+    /* md5.add(songs); */
 
-    for (unsigned i = 0; i < songs; i++) {
-        if ((speedBits & (1U << i)) != 0) {
-            md5.add(static_cast<uint8_t>(60));
-        } else {
-            md5.add(speed);
-        }
-    }
+    /* for (unsigned i = 0; i < songs; i++) { */
+    /*     if ((speedBits & (1U << i)) != 0) { */
+    /*         md5.add(static_cast<uint8_t>(60)); */
+    /*     } else { */
+    /*         md5.add(speed); */
+    /*     } */
+    /* } */
 
-    if ((flags & 0x8U) != 0) { md5.add(static_cast<uint8_t>(2)); }
+    /* if ((flags & 0x8U) != 0) { md5.add(static_cast<uint8_t>(2)); } */
 
     return md5.get();
 }
@@ -222,7 +222,7 @@ void STIL::readLengths()
     static_assert(sizeof(LengthEntry) == 12, "LengthEntry size incorrect");
 
     //fmt::print("Lengths {}\n", dataDir.string());
-    if (!fs::exists(dataDir / "Songlengths.txt")) { return; }
+    if (!fs::exists(dataDir / "Songlengths.md5")) { return; }
 
     uint16_t ll = 0;
     std::string name;
@@ -230,7 +230,7 @@ void STIL::readLengths()
     mainHash.reserve(60000);
 
     std::ifstream lenFile;
-    lenFile.open(dataDir / "Songlengths.txt");
+    lenFile.open(dataDir / "Songlengths.md5");
     std::string line;
     uint16_t stilOffset = 0;
     while (std::getline(lenFile, line)) {
