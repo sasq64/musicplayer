@@ -10,12 +10,15 @@
 
 #include <deque>
 #include <fcntl.h>
+#include <filesystem>
 #include <readerwriterqueue.h>
 
 #include "resampler.h"
 
 #include <atomic>
 #include <thread>
+
+namespace fs = std::filesystem;
 
 using namespace std::string_literals;
 using namespace std::chrono_literals;
@@ -36,6 +39,14 @@ class Player : public MusicPlayer
 
     Resampler<32768> fifo{44100};
     AudioPlayer audioPlayer{44100};
+
+    std::deque<fs::path> play_list;
+    std::deque<fs::path> played;
+
+    uint32_t last_secs = 0;
+    uint64_t micro_seconds = 0;
+    uint32_t length = 0;
+    uint32_t songs = 0;
 
 public:
     std::shared_ptr<musix::ChipPlayer> get_player() { return player; }
@@ -84,9 +95,7 @@ public:
         });
     }
 
-    std::deque<fs::path> play_list;
-
-    void play(fs::path const& name) override
+    void add(fs::path const& name) override
     {
         play_list.push_back(name);
         if (player == nullptr) { play_next(); }
@@ -98,18 +107,34 @@ public:
         play_list.clear();
     }
 
-    uint32_t last_secs = 0;
-    uint64_t micro_seconds = 0;
-    uint32_t length = 0;
-    uint32_t songs = 0;
-
     void play_next()
     {
         if (play_list.empty()) { return; }
         player = nullptr;
 
-        auto songFile = play_list.front();
-        play_list.pop_front();
+        while (player == nullptr && !play_list.empty()) {
+            auto songFile = play_list.front();
+            play_list.pop_front();
+            played.push_back(songFile);
+            play(songFile);
+        }
+    }
+
+    void play_prev()
+    {
+        if (played.size() < 2) { return; }
+        player = nullptr;
+
+        while (player == nullptr && played.size() >= 2) {
+            auto songFile = played.back();
+            played.pop_back();
+            play_list.push_front(songFile);
+            play(played.back());
+        }
+    }
+
+    void play(fs::path const& songFile)
+    {
         songs = length = 0;
 
         player = createPlayer(songFile);
@@ -123,7 +148,10 @@ public:
         length = 0;
         infoList.clear();
         infoList.emplace_back("init", ""s);
-        infoList.emplace_back("filename", songFile.string());
+        infoList.emplace_back("list_length", static_cast<uint32_t>(play_list.size()));
+        infoList.emplace_back("file_size", static_cast<uint32_t>(fs::file_size(songFile)));
+        
+        infoList.emplace_back("filename", fs::absolute(songFile).string());
         player->onMeta([this](auto&& meta_list, auto*) {
             for (auto&& name : meta_list) {
                 auto&& val = player->meta(name);
@@ -144,6 +172,7 @@ public:
     }
 
     void next() override { play_next(); }
+    void prev() override { play_prev(); }
 
     void set_song(int song) override
     {
@@ -158,7 +187,7 @@ public:
     void update() override
     {
         if (player == nullptr) {
-            play_next();
+            //play_next();
             return;
         }
 
@@ -196,7 +225,7 @@ class OutPlayer : public MusicPlayer
 public:
     OutPlayer() { Player::CreatePlugins(); }
 
-    void play(fs::path const& name) override
+    void add(fs::path const& name) override
     {
         auto out_fd = dup(STDOUT_FILENO); // NOLINT
         close(STDOUT_FILENO);
@@ -240,6 +269,7 @@ public:
         }
     }
     void next() override {}
+    void prev() override {}
     void clear() override {}
     void set_song(int song) override { startSong = song; }
 };
@@ -251,20 +281,22 @@ class ThreadedPlayer : public MusicPlayer
     std::atomic<bool> quit{false};
     // clang-format off
     struct Next {};
+    struct Prev {};
     struct Play { fs::path name; };
     struct SetSong { int song; };
     struct Clear {};
     // clang-format on
 
-    using Command = std::variant<Next, SetSong, Play, Clear>;
+    using Command = std::variant<Next, Prev, SetSong, Play, Clear>;
 
     moodycamel::ReaderWriterQueue<Command> commands;
     moodycamel::ReaderWriterQueue<std::vector<Info>> infos;
 
     void handle_cmd(Next const&) { player.next(); }
+    void handle_cmd(Prev const&) { player.prev(); }
     void handle_cmd(Clear const&) { player.clear(); }
     void handle_cmd(SetSong const& cmd) { player.set_song(cmd.song); }
-    void handle_cmd(Play const& cmd) { player.play(cmd.name); }
+    void handle_cmd(Play const& cmd) { player.add(cmd.name); }
 
     void read_commands()
     {
@@ -288,8 +320,9 @@ class ThreadedPlayer : public MusicPlayer
     }
 
 public:
-    void play(fs::path const& name) override { commands.emplace(Play{name}); }
+    void add(fs::path const& name) override { commands.emplace(Play{name}); }
     void next() override { commands.emplace(Next{}); }
+    void prev() override { commands.emplace(Prev{}); }
     void clear() override { commands.emplace(Clear{}); }
     void set_song(int song) override { commands.emplace(SetSong{song}); }
 
@@ -328,9 +361,11 @@ public:
         int fd = open(fifo_out.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         infile = fdopen(fd, "r");
 
-        int test_fd = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+        int test_fd = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK  | O_CLOEXEC);
         if (test_fd > 0) {
-            // puts("Someone at the other end");
+            close(test_fd);
+            test_fd = open(fifo_in.c_str(), O_WRONLY | O_CLOEXEC);
+
             cmdfile = fdopen(test_fd, "w");
             std::array<char, 128> temp{};
             while (fgets(temp.data(), temp.size(), infile) != nullptr) {}
@@ -346,10 +381,10 @@ public:
         fd = open(fifo_in.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         FILE* myfile = fdopen(fd, "r");
 
-        fd = open(fifo_out.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+        fd = open(fifo_out.c_str(), O_WRONLY | O_CLOEXEC);
         FILE* outfile = fdopen(fd, "w");
 
-        fd = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+        fd = open(fifo_in.c_str(), O_WRONLY  | O_CLOEXEC);
         cmdfile = fdopen(fd, "w");
         // puts("Done");
 
@@ -377,14 +412,16 @@ public:
         std::string l;
         bool quit = false;
         while (!quit) {
-            l.resize(128);
-            while (fgets(l.data(), 128, myfile) != nullptr) {
+            l.resize(1024);
+            while (fgets(l.data(), 1024, myfile) != nullptr) {
                 l.resize(strlen(l.data()) - 1);
-                fmt::print("Got command '{}'\n", l);
+                log("Got command '{}'", l);
                 if (l[0] == '>') {
-                    player.play(l.substr(1));
+                    player.add(l.substr(1));
                 } else if (l[0] == 'n') {
                     player.next();
+                } else if (l[0] == 'p') {
+                    player.prev();
                 } else if (l[0] == 'c') {
                     player.clear();
                 } else if (l[0] == 's') {
@@ -405,23 +442,30 @@ public:
                     }
                     fflush(outfile);
                 }
-                l.resize(128);
+                l.resize(1024);
+            }
+            if (ferror(myfile) > 0) {
+                //if (errno == EAGAIN || errno = EWOULDBLOCK) {
+                //}
+                log("ERROR: Failed to read pipe: {}", strerror(errno));
+                clearerr(myfile);
+                //exit(1);
             }
             auto allInfo = player.get_info();
             if (!allInfo.empty()) {
-                fmt::print("Got {} infos from player\n", allInfo.size());
+                log("Got {} infos from player", allInfo.size());
                 for (auto&& info : allInfo) {
                     if (info.first != "init") {
                         currentInfo[info.first] = info.second;
                     } else {
-                        fmt::print("Clearing\n");
+                        log("Clearing");
                         currentInfo.clear();
                     }
                     auto line = fmt::format(
                         "i{}\t{}\n", info.first,
                         std::visit([](auto v) { return fmt::format("{}", v); },
                                    info.second));
-                    fmt::print("Info: {}", line.substr(1));
+                    log("Info: {}", line.substr(1));
                     fputs(line.c_str(), outfile);
                 }
                 fflush(outfile);
@@ -445,16 +489,27 @@ public:
         // if (childPid > 0) { kill(childPid, SIGINT); }
     }
 
-    void play(fs::path const& name) override
+    void add(fs::path const& name) override
     {
         auto line = fmt::format(">{}\n", name.string());
-        if (fputs(line.c_str(), cmdfile) < 0) { fmt::print("FAILED\n"); }
+        auto rc = fwrite(line.c_str(), 1, line.length(), cmdfile);
+        if (rc < line.length()) { 
+            fmt::print("FAILED\n");
+            fflush(stdout);
+            exit(1);
+        }
         fflush(cmdfile);
     }
 
     void next() override
     {
         fputs("n\n", cmdfile);
+        fflush(cmdfile);
+    }
+
+    void prev() override
+    {
+        fputs("p\n", cmdfile);
         fflush(cmdfile);
     }
 

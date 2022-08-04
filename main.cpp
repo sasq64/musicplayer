@@ -74,7 +74,7 @@ int main(int argc, const char** argv)
 
     sol::state lua;
 
-    lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::table);
+    lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::table, sol::lib::io);
 
     std::string songFile;
     int startSong = -1;
@@ -96,7 +96,7 @@ int main(int argc, const char** argv)
                 startSong = std::stoi(argv[++i]);
             } else if (opt == "color" || opt == "c") {
                 useColors = true;
-            } else if (opt == "p") {
+            } else if (opt == "r") {
                 report = std::string(argv[++i]);
                 bg = true;
             } else if (opt == "v") {
@@ -113,6 +113,9 @@ int main(int argc, const char** argv)
             } else if (opt == "n") {
                 command = "next";
                 bg = true;
+            } else if (opt == "p") {
+                command = "prev";
+                bg = true;
             }
 
         } else {
@@ -127,6 +130,7 @@ int main(int argc, const char** argv)
         while (std::getline(std::cin, line)) {
             songFiles.emplace_back(line);
         }
+        fmt::print("{} files\n", songFiles.size());
     }
 
     auto music_player =
@@ -142,7 +146,7 @@ int main(int argc, const char** argv)
     if (!songFiles.empty()) {
         if (clear) { music_player->clear(); }
         for (auto&& sf : songFiles) {
-            music_player->play(sf);
+            music_player->add(sf);
         }
     }
 
@@ -164,6 +168,7 @@ int main(int argc, const char** argv)
     if (writeOut) { return 0; }
 
     if (command == "next") { music_player->next(); }
+    if (command == "prev") { music_player->prev(); }
 
     if (bg) {
         music_player->detach();
@@ -178,7 +183,24 @@ int main(int argc, const char** argv)
     con->set_xy(0, 0);
 
     LuaPanel panel{lua, con};
+    std::unordered_map<std::string, Meta> meta;
 
+
+    std::unordered_map<int, std::function<void()>> mapping; 
+
+    lua["get_meta"] = [&] {
+        sol::table t = lua.create_table();
+        for(auto [name, val] : meta) {
+            std::visit([&,n=name](auto&& v) { t[n] = v; }, val);
+        }
+        return t;
+    };
+    lua.set_function("map", sol::overload( 
+		[&](std::string key, std::function<void()> const& fn) 
+        { mapping[static_cast<int>(key[0])] = fn; },
+		[&](int key, std::function<void()> const& fn) 
+        { mapping[key] = fn; }
+	));
 
     lua["set_theme"] = [&](sol::table args) {
         std::string panelText = args["panel"];
@@ -194,9 +216,11 @@ int main(int argc, const char** argv)
     lua["YELLOW"] = 0xffff00ff;
     lua["GREEN"] = 0x00ff00ff;
     lua["WHITE"] = 0xffffffff;
+    for (int i = KEY_F1 ; i <= KEY_F8; i++) {
+        lua[fmt::format("KEY_F{}", i - KEY_F1 + 1)] = i;
+    }
 
     lua["draw"] = [&](std::string const& id, std::string const& txt, uint32_t color) {
-        //fmt::print("{} {}\n", id, txt);
         panel.put(id, txt, color);
     };
 
@@ -207,8 +231,6 @@ int main(int argc, const char** argv)
 
     panel.init();
     con->flush();
-
-    std::unordered_map<std::string, Meta> meta;
 
     uint32_t song = 0;
 
@@ -250,12 +272,17 @@ int main(int argc, const char** argv)
 
         auto key = con->read_key();
         if (key == KEY_NONE) { std::this_thread::sleep_for(100ms); }
+        auto it = mapping.find(key);
+        if (it != mapping.end()) {
+            it->second();
+        }
         if (key == KEY_ESCAPE) {
             music_player->detach();
             quit = true;
         }
         if (key == 'q') { quit = true; }
         if (key == KEY_ENTER || key == 'n') { music_player->next(); }
+        if (key == KEY_BACKSPACE || key == 'p') { music_player->prev(); }
         if (key == KEY_RIGHT || key == ']') {
             music_player->set_song(song + 1);
         }
