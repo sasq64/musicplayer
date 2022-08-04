@@ -97,15 +97,16 @@ end
 function init()
     colorize("SONG", YELLOW)
     colorize("FORMAT", YELLOW)
-    var_color("sub_title", GRAY);
+    -- colorize(1,1,80,WHITE,RED)
+    var_color("sub_title", WHITE, BLACK)
+    var_color("title_and_composer", GRAY, BLACK)
 end
 
 set_theme({
         panel = panel, -- Scaled and parsed
         init_fn = init, -- Called after panel base is drawn
         update_fn = update, -- Called whenever meta updates
-        panel_fg = 0x80ff80ff,
-        var_fg = 0xffffffff
+        var_fg = RED,
 })
 
 

@@ -32,9 +32,9 @@ struct AnsiProtocol
         unsigned g1 = (bg >> 16) & 0xff;
         unsigned b1 = (bg >> 8) & 0xff;
 
-        auto fgs = fg == 12345 ? "\x1b[39m"s
+        auto fgs = fg == 0x12345600 ? "\x1b[39m"s
                                : fmt::format("\x1b[38;2;{};{};{}m", r0, g0, b0);
-        auto bgs = bg == 0 ? "\x1b[49m"s
+        auto bgs = bg == 0x12345600 ? "\x1b[49m"s
                            : fmt::format("\x1b[48;2;{};{};{}m", r1, g1, b1);
 
         return fgs + bgs;

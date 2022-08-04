@@ -26,11 +26,13 @@ inline bool is_wide(char32_t c)
     // return c > 0xffff;
 }
 
+
 class Console
 {
     using Protocol = AnsiProtocol;
 
 public:
+    static inline const uint32_t DefaultColor = 0x12345600;
     enum AnsiColors
     {
         WHITE,
@@ -146,8 +148,8 @@ public:
 
     int32_t cur_x = 0;
     int32_t cur_y = 0;
-    uint32_t cur_fg = 0xc0c0c007;
-    uint32_t cur_bg = 0;
+    uint32_t cur_fg = DefaultColor;
+    uint32_t cur_bg = DefaultColor;
 
     void resize(int32_t w, int32_t h)
     {

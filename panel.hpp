@@ -33,8 +33,8 @@ public:
         int y;
         int length;
         std::string name;
-        uint32_t fg = 0xffffff;
-        uint32_t bg = 0;
+        uint32_t fg = bbs::Console::DefaultColor;
+        uint32_t bg = bbs::Console::DefaultColor;
         std::function<void(Target&)> fn;
     };
 
@@ -44,8 +44,8 @@ private:
     using Loc = std::tuple<int, int, int>;
     // std::unordered_map<std::string, Loc> vars;
     std::vector<Target> targets;
-    uint32_t fg = 0xffffffff;
-    uint32_t bg = 0x00000ff;
+    uint32_t var_fg = bbs::Console::DefaultColor;
+    uint32_t var_bg = bbs::Console::DefaultColor;
 
     std::string panel = R"(
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$>━┓
@@ -133,9 +133,7 @@ protected:
                     auto [xx, yy, l] = start;
                     l = x - xx;
                     start = {xx, yy, l};
-                    uint32_t fg = 0;
-                    if (name == "format") { fg = 0x8080ff; }
-                    targets.push_back({xx, yy, l, name, fg});
+                    targets.push_back({xx, yy, l, name, var_fg, var_bg});
                 }
                 if (var && (c > 'z' || c < 'a') && c != '_') {
                     var = false;
@@ -169,8 +167,8 @@ public:
     virtual ~Panel() = default;
 
     void set_color(uint32_t fg = 0, uint32_t bg = 0) {
-        if (fg != 0) this->fg = fg;
-        if (bg != 0) this->bg = bg;
+        var_fg = fg;
+        var_bg = bg;
     }
 
     Target* get_var(std::string const& name)
@@ -208,14 +206,13 @@ public:
 
     void put(Target const& t, Meta const& val)
     {
+        console->set_color(t.fg, t.bg);
         console->clear(t.x, t.y, t.length, 1);
         auto value = to_string(val);
         if (value.length() >= t.length) {
             value = value.substr(0, t.length - 1);
         }
         console->set_xy(t.x, t.y);
-        console->set_color(fg);
-        if (t.fg != 0) { console->set_color(t.fg); }
         console->put(value);
     }
 

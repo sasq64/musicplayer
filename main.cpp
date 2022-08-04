@@ -106,12 +106,8 @@ int main(int argc, const char** argv)
 
     if (writeOut) { return 0; }
 
-    if (command == "next") {
-        music_player->next();
-    }
-    if (command == "prev") {
-        music_player->prev();
-    }
+    if (command == "next") { music_player->next(); }
+    if (command == "prev") { music_player->prev(); }
 
     if (bg) {
         music_player->detach();
@@ -122,12 +118,11 @@ int main(int argc, const char** argv)
         std::make_unique<bbs::LocalTerminal>();
     term->open();
     auto con = std::make_shared<bbs::Console>(std::move(term), 8, useColors);
-    con->set_color(0x00ff0000, 0);
     con->set_xy(0, 0);
 
     Panel panel{con};
     std::unordered_map<std::string, Meta> meta;
- 
+
     bool theme_set = false;
     sol::function update_fn;
     std::unordered_map<int, std::function<void()>> mapping;
@@ -139,9 +134,19 @@ int main(int argc, const char** argv)
         }
         return t;
     };
-    lua.set_function("var_color", [&](std::string const& var, uint32_t color) {
-        if (auto* target = panel.get_var(var)) { target->fg = color; }
-    });
+    lua.set_function("var_color",
+                     sol::overload(
+                         [&](std::string const& var, uint32_t color) {
+                             if (auto* target = panel.get_var(var)) {
+                                 target->fg = color;
+                             }
+                         },
+                         [&](std::string const& var, uint32_t fg, uint32_t bg) {
+                             if (auto* target = panel.get_var(var)) {
+                                 target->fg = fg;
+                                 target->bg = bg;
+                             }
+                         }));
     lua.set_function("map",
                      sol::overload(
                          [&](std::string key, std::function<void()> const& fn) {
@@ -151,30 +156,49 @@ int main(int argc, const char** argv)
                              mapping[key] = fn;
                          }));
 
-    lua.set_function("colorize",
-                     sol::overload(
-                         [&](std::string const& pattern, uint32_t color) {
-                             auto [x, y] = con->find(pattern);
-                             if (x >= 0) {
-                                 con->set_color(color);
-                                 con->colorize(x, y, pattern.size(), 1);
-                             }
-                         },
-                         [&](int x, int y, int len, uint32_t color) {
-                             con->set_color(color);
-                             con->colorize(x, y, len, 1);
-                         }));
+    lua.set_function(
+        "colorize",
+        sol::overload(
+            [&](std::string const& pattern, uint32_t color) {
+                auto [x, y] = con->find(pattern);
+                if (x >= 0) {
+                    con->set_color(color);
+                    con->colorize(x, y, pattern.size(), 1);
+                }
+            },
+            [&](std::string const& pattern, uint32_t fg, uint32_t bg) {
+                auto [x, y] = con->find(pattern);
+                if (x >= 0) {
+                    con->set_color(fg, bg);
+                    con->colorize(x, y, pattern.size(), 1);
+                }
+            },
+            [&](int x, int y, int len, uint32_t color) {
+                con->set_color(color);
+                con->colorize(x, y, len, 1);
+            },
+            [&](int x, int y, int len, uint32_t fg, uint32_t bg) {
+                con->set_color(fg, bg);
+                con->colorize(x, y, len, 1);
+            }));
 
     lua["set_theme"] = [&](sol::table args) {
         theme_set = true;
         std::string panelText = args["panel"];
-        uint32_t panel_fg = args["panel_fg"];
-        uint32_t var_fg = args["var_fg"];
-        con->set_color(panel_fg);
-        panel.set_color(var_fg, 0);
+        auto panel_bg =
+            args.get_or<uint32_t>("panel_bg", bbs::Console::DefaultColor);
+        auto panel_fg =
+            args.get_or<uint32_t>("panel_fg", bbs::Console::DefaultColor);
+        auto var_bg =
+            args.get_or<uint32_t>("var_bg", bbs::Console::DefaultColor);
+        auto var_fg =
+            args.get_or<uint32_t>("var_fg", bbs::Console::DefaultColor);
+        con->set_color(panel_fg, panel_bg);
+        panel.set_color(var_fg, var_bg);
         panel.set_panel(panelText);
         sol::function v = args["init_fn"];
         if (v.valid()) { v(); }
+        con->set_color(panel_fg, panel_bg);
         update_fn = args["update_fn"];
     };
 
@@ -182,7 +206,9 @@ int main(int argc, const char** argv)
     lua["GREEN"] = 0x00ff00ff;
     lua["RED"] = 0xff0000ff;
     lua["WHITE"] = 0xffffffff;
-    lua["GRAY"] = 0x808080ff;
+    lua["GRAY"] = 0x8080C0ff;
+    lua["BLACK"] = 0x000000ff;
+    lua["DEFAULT"] = 0x12345600;
     for (int i = KEY_F1; i <= KEY_F8; i++) {
         lua[fmt::format("KEY_F{}", i - KEY_F1 + 1)] = i;
     }
@@ -193,9 +219,7 @@ int main(int argc, const char** argv)
         auto res = lua.script_file(dataPath.string());
         if (!res.valid()) { fmt::print("ERROR\n"); }
     }
-    if (!theme_set) {
-        panel.set_panel();
-        }
+    if (!theme_set) { panel.set_panel(); }
     con->flush();
 
     uint32_t song = 0;
