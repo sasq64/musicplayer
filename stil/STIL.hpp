@@ -90,22 +90,7 @@ private:
         return t;
     }
 
-    enum
-    {
-        // MAGICID = 0,
-        PSID_VERSION = 4,
-        // DATA_OFFSET = 6,
-        // LOAD_ADDRESS = 8,
-        INIT_ADDRESS = 0xA,
-        PLAY_ADDRESS = 0xC,
-        SONGS = 0xE,
-        // START_SONG = 0x10,
-        SPEED = 0x12,
-        FLAGS = 0x76
-    };
-
 public:
-    static std::vector<uint8_t> calculateMD5(std::vector<uint8_t> const& data);
     static uint64_t calculateMD5(const std::string& fileName);
 
     void readSTIL();

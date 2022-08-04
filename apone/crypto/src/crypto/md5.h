@@ -15,7 +15,8 @@ class MD5
 public:
     explicit MD5(int flags = 0);
 
-    static uint64_t hash(const std::string& text);
+    static uint64_t hash(std::string const& text);
+    static std::vector<uint8_t> calc(std::vector<uint8_t> const& data);
 
     void add(std::vector<uint8_t> const& data, int offset = 0);
 

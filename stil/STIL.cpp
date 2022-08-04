@@ -48,40 +48,10 @@ STIL::~STIL()
     if (initThread.joinable()) { initThread.join(); }
 }
 
-std::vector<uint8_t> STIL::calculateMD5(std::vector<uint8_t> const& data)
-{
-    uint8_t speed = (data[0] == 'R') ? 60 : 0;
-    auto version = get<uint16_t>(data, PSID_VERSION);
-    auto initAdr = get<uint16_t>(data, INIT_ADDRESS);
-    auto playAdr = get<uint16_t>(data, PLAY_ADDRESS);
-    auto songs = get<uint16_t>(data, SONGS);
-    auto speedBits = get<uint32_t>(data, SPEED);
-    auto flags = get<uint16_t>(data, FLAGS);
-    auto offset = (version == 2) ? 126 : 120;
-
-    MD5 md5;
-    md5.add(data, 0);//offset);
-    /* md5.add(initAdr); */
-    /* md5.add(playAdr); */
-    /* md5.add(songs); */
-
-    /* for (unsigned i = 0; i < songs; i++) { */
-    /*     if ((speedBits & (1U << i)) != 0) { */
-    /*         md5.add(static_cast<uint8_t>(60)); */
-    /*     } else { */
-    /*         md5.add(speed); */
-    /*     } */
-    /* } */
-
-    /* if ((flags & 0x8U) != 0) { md5.add(static_cast<uint8_t>(2)); } */
-
-    return md5.get();
-}
-
 uint64_t STIL::calculateMD5(const std::string& fileName)
 {
     auto data = utils::read_file(fileName);
-    auto md5 = calculateMD5(data);
+    auto md5 = MD5::calc(data);
     return get<uint64_t>(md5, 0);
 }
 
@@ -274,7 +244,7 @@ void STIL::readLengths()
 STIL::STILSong STIL::getInfo(std::vector<uint8_t>const& data)
 {
     STILSong result;
-    auto md5 = calculateMD5(data);
+    auto md5 = MD5::calc(data);
     auto key = get<uint64_t>(md5, 0);
 
     auto it = lower_bound(mainHash.begin(), mainHash.end(), key);
@@ -338,7 +308,7 @@ std::vector<uint16_t> STIL::findLengths(uint64_t key)
 
 std::vector<uint16_t> STIL::findLengths(std::vector<uint8_t> const& data)
 {
-    auto md5 = calculateMD5(data);
+    auto md5 = MD5::calc(data);
     auto key = get<uint64_t>(md5, 0);
     return findLengths(key);
 }
