@@ -58,7 +58,8 @@ public:
     bool altMode = false;
 
     // Partial screen console
-    explicit Console(std::unique_ptr<Terminal> _terminal, int _height, bool _colors)
+    explicit Console(std::unique_ptr<Terminal> _terminal, int _height,
+                     bool _colors)
         : terminal(std::move(_terminal)), useColors(_colors)
     {
         put_fg = cur_fg;
@@ -81,7 +82,7 @@ public:
     {
         put_fg = cur_fg;
         put_bg = cur_bg;
-        
+
         write("\x1b[?1049h");
         if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }
         resize(terminal->width(), terminal->height());
@@ -189,6 +190,29 @@ public:
         }
     }
 
+    std::pair<int, int> find(std::string const& pattern)
+    {
+        auto it = std::search(grid.begin(), grid.end(), pattern.begin(), pattern.end(),
+                    [](Tile const& t, char c) -> bool {
+                                  return t.c == c;
+                              });
+        if (it != grid.end()) {
+            auto offset = it - grid.begin();
+            return {offset % width, offset / width};
+        }
+        return {-1, -1};
+    }
+
+    void colorize(int x, int y, int w, int h)
+    {
+        for (int yy = y; yy < y + h; yy++) {
+            for (int xx = x; xx < x + w; xx++) {
+                grid[xx + width * yy].fg = put_fg;
+                grid[xx + width * yy].bg = put_bg;
+            }
+        }
+    }
+
     void set_xy(int32_t x, int32_t y)
     {
         put_x = x;
@@ -220,10 +244,7 @@ public:
         put_bg = bg;
     }
 
-    void set_color(uint32_t fg)
-    {
-        put_fg = fg;
-    }
+    void set_color(uint32_t fg) { put_fg = fg; }
 
     void put(std::string const& text)
     {

@@ -137,6 +137,19 @@ public:
     {
         songs = length = 0;
 
+        if (fs::is_directory(songFile)) {
+            for (const auto& entry : fs::directory_iterator(songFile)) {
+                auto&& p = entry.path().string();
+                if (p[0] == '.' && (p[1] == 0 || (p[1] == '.' && p[2] == 0))) {
+                    continue;
+                }
+                play_list.push_front(entry.path());
+            }
+            played.pop_back();
+            play_next();
+            return;
+        }
+
         player = createPlayer(songFile);
         if (!player) { return; }
 

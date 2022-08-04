@@ -1,10 +1,10 @@
 panel = [[
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ $title                                       ┃
-┃ $sub_title                                   ┃
-┣━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━┫
-┃ $time         ┃ $s   ┃ $sng  ┃ $f     ┃ $fmt ┃
-┗━━━━━━━━━━━━━━━┻━━━━━━┻━━━━━━━┻━━━━━━━━┻━━━━━━┛
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$>━┓
+┃ $title_and_composer                            $> ┃
+┃ $sub_title                                     $> ┃
+┣━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━$>━┫
+┃ $t_l          ┃ SONG ┃ $s_s  ┃ FORMAT ┃ $format$> ┃
+┗━━━━━━━━━━━━━━━┻━━━━━━┻━━━━━━━┻━━━━━━━━┻━━━━━━━━$>━┛
 ]]
 
 function psplit(s)
@@ -15,9 +15,9 @@ function psplit(s)
     return parts
 end
 
-function contains(list, val)
+function contains(list, element)
     for _,v in pairs(list) do
-        if v == val then
+        if v == element then
             return true
         end
     end
@@ -62,46 +62,6 @@ function get_composer(meta)
     return composer
 end
 
-function render(meta)
-    title = meta.fixed_title
-    composer = meta.composer
-
-    parts = psplit(meta.filename)
-
-    if composer == '' then
-       if #parts > 3 and contains(parts, 'MODLAND') then
-           title = capitalize(title)
-           composer = parts[#parts - 1]
-           if composer:find('coop-') == 1 then
-               composer = parts[#parts - 2] .. ' & ' .. composer:sub(6)
-           end
-       else
-           composer = '???'
-       end
-    end
-
-    title = title .. ' / ' .. composer .. ' (' .. (meta.file_size // 1024) .. 'K)'
-
-    draw('title', title, WHITE)
-
-    draw('sub_title', meta.sub_title, 0xa0a0a0ff)
-    draw('fmt', meta.format .. ' ' .. meta.list_length, 0xa0a0ff)
-    secs = meta.seconds
-    len = meta.length
-    if len == 0 then
-        draw('time', string.format('%02d:%02d', secs // 60, secs % 60), WHITE)
-    else
-        draw('time', string.format('%02d:%02d / %02d:%02d',
-            secs // 60, secs % 60, len // 60, len % 60), WHITE)
-    end
-    draw('sng', string.format('%02d/%02d', meta.song + 1, meta.songs), WHITE)
-end
-
-function init()
-    draw("s", "SONG", YELLOW)
-    draw("f", "FORMAT", YELLOW)
-end
-
 function ext(filename)
     return filename:match("^.+(%..+)$")
 end
@@ -109,15 +69,43 @@ end
 map(KEY_F3, function()
     meta = get_meta()
     composer = get_composer(meta)
-    copy(meta.filename, "/Users/sasq/mods/" .. composer .. " - " .. meta.fixed_title .. ext(meta.filename))
+    copy(meta.filename, "/Users/sasq/mods/" .. composer ..
+            " - " .. meta.fixed_title .. ext(meta.filename))
 end)
 
 
+function update(meta)
+    title = meta.fixed_title
+    composer = meta.composer
+
+    parts = psplit(meta.filename)
+
+    if composer == '' then
+        if #parts > 3 and contains(parts, 'MODLAND') then
+            title = capitalize(title)
+            composer = parts[#parts - 1]
+            if composer:find('coop-') == 1 then
+                composer = parts[#parts - 2] .. ' & ' .. composer:sub(6)
+            end
+        else
+            composer = '???'
+        end
+    end
+    meta.title_and_composer = title .. ' / ' .. composer
+end
+
+function init()
+    colorize("SONG", YELLOW)
+    colorize("FORMAT", YELLOW)
+    var_color("sub_title", GRAY);
+end
+
 set_theme({
-        stretch_x = 46, 
         panel = panel, -- Scaled and parsed
-        init_fn = init,
-        render_fn = render -- Function that draws
-    })
+        init_fn = init, -- Called after panel base is drawn
+        update_fn = update, -- Called whenever meta updates
+        panel_fg = 0x80ff80ff,
+        var_fg = 0xffffffff
+})
 
 

@@ -1,6 +1,6 @@
 
-#include "player.hpp"
 #include "panel.hpp"
+#include "player.hpp"
 
 #include <ansi/console.h>
 #include <ansi/unix_terminal.h>
@@ -24,49 +24,6 @@
 
 using namespace std::string_literals;
 using namespace std::chrono_literals;
-template <typename... A> std::string to_string(std::variant<A...> const& v)
-{
-    return std::visit([](auto&& x) { return fmt::format("{}", x); }, v);
-}
-
-
-class LuaPanel : public Panel
-{
-    std::function<void(sol::table)> render_fn;
-    std::function<void()> init_fn;
-    sol::state& lua;
-public:
-    explicit LuaPanel(sol::state& _lua, std::shared_ptr<bbs::Console> _console)
-        : lua(_lua), Panel(std::move(_console))
-    {
-    }
-
-    void init()
-    {
-        if (init_fn) {
-            init_fn();
-        }
-    }
-
-    void render(std::unordered_map<std::string, Meta>& meta) override
-    {
-        make_title(meta);
-        sol::table t = lua.create_table();
-        for(auto [name, val] : meta) {
-            std::visit([&,n=name](auto&& v) { t[n] = v; }, val);
-        }
-        render_fn(t);
-    }
-
-    void set_render_fn(std::function<void(sol::table)> const& f) {
-        render_fn = f;
-    }
-    void set_init_fn(std::function<void()> const& f) {
-        init_fn = f;
-    }
-
-};
-
 
 int main(int argc, const char** argv)
 {
@@ -74,7 +31,8 @@ int main(int argc, const char** argv)
 
     sol::state lua;
 
-    lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::table, sol::lib::io);
+    lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::table,
+                       sol::lib::io);
 
     std::string songFile;
     int startSong = -1;
@@ -182,54 +140,74 @@ int main(int argc, const char** argv)
     con->set_color(0x00ff0000, 0);
     con->set_xy(0, 0);
 
-    LuaPanel panel{lua, con};
+    Panel panel{con};
+    //panel.set_panel();
     std::unordered_map<std::string, Meta> meta;
 
-
-    std::unordered_map<int, std::function<void()>> mapping; 
+    sol::function update_fn;
+    std::unordered_map<int, std::function<void()>> mapping;
 
     lua["get_meta"] = [&] {
         sol::table t = lua.create_table();
-        for(auto [name, val] : meta) {
-            std::visit([&,n=name](auto&& v) { t[n] = v; }, val);
+        for (auto [name, val] : meta) {
+            std::visit([&, n = name](auto&& v) { t[n] = v; }, val);
         }
         return t;
     };
-    lua.set_function("map", sol::overload( 
-		[&](std::string key, std::function<void()> const& fn) 
-        { mapping[static_cast<int>(key[0])] = fn; },
-		[&](int key, std::function<void()> const& fn) 
-        { mapping[key] = fn; }
-	));
+    lua.set_function("var_color", [&](std::string const& var, uint32_t color) {
+        if (auto* target = panel.get_var(var)) { target->fg = color; }
+    });
+    lua.set_function("map",
+                     sol::overload(
+                         [&](std::string key, std::function<void()> const& fn) {
+                             mapping[static_cast<int>(key[0])] = fn;
+                         },
+                         [&](int key, std::function<void()> const& fn) {
+                             mapping[key] = fn;
+                         }));
+
+    lua.set_function("colorize",
+                     sol::overload(
+                         [&](std::string const& pattern, uint32_t color) {
+                             auto [x, y] = con->find(pattern);
+                             if (x >= 0) {
+                                 con->set_color(color);
+                                 con->colorize(x, y, pattern.size(), 1);
+                             }
+                         },
+                         [&](int x, int y, int len, uint32_t color) {
+                             con->set_color(color);
+                             con->colorize(x, y, len, 1);
+                         }));
 
     lua["set_theme"] = [&](sol::table args) {
         std::string panelText = args["panel"];
-        int sx = args["stretch_x"];
-        panel.set_panel(panelText, sx);
-        sol::lua_value v = args["render_fn"];
-        panel.set_render_fn(v.as<std::function<void(sol::table)>>());
-
-        v = args["init_fn"];
-        panel.set_init_fn(v.as<std::function<void()>>());
+        uint32_t panel_fg = args["panel_fg"];
+        uint32_t var_fg = args["var_fg"];
+        con->set_color(panel_fg);
+        panel.set_color(var_fg, 0);
+        if (!panelText.empty()) {
+            panel.set_panel(panelText);
+        }
+        sol::function v = args["init_fn"];
+        if (v.valid()) {
+            v();
+        }
+        update_fn = args["update_fn"];
     };
 
     lua["YELLOW"] = 0xffff00ff;
     lua["GREEN"] = 0x00ff00ff;
     lua["WHITE"] = 0xffffffff;
-    for (int i = KEY_F1 ; i <= KEY_F8; i++) {
+    lua["GRAY"] = 0x808080ff;
+    for (int i = KEY_F1; i <= KEY_F8; i++) {
         lua[fmt::format("KEY_F{}", i - KEY_F1 + 1)] = i;
     }
-
-    lua["draw"] = [&](std::string const& id, std::string const& txt, uint32_t color) {
-        panel.put(id, txt, color);
-    };
 
     auto dataPath = MusicPlayer::findDataPath("init.lua");
 
     auto res = lua.script_file(dataPath.string());
     if (!res.valid()) { fmt::print("ERROR\n"); }
-
-    panel.init();
     con->flush();
 
     uint32_t song = 0;
@@ -265,6 +243,23 @@ int main(int argc, const char** argv)
         }
         if (output) {
             if (!info.empty()) {
+
+                panel.update(meta);
+                if (update_fn.valid()) {
+                    sol::table t = lua.create_table();
+                    for (auto [name, val] : meta) {
+                        std::visit([&, n = name](auto&& v) { t[n] = v; }, val);
+                    }
+                    update_fn(t);
+                    for (auto&& [key, val] : t) {
+                        if (val.get_type() == sol::type::number) {
+                            meta[key.as<std::string>()] = val.as<uint32_t>();
+                        } else {
+                            meta[key.as<std::string>()] = val.as<std::string>();
+                        }
+                    }
+                }
+
                 panel.render(meta);
                 con->flush();
             }
@@ -273,9 +268,7 @@ int main(int argc, const char** argv)
         auto key = con->read_key();
         if (key == KEY_NONE) { std::this_thread::sleep_for(100ms); }
         auto it = mapping.find(key);
-        if (it != mapping.end()) {
-            it->second();
-        }
+        if (it != mapping.end()) { it->second(); }
         if (key == KEY_ESCAPE) {
             music_player->detach();
             quit = true;
