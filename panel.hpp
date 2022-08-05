@@ -186,25 +186,7 @@ public:
         int height = parse_panel(panelText);
         console->init(height, useColors);
         console->put(panelText);
-        // put("s", "SONG", 0xffff0000);
-        // put("f", "FORMAT", 0xffff0000);
     }
-    //
-    //    void put(std::string const& id, std::string value, uint32_t col = 0)
-    //    {
-    //        auto pos = vars[id];
-    //        auto [x, y, l] = vars[id];
-    //        console->clear(x, y, l, 1);
-    //        if (value.length() >= l) { value = value.substr(0, l - 1); }
-    //        console->set_xy(x, y);
-    //        if (col != 0) { console->set_color(col); }
-    //        console->put(value);
-    //    }
-    //
-    //    void put(std::string const& id, uint32_t value, uint32_t col = 0)
-    //    {
-    //        put(id, std::to_string(value), col);
-    //    }
 
     void put(Target const& t, Meta const& val)
     {

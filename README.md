@@ -10,7 +10,7 @@ Musix player
 ┗━━━━━━━━━━━━━━━┻━━━━━━┻━━━━━━━┻━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
-### Building
+### Building & Running
 
 ```
 make
@@ -29,6 +29,7 @@ Copy `msxp` to your path and the `data` directory as
 
 * `-d` run in background
 * `-n` play next file
+* `-p` play previous file
 * `-s <no>` Set subsong
 * `-o` Write audio to stdout
 * `-q` Quit background player
@@ -36,12 +37,26 @@ Copy `msxp` to your path and the `data` directory as
 
 ### Text UI
 
-`[ENTER]` for next file
-`[LEFT]` / `[RIGHT]` for sub song
-`[ESC]` to detach and keep playing
-`q` to quit
+* `[ENTER]` / `[BACKSPACE]` for next/previous file
+* `[LEFT]` / `[RIGHT]` for sub song
+* `[ESC]` to detach and keep playing
+* `q` to quit
+
+(Run without file arguments to activate UI again)
 
 ### Converting to MP3
 
 `msxp -o <file> | lame -r file.mp3`
 
+### Playing multiple files
+(Examples require downloaded copy of MODLAND :)
+
+Play all tracked music by Purple Motion (and shuffle it)
+```
+fd ".(mod|xm|s3m)$" ~/MODLAND/*/Purple\ Motion | sort -R | msxp && msxp -c
+```
+
+### LUA & Themes
+
+Copy `data/example.lua` to `~/.config/musix.lua` and edit it to change
+the theme etc (TBC).
