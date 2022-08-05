@@ -56,7 +56,7 @@ Copy `msxp` to your path and the `data` directory as
 
 Play all tracked music by Purple Motion
 ```
-fd ".(mod|xm|s3m)$" ~/MODLAND/*/Purple\ Motion msxp && msxp -c
+fd ".(mod|xm|s3m)$" ~/MODLAND/*/Purple\ Motion | msxp && msxp -c
 ```
 
 Play all tracked music in (~134K files) and shuffle it
@@ -67,5 +67,5 @@ fd ".(mod|xm|s3m)$" ~/MODLAND | sort -R | msxp
 
 ### LUA & Themes
 
-Copy `data/example.lua` to `~/.config/musix.lua` and edit it to change
+Copy `data/example.lua` to `~/.config/musix/init.lua` and edit it to change
 the theme etc. (TBC).
