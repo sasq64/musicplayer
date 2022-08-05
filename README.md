@@ -2,6 +2,7 @@ Musix player
 ============
 
 ```
+
 ➜  msxp music/C64/Last_Ninja_2.sid
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Last Ninja 2 ( The Street (loader)) / Matt Gray                                           ┃
@@ -51,9 +52,16 @@ Copy `msxp` to your path and the `data` directory as
 ### Playing multiple files
 (Examples require downloaded copy of MODLAND :)
 
-Play all tracked music by Purple Motion (and shuffle it)
+
+Play all tracked music by Purple Motion
 ```
-fd ".(mod|xm|s3m)$" ~/MODLAND/*/Purple\ Motion | sort -R | msxp && msxp -c
+fd ".(mod|xm|s3m)$" ~/MODLAND/*/Purple\ Motion msxp && msxp -c
+```
+
+Play all tracked music in (~134K files) and shuffle it
+
+```
+fd ".(mod|xm|s3m)$" ~/MODLAND | sort -R | msxp
 ```
 
 ### LUA & Themes
