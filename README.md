@@ -4,25 +4,26 @@ Musix player
 ```
 
 ➜  msxp music/C64/Last_Ninja_2.sid
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Last Ninja 2 ( The Street (loader)) / Matt Gray                                           ┃
-┣━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ 00:15 / 05:03 ┃ SONG ┃ 03/13 ┃ FORMAT ┃ SID                                               ┃
-┗━━━━━━━━━━━━━━━┻━━━━━━┻━━━━━━━┻━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Last Ninja 2 / Matt Gray                                       ┃
+┃ The Street (loader)                                            ┃
+┣━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ 00:27 / 05:03 ┃ SONG ┃ 03/13 ┃ FORMAT ┃ SID (C64)              ┃
+┗━━━━━━━━━━━━━━━┻━━━━━━┻━━━━━━━┻━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 ### Building & Running
 
 ```
 make
-build/debug/msxp music/Warhawk.sap
+build/msxp music/Warhawk.sap
 ```
 
 ### Installing
 
 Copy `msxp` to your path and the `data` directory as
 `/usr/local/share/musix` or `~/.local/share/musix`
-(Or keep the `data` directory along side the excutable).
+(Or keep the `data` directory alongside the executable).
 
 ### Using
 
@@ -67,4 +68,4 @@ fd ".(mod|xm|s3m)$" ~/MODLAND | sort -R | msxp
 ### LUA & Themes
 
 Copy `data/example.lua` to `~/.config/musix.lua` and edit it to change
-the theme etc (TBC).
+the theme etc. (TBC).

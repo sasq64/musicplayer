@@ -41,8 +41,8 @@ add_subdirectory(${APONE}/audioplayer audioplayer)
 add_subdirectory(${APONE}/archive archive)
 
 
-add_subdirectory(psf)
-add_subdirectory(stil)
+add_subdirectory(src/psf)
+add_subdirectory(src/stil)
 
 set(MUSICPLAYER_PLUGINS
     adplugin
@@ -73,18 +73,18 @@ set(MUSICPLAYER_PLUGINS
     # sexypsfplugin
     # modplugin
 )
-add_subdirectory(plugins)
+add_subdirectory(src/plugins)
 
 
-add_library(musix SHARED lib.cpp)
+add_library(musix SHARED src/lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive Threads::Threads)
 
-add_executable(play simple.cpp resampler.cpp)
+add_executable(play src/simple.cpp src/resampler.cpp)
 target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive Threads::Threads)
 
-add_executable(msxp main.cpp resampler.cpp player.cpp resampler.cpp)
+add_executable(msxp src/main.cpp src/resampler.cpp src/player.cpp src/resampler.cpp)
 target_compile_definitions(msxp PUBLIC SOL_USING_CXX_LUA)
 target_link_libraries(msxp PUBLIC ansi fmt::fmt lua sol2::sol2  ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive readerwriterqueue Threads::Threads)
