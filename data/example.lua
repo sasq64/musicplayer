@@ -98,8 +98,8 @@ function init()
     colorize("SONG", YELLOW)
     colorize("FORMAT", YELLOW)
     -- colorize(1,1,80,WHITE,RED)
-    var_color("sub_title", WHITE, BLACK)
-    var_color("title_and_composer", GRAY, BLACK)
+    var_color("sub_title", GRAY, BLACK)
+    var_color("title_and_composer", WHITE, BLACK)
 end
 
 set_theme({

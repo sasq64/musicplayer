@@ -26,7 +26,6 @@ inline bool is_wide(char32_t c)
     // return c > 0xffff;
 }
 
-
 class Console
 {
     using Protocol = AnsiProtocol;
@@ -60,39 +59,36 @@ public:
     bool altMode = false;
 
     // Partial screen console
-    explicit Console(std::unique_ptr<Terminal> _terminal, int _height,
-                     bool _colors)
-        : terminal(std::move(_terminal)), useColors(_colors)
+    explicit Console(std::unique_ptr<Terminal> _terminal)
+        : terminal(std::move(_terminal))
     {
         put_fg = cur_fg;
         put_bg = cur_bg;
-        if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }
-
-        resize(terminal->width(), _height);
-        for (int y = 0; y < height; y++) {
-            puts("");
-        }
-        auto [ox, oy] = get_xy();
-        org_x = 0;
-        org_y = oy - height - 1;
-        write("\x1b[?25l");
-    }
-
-    // Fullscreen console on alt
-    explicit Console(std::unique_ptr<Terminal> terminal_)
-        : terminal(std::move(terminal_)), altMode(true)
-    {
-        put_fg = cur_fg;
-        put_bg = cur_bg;
-
-        write("\x1b[?1049h");
-        if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }
         resize(terminal->width(), terminal->height());
-        write(Protocol::goto_xy(0, 0));
-        write(Protocol::clear());
-        write("\x1b[?25l");
     }
 
+    void init(int _height, bool colors)
+    {
+        useColors = colors;
+        if (useColors) { write(Protocol::set_color(cur_fg, cur_bg)); }
+        if (_height > 0) {
+
+            resize(terminal->width(), _height);
+            for (int y = 0; y < height; y++) {
+                puts("");
+            }
+            auto [ox, oy] = get_xy();
+            org_x = 0;
+            org_y = oy - height - 1;
+        } else {
+            altMode = true;
+            write("\x1b[?1049h");
+            resize(terminal->width(), terminal->height());
+            write(Protocol::goto_xy(0, 0));
+            write(Protocol::clear());
+        }
+        write("\x1b[?25l");
+    }
     Console() = default;
 
     Console(int w, int h)
@@ -194,10 +190,9 @@ public:
 
     std::pair<int, int> find(std::string const& pattern)
     {
-        auto it = std::search(grid.begin(), grid.end(), pattern.begin(), pattern.end(),
-                    [](Tile const& t, char c) -> bool {
-                                  return t.c == c;
-                              });
+        auto it = std::search(
+            grid.begin(), grid.end(), pattern.begin(), pattern.end(),
+            [](Tile const& t, char c) -> bool { return t.c == c; });
         if (it != grid.end()) {
             auto offset = it - grid.begin();
             return {offset % width, offset / width};

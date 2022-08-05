@@ -2,6 +2,8 @@
 #include "panel.hpp"
 #include "player.hpp"
 
+#include "colors.hpp"
+
 #include <ansi/console.h>
 #include <ansi/unix_terminal.h>
 #include <coreutils/log.h>
@@ -117,15 +119,25 @@ int main(int argc, const char** argv)
     std::unique_ptr<bbs::Terminal> term =
         std::make_unique<bbs::LocalTerminal>();
     term->open();
-    auto con = std::make_shared<bbs::Console>(std::move(term), 8, useColors);
+    auto con = std::make_shared<bbs::Console>(std::move(term));
     con->set_xy(0, 0);
 
-    Panel panel{con};
+    auto panel = Panel{con};
+    panel.useColors = useColors;
     std::unordered_map<std::string, Meta> meta;
 
     bool theme_set = false;
     sol::function update_fn;
     std::unordered_map<int, std::function<void()>> mapping;
+
+    for (auto&& [name, color] : html_colors) {
+        lua[utils::toUpper(name)] = (color << 8) | 0xff;
+    }
+    lua["DEFAULT"] = 0x12345600;
+
+    for (int i = KEY_F1; i <= KEY_F8; i++) {
+        lua[fmt::format("KEY_F{}", i - KEY_F1 + 1)] = i;
+    }
 
     lua["get_meta"] = [&] {
         sol::table t = lua.create_table();
@@ -201,17 +213,6 @@ int main(int argc, const char** argv)
         con->set_color(panel_fg, panel_bg);
         update_fn = args["update_fn"];
     };
-
-    lua["YELLOW"] = 0xffff00ff;
-    lua["GREEN"] = 0x00ff00ff;
-    lua["RED"] = 0xff0000ff;
-    lua["WHITE"] = 0xffffffff;
-    lua["GRAY"] = 0x8080C0ff;
-    lua["BLACK"] = 0x000000ff;
-    lua["DEFAULT"] = 0x12345600;
-    for (int i = KEY_F1; i <= KEY_F8; i++) {
-        lua[fmt::format("KEY_F{}", i - KEY_F1 + 1)] = i;
-    }
 
     auto dataPath = MusicPlayer::findDataPath("init.lua");
 

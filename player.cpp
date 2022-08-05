@@ -407,19 +407,24 @@ public:
             // In parent, return
             return;
         }
+
         // Child starting
-        // puts("Redirecting stdout");
         umask(0);
         auto sid = setsid();
         if (sid < 0) { throw musix::player_exception("Could not setsid("); }
+
         if (freopen((utils::get_home_dir() / ".musix.stdout").c_str(), "w",
                     stdout) == nullptr) {
             // Oh well
         }
+        if (freopen((utils::get_home_dir() / ".musix.stderr").c_str(), "w",
+                    stderr) == nullptr) {
+            // Oh well
+        }
 
         close(STDIN_FILENO);
+        close(STDERR_FILENO);
         // close(STDOUT_FILENO);
-        // close(STDERR_FILENO);
         puts("Creating player");
         ThreadedPlayer player;
         std::string l;
@@ -458,11 +463,11 @@ public:
                 l.resize(1024);
             }
             if (ferror(myfile) > 0) {
-                //if (errno == EAGAIN || errno = EWOULDBLOCK) {
-                //}
-                log("ERROR: Failed to read pipe: {}", strerror(errno));
+                if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                    log("ERROR: Failed to read pipe: {}", strerror(errno));
+                    exit(1);
+                }
                 clearerr(myfile);
-                //exit(1);
             }
             auto allInfo = player.get_info();
             if (!allInfo.empty()) {

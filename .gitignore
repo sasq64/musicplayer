@@ -11,5 +11,5 @@ tidy.log
 .cache/
 .idea/
 cmake-build-*/
-builds/
+build/
 

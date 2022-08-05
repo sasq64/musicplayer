@@ -125,6 +125,18 @@ inline std::string toLower(const std::string& s)
     return s2;
 }
 
+inline void makeUpper(std::string& s)
+{
+    for (auto& c : s) { c = static_cast<char>(toupper(c)); }
+}
+
+inline std::string toUpper(const std::string& s)
+{
+    std::string s2 = s;
+    makeUpper(s2);
+    return s2;
+}
+
 inline std::string path_basename(const std::string& name)
 {
     return fs::path(name).stem().string();

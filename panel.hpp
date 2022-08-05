@@ -38,16 +38,17 @@ public:
         std::function<void(Target&)> fn;
     };
 
+    bool useColors = true;
+
 private:
     std::shared_ptr<bbs::Console> console;
-    int con_width;
     using Loc = std::tuple<int, int, int>;
     // std::unordered_map<std::string, Loc> vars;
     std::vector<Target> targets;
     uint32_t var_fg = bbs::Console::DefaultColor;
     uint32_t var_bg = bbs::Console::DefaultColor;
 
-    std::string panel = R"(
+    std::string panelText = R"(
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$>━┓
 ┃ $title_and_composer                            $> ┃
 ┃ $sub_title                                     $> ┃
@@ -95,16 +96,13 @@ protected:
         meta["full_title"] = title;
     }
 
-    void parse_panel(std::string& panel)
+    int parse_panel(std::string& panel)
     {
         std::string name;
-        // auto panel32 = utils::utf8_decode(panel);
-
         std::vector<std::u32string> lines;
-        size_t max_len = 0;
-
         std::stringstream ss(panel);
         std::string lin;
+
         while (std::getline(ss, lin, '\n')) {
             if (lin.empty()) { continue; }
             lines.push_back(utils::utf8_decode(lin));
@@ -112,11 +110,13 @@ protected:
 
         for (auto& line : lines) {
             auto pos = line.find(U"$>");
-            line.erase(pos, 2);
-            auto c = line[pos];
-            auto add_size = con_width - line.length();
-            auto filler = std::u32string(add_size, c);
-            line.insert(pos, filler);
+            if (pos != std::string::npos) {
+                line.erase(pos, 2);
+                auto c = line[pos];
+                auto add_size = console->get_width() - line.length();
+                auto filler = std::u32string(add_size, c);
+                line.insert(pos, filler);
+            }
         }
 
         int x = 0;
@@ -156,11 +156,12 @@ protected:
             y++;
         }
         panel = utils::utf8_encode(out);
+        return static_cast<int>(lines.size());
     }
 
 public:
     explicit Panel(std::shared_ptr<bbs::Console> _console)
-        : console{std::move(_console)}, con_width(console->get_width())
+        : console{std::move(_console)}
     {
     }
 
@@ -181,9 +182,10 @@ public:
 
     void set_panel(std::string const& p = ""s)
     {
-        if (!p.empty()) { panel = p; }
-        parse_panel(panel);
-        console->put(panel);
+        if (!p.empty()) { panelText = p; }
+        int height = parse_panel(panelText);
+        console->init(height, useColors);
+        console->put(panelText);
         // put("s", "SONG", 0xffff0000);
         // put("f", "FORMAT", 0xffff0000);
     }
