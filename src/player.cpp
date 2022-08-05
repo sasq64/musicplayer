@@ -157,12 +157,14 @@ public:
             player->seekTo(startSong, -1);
             startSong = -1;
         }
+        std::error_code ec;
+        auto fsize = fs::file_size(songFile, ec);
 
         length = 0;
         infoList.clear();
         infoList.emplace_back("init", ""s);
         infoList.emplace_back("list_length", static_cast<uint32_t>(play_list.size()));
-        infoList.emplace_back("file_size", static_cast<uint32_t>(fs::file_size(songFile)));
+        infoList.emplace_back("file_size", static_cast<uint32_t>(fsize));
         
         infoList.emplace_back("filename", fs::absolute(songFile).string());
         player->onMeta([this](auto&& meta_list, auto*) {
