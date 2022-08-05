@@ -163,9 +163,10 @@ public:
         length = 0;
         infoList.clear();
         infoList.emplace_back("init", ""s);
-        infoList.emplace_back("list_length", static_cast<uint32_t>(play_list.size()));
+        infoList.emplace_back("list_length",
+                              static_cast<uint32_t>(play_list.size()));
         infoList.emplace_back("file_size", static_cast<uint32_t>(fsize));
-        
+
         infoList.emplace_back("filename", fs::absolute(songFile).string());
         player->onMeta([this](auto&& meta_list, auto*) {
             for (auto&& name : meta_list) {
@@ -202,7 +203,7 @@ public:
     void update() override
     {
         if (player == nullptr) {
-            //play_next();
+            // play_next();
             return;
         }
 
@@ -366,6 +367,8 @@ class PipePlayer : public MusicPlayer
 public:
     PipePlayer()
     {
+        auto exe_id = utils::get_exe_id();
+
         auto fifo_in = utils::get_home_dir() / ".musix_fifo_in";
         auto fifo_out = utils::get_home_dir() / ".musix_fifo_out";
 
@@ -376,22 +379,32 @@ public:
         int fd = open(fifo_out.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         infile = fdopen(fd, "r");
 
-        int test_fd = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK  | O_CLOEXEC);
+        int test_fd = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
         if (test_fd > 0) {
-            close(test_fd);
-            test_fd = open(fifo_in.c_str(), O_WRONLY | O_CLOEXEC);
+            auto contents = utils::read_as_string(utils::get_home_dir() / ".musix.id");
+            auto id = contents.empty() ? 0 : std::stol(contents);
+            if (id == exe_id) {
+                close(test_fd);
+                test_fd = open(fifo_in.c_str(), O_WRONLY | O_CLOEXEC);
 
-            cmdfile = fdopen(test_fd, "w");
-            std::array<char, 128> temp{};
-            while (fgets(temp.data(), temp.size(), infile) != nullptr) {}
-
-            fputs(fmt::format("d{}\n", fs::current_path().string()).c_str(),
-                  cmdfile);
-            fflush(cmdfile);
-            fputs("?\n", cmdfile);
-            fflush(cmdfile);
-            return;
+                cmdfile = fdopen(test_fd, "w");
+                std::array<char, 128> temp{};
+                // Throw away anything still in the fifo since last session
+                while (fgets(temp.data(), temp.size(), infile) != nullptr) {}
+                fputs(fmt::format("d{}\n", fs::current_path().string()).c_str(),
+                      cmdfile);
+                fputs("?\n", cmdfile);
+                fflush(cmdfile);
+                return;
+            } else {
+                write(test_fd, "q\n", 2);
+                close(test_fd);
+                fmt::print("Player was updated!\nYou may have to manually kill the running player process!\n");
+                exit(0);
+            }
         }
+
+        utils::write_as_string(utils::get_home_dir() / ".musix.id", std::to_string(exe_id));
 
         fd = open(fifo_in.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         FILE* myfile = fdopen(fd, "r");
@@ -399,7 +412,7 @@ public:
         fd = open(fifo_out.c_str(), O_WRONLY | O_CLOEXEC);
         FILE* outfile = fdopen(fd, "w");
 
-        fd = open(fifo_in.c_str(), O_WRONLY  | O_CLOEXEC);
+        fd = open(fifo_in.c_str(), O_WRONLY | O_CLOEXEC);
         cmdfile = fdopen(fd, "w");
         // puts("Done");
 
@@ -419,15 +432,8 @@ public:
                     stdout) == nullptr) {
             // Oh well
         }
-        if (freopen((utils::get_home_dir() / ".musix.stderr").c_str(), "w",
-                    stderr) == nullptr) {
-            // Oh well
-        }
-
         close(STDIN_FILENO);
-        close(STDERR_FILENO);
-        // close(STDOUT_FILENO);
-        puts("Creating player");
+        log("Creating player");
         ThreadedPlayer player;
         std::string l;
         bool quit = false;
@@ -513,7 +519,7 @@ public:
     {
         auto line = fmt::format(">{}\n", name.string());
         auto rc = fwrite(line.c_str(), 1, line.length(), cmdfile);
-        if (rc < line.length()) { 
+        if (rc < line.length()) {
             fmt::print("FAILED\n");
             fflush(stdout);
             exit(1);

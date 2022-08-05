@@ -1,7 +1,5 @@
 #pragma once
 
-//#include "file.h"
-//#include "path.h"
 #include "split.h"
 
 #include <algorithm>
@@ -33,7 +31,7 @@ namespace fs = std::filesystem;
 #    define WIN32_LEAN_AND_MEAN
 #    include <windows.h>
 #else
-#   include <unistd.h>
+#    include <unistd.h>
 #endif
 
 namespace utils {
@@ -115,7 +113,9 @@ inline bool isLower(std::string const& s)
 
 inline void makeLower(std::string& s)
 {
-    for (auto& c : s) { c = static_cast<char>(tolower(c)); }
+    for (auto& c : s) {
+        c = static_cast<char>(tolower(c));
+    }
 }
 
 inline std::string toLower(const std::string& s)
@@ -127,7 +127,9 @@ inline std::string toLower(const std::string& s)
 
 inline void makeUpper(std::string& s)
 {
-    for (auto& c : s) { c = static_cast<char>(toupper(c)); }
+    for (auto& c : s) {
+        c = static_cast<char>(toupper(c));
+    }
 }
 
 inline std::string toUpper(const std::string& s)
@@ -292,26 +294,38 @@ inline fs::path get_cache_dir(std::string const& appName)
     return d;
 }
 
-inline fs::path get_exe_dir()
+inline fs::path get_exe_path()
 {
     fs::path exeDir;
     char buf[1024];
 #if defined _WIN32
     GetModuleFileName(nullptr, buf, sizeof(buf) - 1);
-    exeDir = fs::path(buf).parent_path();
+    exeDir = fs::path(buf);
 #elif defined __APPLE__
     uint32_t size = sizeof(buf);
-    if (_NSGetExecutablePath(buf, &size) == 0) {
-        exeDir = fs::path(buf).parent_path();
-    }
+    if (_NSGetExecutablePath(buf, &size) == 0) { exeDir = fs::path(buf); }
 #else
     int rc = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
     if (rc >= 0) {
         buf[rc] = 0;
-        exeDir = fs::path(buf).parent_path();
+        exeDir = fs::path(buf);
     }
 #endif
     return exeDir;
+}
+
+inline fs::path get_exe_dir()
+{
+    return get_exe_path().parent_path();
+}
+
+inline uint32_t get_exe_id()
+{
+    auto exe_path = get_exe_path();
+    uint32_t id = fs::file_size(exe_path);
+    auto t = fs::last_write_time(exe_path).time_since_epoch().count();
+    id ^= static_cast<uint32_t>(t);
+    return id;
 }
 
 static constexpr char PathSeparator = ';';

@@ -1,0 +1,21 @@
+Checks: '*, -abseil-string-find-startswith, -altera-*, -bugprone-exception-escape, -cert-*, -cert-err34-c, -cert-err58-cpp, -clang-analyzer-*, -clang-diagnostic-unknown-warning-option, -cppcoreguidelines-avoid-magic-numbers, -cppcoreguidelines-macro-usage, -cppcoreguidelines-non-private-member-variables-in-classes, -cppcoreguidelines-owning-memory, -cppcoreguidelines-pro-bounds-array-to-pointer-decay, -cppcoreguidelines-pro-bounds-constant-array-index, -cppcoreguidelines-pro-bounds-pointer-arithmetic, -cppcoreguidelines-pro-type-reinterpret-cast, -cppcoreguidelines-pro-type-union-access, -cppcoreguidelines-pro-type-vararg, -cppcoreguidelines-special-member-functions, -fuchsia-default-arguments, -fuchsia-default-arguments-calls, -fuchsia-default-arguments-declarations, -fuchsia-overloaded-operator, -fuchsia-statically-constructed-objects, -fuchsia-trailing-return, -google-default-arguments,  -google-readability-todo, -google-runtime-int, -google-runtime-references, -hicpp-braces-around-statements, -hicpp-exception-baseclass, -hicpp-named-parameter, -hicpp-no-array-decay, -hicpp-signed-bitwise, -hicpp-special-member-functions, -hicpp-vararg, -llvm-header-guard, -llvmlibc-*, -misc-no-recursion, -misc-non-private-member-variables-in-classes, -modernize-pass-by-value, -modernize-raw-string-literal, -modernize-use-nodiscard, -modernize-use-trailing-return-type,  -readability-function-cognitive-complexity, -readability-magic-numbers, -readability-named-parameter, -hicpp-no-assembler, -cppcoreguidelines-avoid-non-const-global-variables, -cppcoreguidelines-no-malloc, -hicpp-no-malloc, -performance-inefficient-string-concatenation, -abseil-*, -hicpp-avoid-c-arrays, -performance-no-int-to-ptr, -android-cloexec-fopen, -bugprone-implicit-widening-of-multiplication-result, -google-explicit-constructor, -bugprone-easily-swappable-parameters, -readability-identifier-length'
+WarningsAsErrors: ''
+HeaderFilterRegex: ''
+AnalyzeTemporaryDtors: false
+FormatStyle:     none
+User:            sasq
+CheckOptions:    
+  - key:             modernize-loop-convert.MaxCopySize
+    value:           '16'
+  - key:             modernize-loop-convert.MinConfidence
+    value:           reasonable
+  - key:             modernize-loop-convert.NamingStyle
+    value:           CamelCase
+  - key:             modernize-pass-by-value.IncludeStyle
+    value:           llvm
+  - key:             modernize-replace-auto-ptr.IncludeStyle
+    value:           llvm
+  - key:             modernize-use-nullptr.NullMacros
+    value:           'NULL'
+...
+
