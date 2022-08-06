@@ -74,12 +74,12 @@ public:
         if (_height > 0) {
 
             resize(terminal->width(), _height);
-            for (int y = 0; y < height; y++) {
+            for (int y = 0; y < height-1; y++) {
                 puts("");
             }
             auto [ox, oy] = get_xy();
             org_x = 0;
-            org_y = oy - height - 1;
+            org_y = oy - height;
         } else {
             altMode = true;
             write("\x1b[?1049h");

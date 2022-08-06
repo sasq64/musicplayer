@@ -185,7 +185,18 @@ public:
         if (!p.empty()) { panelText = p; }
         int height = parse_panel(panelText);
         console->init(height, useColors);
+        if (p.empty()) {
+            console->set_color(0x20e020ff);
+        }
         console->put(panelText);
+        if (p.empty()) {
+            if (auto* target = get_var("sub_title")) {
+                target->fg = 0xa0a0a0ff;
+            }
+            if (auto* target = get_var("format")) {
+                target->fg = 0x8080ffff;
+            }
+        }
     }
 
     void put(Target const& t, Meta const& val)
