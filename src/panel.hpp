@@ -4,6 +4,7 @@
 #include "player.hpp"
 
 #include <ansi/console.h>
+#include <ansi/unix_terminal.h>
 
 #include <fmt/format.h>
 
@@ -160,14 +161,24 @@ protected:
     }
 
 public:
-    explicit Panel(std::shared_ptr<bbs::Console> _console)
-        : console{std::move(_console)}
+    explicit Panel()
     {
+        std::unique_ptr<bbs::Terminal> term =
+            std::make_unique<bbs::LocalTerminal>();
+        term->open();
+        console = std::make_shared<bbs::Console>(std::move(term));
+        console->set_xy(0, 0);
+    }
+
+    std::pair<int, int> find(std::string const& pattern)
+    {
+        return console->find(pattern);
     }
 
     virtual ~Panel() = default;
 
-    void set_color(uint32_t fg = 0, uint32_t bg = 0) {
+    void set_var_color(uint32_t fg = 0, uint32_t bg = 0)
+    {
         var_fg = fg;
         var_bg = bg;
     }
@@ -185,19 +196,24 @@ public:
         if (!p.empty()) { panelText = p; }
         int height = parse_panel(panelText);
         console->init(height, useColors);
-        if (p.empty()) {
-            console->set_color(0x20e020ff);
-        }
+        if (p.empty()) { console->set_color(0x20e020ff); }
         console->put(panelText);
         if (p.empty()) {
             if (auto* target = get_var("sub_title")) {
                 target->fg = 0xa0a0a0ff;
             }
-            if (auto* target = get_var("format")) {
-                target->fg = 0x8080ffff;
-            }
+            if (auto* target = get_var("format")) { target->fg = 0x8080ffff; }
         }
     }
+
+    void set_color(uint32_t fg, uint32_t bg) { console->set_color(fg, bg); }
+    void set_color(uint32_t fg) { console->set_color(fg); }
+
+    void colorize(int x, int y, int w, int h) { console->colorize(x, y, w, h); }
+
+    void flush() { console->flush(); }
+
+    int read_key() { return console->read_key(); }
 
     void put(Target const& t, Meta const& val)
     {

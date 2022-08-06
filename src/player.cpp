@@ -381,7 +381,8 @@ public:
 
         int test_fd = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
         if (test_fd > 0) {
-            auto contents = utils::read_as_string(utils::get_home_dir() / ".musix.id");
+            auto contents =
+                utils::read_as_string(utils::get_home_dir() / ".musix.id");
             auto id = contents.empty() ? 0 : std::stol(contents);
             if (id == exe_id) {
                 close(test_fd);
@@ -396,15 +397,16 @@ public:
                 fputs("?\n", cmdfile);
                 fflush(cmdfile);
                 return;
-            } else {
-                write(test_fd, "q\n", 2);
-                close(test_fd);
-                fmt::print("Player was updated!\nYou may have to manually kill the running player process!\n");
-                exit(0);
             }
+            auto _ = write(test_fd, "q\n", 2);
+            close(test_fd);
+            fmt::print("Player was updated!\nYou may have to manually kill "
+                       "the running player process!\n");
+            exit(0);
         }
 
-        utils::write_as_string(utils::get_home_dir() / ".musix.id", std::to_string(exe_id));
+        utils::write_as_string(utils::get_home_dir() / ".musix.id",
+                               std::to_string(exe_id));
 
         fd = open(fifo_in.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         FILE* myfile = fdopen(fd, "r");
@@ -414,7 +416,6 @@ public:
 
         fd = open(fifo_in.c_str(), O_WRONLY | O_CLOEXEC);
         cmdfile = fdopen(fd, "w");
-        // puts("Done");
 
         pid_t pid = fork();
         if (pid < 0) { throw musix::player_exception("Could not fork"); }
@@ -495,7 +496,6 @@ public:
                     fputs(line.c_str(), outfile);
                 }
                 fflush(outfile);
-                // puts("info done");
             }
             std::this_thread::sleep_for(10ms);
         }
@@ -512,7 +512,6 @@ public:
         }
         fclose(cmdfile);
         fclose(infile);
-        // if (childPid > 0) { kill(childPid, SIGINT); }
     }
 
     void add(fs::path const& name) override

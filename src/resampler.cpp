@@ -190,8 +190,7 @@ static int rs_run_cubic(resampler* r, int16_t** out_, int16_t const* out_end)
         do {
             int samplel, sampler;
 
-            if (out >= out_end)
-                break;
+            if (out >= out_end) break;
 
             const int16_t* lut =
                 (int16_t*)RESAMPLE_LUT + ((phase & 0xfc00u) >> 8u);
@@ -256,15 +255,13 @@ static void rs_fill_and_remove_delay(resampler* r)
 
 int rs_get_sample_count(resampler* r)
 {
-    if (r->read_filled < 1)
-        rs_fill_and_remove_delay(r);
+    if (r->read_filled < 1) rs_fill_and_remove_delay(r);
     return r->read_filled;
 }
 
 void rs_get_sample(resampler* r, int16_t* ls, int16_t* rs)
 {
-    if (r->read_filled < 1 && r->phase_inc)
-        rs_fill_and_remove_delay(r);
+    if (r->read_filled < 1 && r->phase_inc) rs_fill_and_remove_delay(r);
     if (r->read_filled < 1) {
         *ls = 0;
         *rs = 0;

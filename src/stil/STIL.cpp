@@ -5,8 +5,8 @@
 #include <coreutils/log.h>
 #include <coreutils/split.h>
 #include <coreutils/text.h>
-#include <coreutils/utils.h>
 #include <coreutils/utf8.h>
+#include <coreutils/utils.h>
 
 #include <crypto/md5.h>
 
@@ -55,14 +55,11 @@ uint64_t STIL::calculateMD5(const std::string& fileName)
     return get<uint64_t>(md5, 0);
 }
 
-template <typename S>
-auto&& getLine(S& stream, std::string& out)
+template <typename S> auto&& getLine(S& stream, std::string& out)
 {
     auto&& r = std::getline(stream, out);
     auto n = out.length();
-    if (out[n-1] == 13) {
-        out = out.substr(0, n-1);
-    }
+    if (n > 0 && out[n - 1] == 13) { out = out.substr(0, n - 1); }
     return r;
 }
 
@@ -95,7 +92,7 @@ void STIL::readSTIL()
                         songs.empty() && currentInfo.title.empty() &&
                         currentInfo.name.empty()) {
                         songComment = content;
-                        //fmt::print(">{}\n", songComment);
+                        // fmt::print(">{}\n", songComment);
                     } else {
                         if (what == "TITLE") {
                             currentInfo.title = utils::utf8_encode(content);
@@ -132,9 +129,8 @@ void STIL::readSTIL()
             } else if (l[0] == '(') {
 
                 if (currentSet) {
-                    if (songComment.empty() &&
-                        !currentInfo.comment.empty() && songs.empty() &&
-                        currentInfo.title.empty() &&
+                    if (songComment.empty() && !currentInfo.comment.empty() &&
+                        songs.empty() && currentInfo.title.empty() &&
                         currentInfo.name.empty()) {
                         songComment = utils::utf8_encode(content);
                     } else {
@@ -191,7 +187,7 @@ void STIL::readLengths()
 {
     static_assert(sizeof(LengthEntry) == 12, "LengthEntry size incorrect");
 
-    //fmt::print("Lengths {}\n", dataDir.string());
+    // fmt::print("Lengths {}\n", dataDir.string());
     if (!fs::exists(dataDir / "Songlengths.md5")) { return; }
 
     uint16_t ll = 0;
@@ -206,9 +202,7 @@ void STIL::readLengths()
     while (std::getline(lenFile, line)) {
         if (stopInitThread) { return; }
         auto n = line.length();
-        if (line[n-1] == 13) {
-            line = line.substr(0, n-1);
-        }
+        if (line[n - 1] == 13) { line = line.substr(0, n - 1); }
         if (line[0] == ';') {
             name = line.substr(2);
             auto it = stilSongs.find(name);
@@ -235,13 +229,13 @@ void STIL::readLengths()
             stilOffset = 0;
 
             // Sadly, this is ~100% of the cost of this function
-            mainHash.insert(
-                upper_bound(mainHash.begin(), mainHash.end(), le), le);
+            mainHash.insert(upper_bound(mainHash.begin(), mainHash.end(), le),
+                            le);
         }
     }
 }
 
-STIL::STILSong STIL::getInfo(std::vector<uint8_t>const& data)
+STIL::STILSong STIL::getInfo(std::vector<uint8_t> const& data)
 {
     STILSong result;
     auto md5 = MD5::calc(data);
@@ -251,15 +245,17 @@ STIL::STILSong STIL::getInfo(std::vector<uint8_t>const& data)
     if (it != mainHash.end()) {
         if (it->hash == key) {
             if (it->stil > 0) {
-                //fmt::print("Has STIL\n");
-                result = stilArray[it->stil-1];
+                // fmt::print("Has STIL\n");
+                result = stilArray[it->stil - 1];
             }
             result.lengths = getLengths(*it);
         }
     }
     result.title = std::string(reinterpret_cast<const char*>(&data[0x16]), 32);
-    result.composer = std::string(reinterpret_cast<const char*>(&data[0x36]), 32);
-    result.copyright = std::string(reinterpret_cast<const char*>(&data[0x56]), 32);
+    result.composer =
+        std::string(reinterpret_cast<const char*>(&data[0x36]), 32);
+    result.copyright =
+        std::string(reinterpret_cast<const char*>(&data[0x56]), 32);
 
     return result;
 }
@@ -275,7 +271,7 @@ std::vector<uint16_t> STIL::getLengths(LengthEntry const& entry)
 {
     std::vector<uint16_t> songLengths;
     uint16_t len = entry.length;
-    //LOGI("LEN {:04x}", len);
+    // LOGI("LEN {:04x}", len);
     if ((len & 0x8000U) != 0) {
         auto offset = len & 0x7fffU;
         len = 0;
@@ -288,7 +284,6 @@ std::vector<uint16_t> STIL::getLengths(LengthEntry const& entry)
     }
     return songLengths;
 }
-
 
 std::vector<uint16_t> STIL::findLengths(uint64_t key)
 {

@@ -4,8 +4,6 @@
 
 #include "colors.hpp"
 
-#include <ansi/console.h>
-#include <ansi/unix_terminal.h>
 #include <coreutils/log.h>
 
 #include <fmt/format.h>
@@ -38,7 +36,6 @@ int main(int argc, const char** argv)
 
     std::string songFile;
     int startSong = -1;
-    bool verbose = false;
     bool output = true;
     bool bg = false;
     bool clear = true;
@@ -55,9 +52,6 @@ int main(int argc, const char** argv)
                 startSong = std::stoi(argv[++i]);
             } else if (opt == "color" || opt == "c") {
                 useColors = true;
-            } else if (opt == "v") {
-                verbose = true;
-                output = false;
             } else if (opt == "d") {
                 bg = true;
             } else if (opt == "a") {
@@ -116,13 +110,7 @@ int main(int argc, const char** argv)
         return 0;
     }
 
-    std::unique_ptr<bbs::Terminal> term =
-        std::make_unique<bbs::LocalTerminal>();
-    term->open();
-    auto con = std::make_shared<bbs::Console>(std::move(term));
-    con->set_xy(0, 0);
-
-    auto panel = Panel{con};
+    Panel panel;
     panel.useColors = useColors;
     std::unordered_map<std::string, Meta> meta;
 
@@ -146,6 +134,16 @@ int main(int argc, const char** argv)
         }
         return t;
     };
+
+    lua["set_song"] = [&](int song) { music_player->set_song(song); };
+
+    lua["play_next"] = [&] { music_player->next(); };
+    lua["play_prev"] = [&] { music_player->prev(); };
+    lua["clear_all"] = [&] { music_player->clear(); };
+    lua["add_file"] = [&](std::string const& file_name) {
+        music_player->add(file_name);
+    };
+
     lua.set_function("var_color",
                      sol::overload(
                          [&](std::string const& var, uint32_t color) {
@@ -172,26 +170,26 @@ int main(int argc, const char** argv)
         "colorize",
         sol::overload(
             [&](std::string const& pattern, uint32_t color) {
-                auto [x, y] = con->find(pattern);
+                auto [x, y] = panel.find(pattern);
                 if (x >= 0) {
-                    con->set_color(color);
-                    con->colorize(x, y, pattern.size(), 1);
+                    panel.set_color(color);
+                    panel.colorize(x, y, static_cast<int>(pattern.size()), 1);
                 }
             },
             [&](std::string const& pattern, uint32_t fg, uint32_t bg) {
-                auto [x, y] = con->find(pattern);
+                auto [x, y] = panel.find(pattern);
                 if (x >= 0) {
-                    con->set_color(fg, bg);
-                    con->colorize(x, y, pattern.size(), 1);
+                    panel.set_color(fg, bg);
+                    panel.colorize(x, y, static_cast<int>(pattern.size()), 1);
                 }
             },
             [&](int x, int y, int len, uint32_t color) {
-                con->set_color(color);
-                con->colorize(x, y, len, 1);
+                panel.set_color(color);
+                panel.colorize(x, y, len, 1);
             },
             [&](int x, int y, int len, uint32_t fg, uint32_t bg) {
-                con->set_color(fg, bg);
-                con->colorize(x, y, len, 1);
+                panel.set_color(fg, bg);
+                panel.colorize(x, y, len, 1);
             }));
 
     lua["set_theme"] = [&](sol::table args) {
@@ -205,12 +203,12 @@ int main(int argc, const char** argv)
             args.get_or<uint32_t>("var_bg", bbs::Console::DefaultColor);
         auto var_fg =
             args.get_or<uint32_t>("var_fg", bbs::Console::DefaultColor);
-        con->set_color(panel_fg, panel_bg);
-        panel.set_color(var_fg, var_bg);
+        panel.set_color(panel_fg, panel_bg);
+        panel.set_var_color(var_fg, var_bg);
         panel.set_panel(panelText);
         sol::function v = args["init_fn"];
         if (v.valid()) { v(); }
-        con->set_color(panel_fg, panel_bg);
+        panel.set_color(panel_fg, panel_bg);
         update_fn = args["update_fn"];
     };
 
@@ -221,7 +219,7 @@ int main(int argc, const char** argv)
         if (!res.valid()) { fmt::print("ERROR\n"); }
     }
     if (!theme_set) { panel.set_panel(); }
-    con->flush();
+    panel.flush();
 
     uint32_t song = 0;
 
@@ -274,11 +272,11 @@ int main(int argc, const char** argv)
                 }
 
                 panel.render(meta);
-                con->flush();
+                panel.flush();
             }
         }
 
-        auto key = con->read_key();
+        auto key = panel.read_key();
         if (key == KEY_NONE) { std::this_thread::sleep_for(100ms); }
         auto it = mapping.find(key);
         if (it != mapping.end()) { it->second(); }

@@ -37,16 +37,14 @@ struct MusicPlayer
         return file.empty() ? dataPath : dataPath / file;
     }
 
-    template <typename T>
-    void log(T&& t)
+    template <typename T> void log(T&& t)
     {
         fmt::print(std::forward<T>(t));
         puts("");
         fflush(stdout);
     }
 
-    template <typename T, typename ... A>
-    void log(T&& t, A&&... args)
+    template <typename T, typename... A> void log(T&& t, A&&... args)
     {
         fmt::print(std::forward<T>(t), std::forward<A...>(args)...);
         puts("");
