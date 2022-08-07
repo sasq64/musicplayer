@@ -3,9 +3,7 @@ all : build build/Makefile
 	make -j8 -C build
 
 install:
-	cp build/msxp /usr/local/bin
-	rm -rf /usr/local/share/musix
-	cp -a data /usr/local/share/musix
+	sudo ./install.sh
 
 build :
 	mkdir -p build
