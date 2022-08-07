@@ -361,6 +361,8 @@ class PipePlayer : public MusicPlayer
 {
     FILE* infile;
     FILE* cmdfile;
+    FILE* outfile;
+    FILE* myfile;
 
     std::unordered_map<std::string, Meta> currentInfo;
 
@@ -409,10 +411,10 @@ public:
                                std::to_string(exe_id));
 
         fd = open(fifo_in.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-        FILE* myfile = fdopen(fd, "r");
+        myfile = fdopen(fd, "r");
 
         fd = open(fifo_out.c_str(), O_WRONLY | O_CLOEXEC);
-        FILE* outfile = fdopen(fd, "w");
+        outfile = fdopen(fd, "w");
 
         fd = open(fifo_in.c_str(), O_WRONLY | O_CLOEXEC);
         cmdfile = fdopen(fd, "w");
@@ -424,6 +426,12 @@ public:
             return;
         }
 
+        runChild();
+        exit(0); // NOLINT
+    }
+
+    void runChild()
+    {
         // Child starting
         umask(0);
         auto sid = setsid();
@@ -461,7 +469,7 @@ public:
                 } else if (l[0] == '?') {
                     for (auto&& info : currentInfo) {
                         auto line = fmt::format(
-                            "i{}\t{}\n", info.first,
+                            "i{}\t{}\t{}\n", info.second.index(), info.first,
                             std::visit(
                                 [](auto v) { return fmt::format("{}", v); },
                                 info.second));
@@ -488,19 +496,22 @@ public:
                         log("Clearing");
                         currentInfo.clear();
                     }
+
                     auto line = fmt::format(
-                        "i{}\t{}\n", info.first,
+                        "i{}\t{}\t{}", info.second.index(), info.first,
                         std::visit([](auto v) { return fmt::format("{}", v); },
                                    info.second));
+                    for (auto& c : line) {
+                        if (c == 10 || c == 13) { c = ' '; }
+                    }
                     log("Info: {}", line.substr(1));
-                    fputs(line.c_str(), outfile);
+                    fputs((line + "\n").c_str(), outfile);
                 }
                 fflush(outfile);
             }
             std::this_thread::sleep_for(10ms);
         }
         puts("Player process exiting");
-        exit(0); // NOLINT
     }
 
     bool detached = false;
@@ -561,14 +572,19 @@ public:
             // puts(line.c_str());
             if (line[0] == 'i') {
                 line = line.substr(0, line.length() - 1);
-                auto [meta, val] = utils::splitn<2>(line.substr(1), "\t"s);
-                // fmt::print("{}={}\n", meta, val);
-                if (utils::startsWith(meta, "song") || meta == "length" ||
-                    meta == "startSong" || meta == "seconds") {
-                    result.emplace_back(meta,
-                                        static_cast<uint32_t>(std::stol(val)));
-                } else {
-                    result.emplace_back(meta, val);
+                auto [idxs, meta, val] =
+                    utils::splitn<3>(line.substr(1), "\t"s);
+                try {
+                    auto index = std::stol(idxs);
+                    Meta m;
+                    if (index == 0) {
+                        m = val;
+                    } else {
+                        m = static_cast<uint32_t>(std::stol(val));
+                    }
+                    result.emplace_back(meta, m);
+                } catch (std::invalid_argument&) {
+                    fprintf(stderr, "Cant convert '%s' to int\n", idxs.c_str());
                 }
             }
             line.resize(1024);
@@ -578,12 +594,16 @@ public:
     void detach() override { detached = true; }
 };
 
-std::unique_ptr<MusicPlayer> MusicPlayer::create()
+std::unique_ptr<MusicPlayer> MusicPlayer::create(MusicPlayer::Type pt)
 {
-    return std::make_unique<PipePlayer>();
+    switch (pt) {
+    case Type::Piped:
+        return std::make_unique<PipePlayer>();
+    case Type::Writer:
+        return std::make_unique<OutPlayer>();
+    case Type::Basic:
+        return std::make_unique<ThreadedPlayer>();
+    }
+    return nullptr;
 }
 
-std::unique_ptr<MusicPlayer> MusicPlayer::createWriter()
-{
-    return std::make_unique<OutPlayer>();
-}

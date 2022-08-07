@@ -844,7 +844,7 @@ int xsf_get_lib(char *filename, void **buffer, unsigned int *length)
 	uint32 size;
 	FILE *auxfile;
 
-    fprintf(stderr, "LIB %s\n", filename);
+    //fprintf(stderr, "LIB %s\n", filename);
     auxfile = fopen(filename, "rb");
 
     // ANTI WINDOWS HACK - Try the lower case version of the filename if it can't be found

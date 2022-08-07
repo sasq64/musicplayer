@@ -39,10 +39,11 @@ int main(int argc, const char** argv)
     bool output = true;
     bool bg = false;
     bool clear = true;
-    bool writeOut = false;
     bool quitPlayer = false;
     bool useColors = false;
     std::string command;
+
+    auto playerType = MusicPlayer::Type::Piped;
 
     std::vector<fs::path> songFiles;
     for (int i = 1; i < argc; i++) {
@@ -52,12 +53,14 @@ int main(int argc, const char** argv)
                 startSong = std::stoi(argv[++i]);
             } else if (opt == "color" || opt == "c") {
                 useColors = true;
+            } else if (opt == "simple") {
+                playerType = MusicPlayer::Type::Basic;
             } else if (opt == "d") {
                 bg = true;
             } else if (opt == "a") {
                 clear = false;
             } else if (opt == "o") {
-                writeOut = true;
+                playerType = MusicPlayer::Type::Writer;
             } else if (opt == "q") {
                 quitPlayer = true;
             } else if (opt == "n") {
@@ -83,8 +86,10 @@ int main(int argc, const char** argv)
         fmt::print("{} files\n", songFiles.size());
     }
 
-    auto music_player =
-        writeOut ? MusicPlayer::createWriter() : MusicPlayer::create();
+    auto music_player = MusicPlayer::create(playerType);
+    if (music_player == nullptr) {
+        return 0;
+    }
 
     if (quitPlayer) {
         music_player->clear();
@@ -100,7 +105,7 @@ int main(int argc, const char** argv)
         }
     }
 
-    if (writeOut) { return 0; }
+    if (playerType == MusicPlayer::Type::Writer) { return 0; }
 
     if (command == "next") { music_player->next(); }
     if (command == "prev") { music_player->prev(); }

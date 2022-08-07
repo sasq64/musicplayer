@@ -32,13 +32,7 @@ namespace musix {
 class UADEPlayer : public ChipPlayer
 {
 public:
-    explicit UADEPlayer(const fs::path& _dataDir) : dataDir(_dataDir)
-    {
-
-        currDir = fs::current_path();
-        fs::current_path(dataDir);
-        LOGD("CP: {}", fs::current_path().string());
-    }
+    explicit UADEPlayer(const fs::path& _dataDir) : dataDir(_dataDir) {}
 
     // Called when Amiga wants to load a file
     static struct uade_file* amigaloader(const char* name,
@@ -51,11 +45,6 @@ public:
         fs::path fileName = name;
 
         auto ext = fileName.extension();
-        /*
-                if (ext == ".INS") {
-                    fileName.replace_extension(".ins");
-                }
-        */
 
         if (utils::startsWith(name, "Env:")) {
             fileName = fs::path(playerdir) / "ENV" / &name[4];
@@ -87,7 +76,8 @@ public:
         uade_config_set_option(config, UC_IGNORE_PLAYER_CHECK, nullptr);
         uade_config_set_option(config, UC_NO_EP_END, nullptr);
         // uade_config_set_option(config, UC_VERBOSE, "true");
-        uade_config_set_option(config, UC_BASE_DIR, ".");
+        uade_config_set_option(config, UC_BASE_DIR,
+                               fs::absolute(dataDir).c_str());
         state = uade_new_state(config, 1);
         free(config);
 
@@ -137,7 +127,6 @@ public:
         uade_cleanup_state(state, 1);
         state = nullptr;
         if (!uadeFile.empty()) { fs::remove(uadeFile); }
-        fs::current_path(currDir);
     }
 
     int getSamples(int16_t* target, int noSamples) override
@@ -176,7 +165,6 @@ public:
     }
 
 private:
-    fs::path currDir;
     fs::path uadeFile; // Copy of main song but with different name
     fs::path dataDir;
     bool valid{false};

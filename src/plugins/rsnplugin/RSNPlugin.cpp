@@ -17,9 +17,7 @@ public:
     {
         LOGD("Playing with {}", plugin->name());
         player = std::shared_ptr<ChipPlayer>(plugin->fromFile(l[0]));
-        if (player == nullptr) {
-            throw player_exception();
-        }
+        if (player == nullptr) { throw player_exception(); }
         setMeta("title", player->meta("title"), "sub_title",
                 player->meta("sub_title"), "game", player->meta("game"),
                 "composer", player->meta("composer"), "length",
@@ -29,9 +27,7 @@ public:
 
     int getSamples(int16_t* target, int noSamples) override
     {
-        if (player) {
-            return player->getSamples(target, noSamples);
-        }
+        if (player) { return player->getSamples(target, noSamples); }
         return 0;
     }
 
@@ -40,12 +36,9 @@ public:
         player = nullptr;
         player = std::shared_ptr<ChipPlayer>(plugin->fromFile(songs[song]));
         if (player) {
-            setMeta("sub_title", player->getMeta("sub_title"), "length",
-                    player->getMetaInt("length"),
-                    "song", song);
-            if (seconds > 0) {
-                player->seekTo(-1, seconds);
-            }
+            setMeta("sub_title", player->meta("sub_title"), "length",
+                    player->meta("length"), "song", song);
+            if (seconds > 0) { player->seekTo(-1, seconds); }
             return true;
         }
         return false;
@@ -71,13 +64,11 @@ ChipPlayer* RSNPlugin::fromFile(const std::string& fileName)
         fs::remove(f);
     }
 
-    if (!fs::exists(fileName)) {
-        return nullptr;
-    }
+    if (!fs::exists(fileName)) { return nullptr; }
 
     try {
-        auto* a =
-            utils::Archive::open(fileName, rsnDir.string(), utils::Archive::TYPE_RAR);
+        auto* a = utils::Archive::open(fileName, rsnDir.string(),
+                                       utils::Archive::TYPE_RAR);
         a->extractAll(rsnDir.string());
         for (auto const& f : utils::listFiles(rsnDir, false, true)) {
             if (song_formats.count(utils::path_extension(f.string())) > 0) {

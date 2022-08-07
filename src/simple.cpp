@@ -38,11 +38,11 @@ int main(int argc, const char** argv)
         printf("No plugin could handle file\n");
         return 0;
     }
-    auto len = player->getMetaInt("length");
-    auto title = player->getMeta("title");
+    auto len = std::get<uint32_t>(player->meta("length"));
+    auto title = std::get<std::string>(player->meta("title"));
     if (title.empty()) { title = utils::path_basename(name); }
 
-    auto format = player->getMeta("format");
+    auto format = std::get<std::string>(player->meta("format"));
     printf("Playing: %s [%s/%s] (%02d:%02d)\n", title.c_str(),
            pluginName.c_str(), format.c_str(), len / 60, len % 60);
 

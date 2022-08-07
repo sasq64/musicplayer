@@ -10,8 +10,8 @@
 #include "chipplayer.h"
 #include "chipplugin.h"
 
-using musix::ChipPlugin;
 using musix::ChipPlayer;
+using musix::ChipPlugin;
 
 #ifdef _WIN32
 #    define API __declspec(dllexport)
@@ -56,7 +56,9 @@ extern "C" API int musix_player_get_samples(void* player, int16_t* target,
 extern "C" API const char* musix_player_get_meta(void* player, const char* what)
 {
     auto* chipPlayer = static_cast<ChipPlayer*>(player);
-    return strdup(chipPlayer->getMeta(what).c_str());
+    auto s = std::visit([](auto&& x) { return fmt::format("{}", x); },
+                        chipPlayer->meta(what));
+    return strdup(s.c_str());
 }
 
 extern "C" API void musix_player_seek(void* player, int song, int seconds)

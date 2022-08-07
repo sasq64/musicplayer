@@ -45,32 +45,7 @@ public:
         return false;
     }
 
-    std::string getMeta(const std::string& what) const
-    {
-        try {
-            auto const& v = metaData.at(what);
-            if (auto const* ptr = std::get_if<std::string>(&v)) { return *ptr; }
-            if (auto const* ptr = std::get_if<double>(&v)) {
-                return std::to_string(*ptr);
-            }
-            if (auto const* ptr = std::get_if<uint32_t>(&v)) {
-                return std::to_string(*ptr);
-            }
-        } catch (std::out_of_range& _) {
-        }
-        return "";
-    };
-
     MetaVar const& meta(std::string const& what) { return metaData[what]; }
-
-    uint32_t getMetaInt(const std::string& what)
-    {
-        auto const& v = metaData[what];
-        if (auto const* ptr = std::get_if<uint32_t>(&v)) {
-            return static_cast<uint32_t>(*ptr);
-        }
-        return 0;
-    };
 
     void setMeta()
     {
@@ -125,7 +100,7 @@ public:
         setMeta(args...);
     }
 
-    virtual bool seekTo(int song, int seconds = -1) { return false; }
+    virtual bool seekTo(int  /*song*/, int  /*seconds*/ = -1) { return false; }
 
     void onMeta(const Callback& callback)
     {

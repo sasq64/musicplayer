@@ -46,14 +46,21 @@ struct MusicPlayer
 
     template <typename T, typename... A> void log(T&& t, A&&... args)
     {
-        fmt::print(std::forward<T>(t), std::forward<A...>(args)...);
+        fmt::print(std::forward<T>(t), std::forward<A>(args)...);
         puts("");
         fflush(stdout);
     }
 
     virtual ~MusicPlayer() = default;
-    static std::unique_ptr<MusicPlayer> create();
-    static std::unique_ptr<MusicPlayer> createWriter();
+
+    enum class Type
+    {
+        Basic,
+        Piped,
+        Writer
+    };
+
+    static std::unique_ptr<MusicPlayer> create(Type pt);
 
     virtual void update() {}
     virtual void clear() {}
