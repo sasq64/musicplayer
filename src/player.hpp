@@ -24,7 +24,6 @@ struct MusicPlayer
                                       fs::absolute(xd / ".." / "data"),
                                       fs::absolute(xd / ".." / ".." / "data"),
                                       home / ".local" / "share" / "musix",
-                                      home / ".config" / "musix",
                                       fs::path("/usr/share/musix"),
                                       fs::path("/usr/local/share/musix")};
         fs::path dataPath;
