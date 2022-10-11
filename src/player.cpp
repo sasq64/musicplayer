@@ -46,6 +46,7 @@ class Player : public MusicPlayer
     uint32_t last_secs = 0;
     uint64_t micro_seconds = 0;
     uint32_t length = 0;
+    uint32_t forced_length = 0;
     uint32_t songs = 0;
 
 public:
@@ -133,9 +134,17 @@ public:
         }
     }
 
-    void play(fs::path const& songFile)
+    void play(fs::path const& sf)
     {
-        songs = length = 0;
+        auto songFile = sf;
+        songs = length = forced_length = 0;
+
+        auto&& s = songFile.string();
+        auto pos = s.find_last_of(';');
+        if (pos != std::string::npos) {
+            songFile = s.substr(0, pos);
+            length = forced_length = std::stol(s.substr(pos+1));
+        }
 
         if (fs::is_directory(songFile)) {
             for (const auto& entry : fs::directory_iterator(songFile)) {
@@ -160,7 +169,6 @@ public:
         std::error_code ec;
         auto fsize = fs::file_size(songFile, ec);
 
-        length = 0;
         infoList.clear();
         infoList.emplace_back("init", ""s);
         infoList.emplace_back("list_length",
@@ -172,10 +180,17 @@ public:
             for (auto&& name : meta_list) {
                 auto&& val = player->meta(name);
                 infoList.emplace_back(name, val);
-                if (name == "length") { length = std::get<uint32_t>(val); }
+                if (name == "length" && forced_length == 0) {
+                    length = std::get<uint32_t>(val);
+                } else
                 if (name == "songs") { songs = std::get<uint32_t>(val); }
             }
         });
+
+        if (length > 0) {
+            infoList.emplace_back("length", length);
+        }
+
         micro_seconds = 0;
         fifo.silence = 0;
     }
@@ -228,6 +243,10 @@ public:
             play_next();
         }
     }
+    void seek(int offset_ms) {
+
+
+    }
 };
 
 class OutPlayer : public MusicPlayer
@@ -243,19 +262,27 @@ public:
 
     void add(fs::path const& name) override
     {
+        uint32_t length = 0;
+        auto songFile = name;
+        auto&& s = name.string();
+        auto pos = s.find_last_of(';');
+        if (pos != std::string::npos) {
+            songFile = s.substr(0, pos);
+            length =  std::stol(s.substr(pos+1));
+        }
+
         auto out_fd = dup(STDOUT_FILENO); // NOLINT
         close(STDOUT_FILENO);
-        player = Player::createPlayer(name);
+        player = Player::createPlayer(songFile);
         if (player == nullptr) { return; }
         if (startSong >= 0) { player->seekTo(startSong, -1); }
 
-        uint32_t length = 0;
         uint32_t songs = 0;
         player->onMeta([&](auto&& meta_list, auto*) {
             for (auto&& name : meta_list) {
                 auto&& val = player->meta(name);
                 infoList.emplace_back(name, val);
-                if (name == "length") { length = std::get<uint32_t>(val); }
+                if (name == "length" && length == 0) { length = std::get<uint32_t>(val); }
                 if (name == "songs") { songs = std::get<uint32_t>(val); }
             }
         });
@@ -301,9 +328,10 @@ class ThreadedPlayer : public MusicPlayer
     struct Play { fs::path name; };
     struct SetSong { int song; };
     struct Clear {};
+    struct Seek { int offset; };
     // clang-format on
 
-    using Command = std::variant<Next, Prev, SetSong, Play, Clear>;
+    using Command = std::variant<Next, Prev, SetSong, Play, Clear, Seek>;
 
     moodycamel::ReaderWriterQueue<Command> commands;
     moodycamel::ReaderWriterQueue<std::vector<Info>> infos;
@@ -313,6 +341,7 @@ class ThreadedPlayer : public MusicPlayer
     void handle_cmd(Clear const&) { player.clear(); }
     void handle_cmd(SetSong const& cmd) { player.set_song(cmd.song); }
     void handle_cmd(Play const& cmd) { player.add(cmd.name); }
+    void handle_cmd(Seek const& cmd) { player.seek(cmd.offset); }
 
     void read_commands()
     {

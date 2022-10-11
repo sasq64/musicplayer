@@ -158,11 +158,11 @@ public:
     }
 
     virtual void blit(int32_t x, int32_t y, int32_t stride,
-                      std::vector<Tile> const& grid)
+                      std::vector<Tile> const& source)
     {
         int32_t i = 0;
         auto xx = x;
-        for (auto const& c : grid) {
+        for (auto const& c : source) {
             if (xx < width && y < height) { this->grid[xx + width * y] = c; }
             xx++;
             if (++i == stride) {

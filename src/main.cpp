@@ -12,7 +12,6 @@
 #include <chrono>
 #include <csignal>
 #include <functional>
-#include <locale>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -24,6 +23,22 @@
 
 using namespace std::string_literals;
 using namespace std::chrono_literals;
+
+fs::path findConfig(std::string const& file = "")
+{
+    namespace fs = std::filesystem;
+    auto home = utils::get_home_dir();
+    auto searchPath =
+        std::vector{home / ".config" / "musix", fs::path("/etc/musix")};
+    fs::path dataPath;
+    for (auto&& p : searchPath) {
+        if (file.empty() ? fs::exists(p) : fs::exists(p / file)) {
+            dataPath = p;
+            break;
+        }
+    }
+    return file.empty() ? dataPath : dataPath / file;
+}
 
 int main(int argc, const char** argv)
 {
@@ -41,6 +56,7 @@ int main(int argc, const char** argv)
     bool clear = true;
     bool quitPlayer = false;
     bool useColors = false;
+    int forcedLength = 0;
     std::string command;
 
     auto playerType = MusicPlayer::Type::Piped;
@@ -51,6 +67,8 @@ int main(int argc, const char** argv)
             auto opt = std::string_view(&argv[i][1]);
             if (opt == "song" || opt == "s") {
                 startSong = std::stoi(argv[++i]);
+            } else if (opt == "length" || opt == "l") {
+                forcedLength = std::stoi(argv[++i]);
             } else if (opt == "color" || opt == "c") {
                 useColors = true;
             } else if (opt == "simple") {
@@ -73,6 +91,10 @@ int main(int argc, const char** argv)
 
         } else {
             songFile = argv[i];
+            if (forcedLength > 0) {
+                songFile = songFile + ";" + std::to_string(forcedLength);
+                forcedLength = 0;
+            }
             songFiles.emplace_back(songFile);
         }
     }
@@ -87,9 +109,7 @@ int main(int argc, const char** argv)
     }
 
     auto music_player = MusicPlayer::create(playerType);
-    if (music_player == nullptr) {
-        return 0;
-    }
+    if (music_player == nullptr) { return 0; }
 
     if (quitPlayer) {
         music_player->clear();
@@ -217,7 +237,7 @@ int main(int argc, const char** argv)
         update_fn = args["update_fn"];
     };
 
-    auto dataPath = MusicPlayer::findDataPath("init.lua");
+    auto dataPath = findConfig("init.lua");
 
     if (!dataPath.empty() && fs::exists(dataPath)) {
         auto res = lua.script_file(dataPath.string());
