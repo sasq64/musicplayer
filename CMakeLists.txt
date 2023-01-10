@@ -17,6 +17,12 @@ if (WIN32)
   # HACK to make an empty unistd.h available only to Windows
   include_directories(external/win)
 endif()
+if(APPLE)
+  include_directories(SYSTEM /usr/local/include /opt/homebrew/include)
+
+  link_directories(/usr/local/lib /opt/homebrew/lib)
+endif()
+
 
 find_package(Threads)
 
@@ -76,6 +82,15 @@ set(MUSICPLAYER_PLUGINS
 add_subdirectory(src/plugins)
 
 
+add_subdirectory(external/pybind11)
+
+pybind11_add_module(_musix src/python.cpp)
+target_link_libraries(_musix PUBLIC ${MUSICPLAYER_PLUGINS}
+    coreutils crypto archive Threads::Threads)
+install(TARGETS _musix DESTINATION .)
+
+#if (NOT PYTHON_MODULE)
+
 add_library(musix SHARED src/lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive Threads::Threads)
@@ -91,7 +106,4 @@ target_link_libraries(msxp PUBLIC ansi fmt::fmt lua sol2::sol2  ${MUSICPLAYER_PL
 
 install(TARGETS msxp DESTINATION /usr/local/bin)
 
-if(APPLE)
-  include_directories(SYSTEM /usr/local/include /opt/homebrew/include)
-  link_directories(/usr/local/lib /opt/homebrew/lib)
-endif()
+#endif()
