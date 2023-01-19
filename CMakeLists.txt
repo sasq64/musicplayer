@@ -88,8 +88,9 @@ pybind11_add_module(_musix src/python.cpp)
 target_link_libraries(_musix PUBLIC ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive Threads::Threads)
 install(TARGETS _musix DESTINATION .)
+install(DIRECTORY data DESTINATION .)
 
-#if (NOT PYTHON_MODULE)
+if (NOT PYTHON_MODULE)
 
 add_library(musix SHARED src/lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
@@ -106,4 +107,4 @@ target_link_libraries(msxp PUBLIC ansi fmt::fmt lua sol2::sol2  ${MUSICPLAYER_PL
 
 install(TARGETS msxp DESTINATION /usr/local/bin)
 
-#endif()
+endif()

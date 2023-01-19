@@ -3,5 +3,4 @@ graft src
 graft external/pybind11/include
 graft external/pybind11/tools
 include external/pybind11/CMakeLists.txt external/pybind11/LICENSE
-graft external/lodepng
 include pyproject.toml
