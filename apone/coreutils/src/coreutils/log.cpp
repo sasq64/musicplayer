@@ -8,7 +8,7 @@
 #include <thread>
 #include <unordered_map>
 
-static std::string logSource = "ECP-NATIVE";
+static std::string logSource = "";
 
 #ifdef ANDROID
 

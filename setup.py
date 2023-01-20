@@ -1,5 +1,7 @@
 from skbuild import setup
 setup(
+    name="musix",
+    version="0.1.0",
     packages=["musix"],
     package_dir={"": "python"},
     cmake_install_dir="python/musix",

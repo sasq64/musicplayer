@@ -10,7 +10,7 @@ stream = p.open(format=pyaudio.paInt16,
                 output=True)
 
 musix.init()
-player = musix.load('musicplayer/music/Castlevania.nsfe')
+player = musix.load('music/Castlevania.nsfe')
 
 print(player.get_meta("game"))
 print(player.get_meta("length"))
