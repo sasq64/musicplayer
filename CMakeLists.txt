@@ -98,7 +98,7 @@ if(NOT PYTHON_MODULE)
 
 add_library(musix SHARED src/lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
-    coreutils crypto archive Threads::Threads)
+    coreutils crypto archive Threads::Threads fmt::fmt)
 
 add_executable(play src/simple.cpp src/resampler.cpp)
 target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}

@@ -6,7 +6,7 @@ authors = [
     {name = "Jonas Minnberg", email="sasq64@gmail.com"}
 ]
 license = {file = "LICENSE.md"}
-readme = "README.md"
+readme = "PYTHON.md"
 requires-python = ">=3.7"
 
 [project.urls]

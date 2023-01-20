@@ -52,23 +52,30 @@ if((NOT APPLE) AND (NOT WIN32))
     )
 endif()
 
+if(GENERATE_CPU)
+    set(CPU_PATH ${CMAKE_BINARY_DIR})
+else()
+    set(CPU_PATH generated)
+endif()
 
-add_executable(build68k uade/src/build68k.c)
-target_include_directories(build68k PRIVATE uade/src uade/src/include)
-add_executable(gencpu uade/src/gencpu.c uade/src/readcpu.c ${CMAKE_CURRENT_BINARY_DIR}/cpudefs.c uade/src/missing.c)
-target_include_directories(gencpu PRIVATE uade/src uade/src/include)
+if(GENERATE_CPU)
+    add_executable(build68k uade/src/build68k.c)
+    target_include_directories(build68k PRIVATE uade/src uade/src/include)
+    add_executable(gencpu uade/src/gencpu.c uade/src/readcpu.c ${CPU_PATH}/cpudefs.c uade/src/missing.c)
+    target_include_directories(gencpu PRIVATE uade/src uade/src/include)
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cpudefs.c
-    COMMAND build68k < ${CMAKE_CURRENT_SOURCE_DIR}/uade/src/table68k > ${CMAKE_CURRENT_BINARY_DIR}/cpudefs.c
-    DEPENDS $<TARGET_FILE:build68k>
-    COMMENT "Running build68k")
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cpudefs.c
+        COMMAND build68k < ${CMAKE_CURRENT_SOURCE_DIR}/uade/src/table68k > ${CMAKE_CURRENT_BINARY_DIR}/cpudefs.c
+        DEPENDS $<TARGET_FILE:build68k>
+        COMMENT "Running build68k")
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cpuemu.c ${CMAKE_CURRENT_BINARY_DIR}/cputbl.h ${CMAKE_CURRENT_BINARY_DIR}/cpustbl.c
-    COMMAND gencpu
-    DEPENDS $<TARGET_FILE:gencpu>
-    COMMENT "Running gencpu")
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cpuemu.c ${CMAKE_CURRENT_BINARY_DIR}/cputbl.h ${CMAKE_CURRENT_BINARY_DIR}/cpustbl.c
+        COMMAND gencpu
+        DEPENDS $<TARGET_FILE:gencpu>
+        COMMENT "Running gencpu")
+endif()
 
-add_library(uade STATIC UADEPlugin.cpp ${UADE_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/cpuemu.c ${CMAKE_CURRENT_BINARY_DIR}/cpudefs.c ${CMAKE_CURRENT_BINARY_DIR}/cpustbl.c)
+add_library(uade STATIC UADEPlugin.cpp ${UADE_SOURCES} ${CPU_PATH}/cpuemu.c ${CPU_PATH}/cpudefs.c ${CPU_PATH}/cpustbl.c)
 target_compile_definitions(uade PRIVATE -DPART_1 -DPART_2 -DPART_3 -DPART_4 -DPART_5 -DPART_6 -DPART_7 -DPART_8)
 
 target_include_directories(uade PRIVATE

@@ -1,6 +1,8 @@
 
 #include <string>
 
+#include <fmt/format.h>
+
 #include <audioplayer/audioplayer.h>
 #include <coreutils/fifo.h>
 #include <coreutils/log.h>
