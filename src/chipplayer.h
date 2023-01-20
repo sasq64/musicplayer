@@ -28,7 +28,7 @@ class ChipPlayer
 {
 public:
     using Callback =
-        std::function<void(const std::vector<std::string>& meta, ChipPlayer*)>;
+        std::function<void(const std::vector<std::string>& meta)>;
 
     virtual ~ChipPlayer() = default;
     virtual int getSamples(int16_t* target, int size) = 0;
@@ -51,7 +51,7 @@ public:
     {
         if (!changedMeta.empty()) {
             for (const auto& cb : callbacks) {
-                cb(changedMeta, this);
+                cb(changedMeta);
             }
             changedMeta.clear();
         }
@@ -106,10 +106,11 @@ public:
     {
         callbacks.push_back(callback);
         std::vector<std::string> meta;
+        meta.reserve(metaData.size());
         for (auto& md : metaData) {
             meta.push_back(md.first);
         }
-        callback(meta, this);
+        callback(meta);
     }
 
 protected:

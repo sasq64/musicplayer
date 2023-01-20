@@ -4,6 +4,7 @@
 
 #include <pybind11/detail/common.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
 #include <cctype>
@@ -17,18 +18,18 @@ using namespace pybind11::literals; // NOLINT
 
 py::object get_samples(musix::ChipPlayer& player, size_t size)
 {
-    auto* bytes = static_cast<PyBytesObject*>(PyObject_Malloc(
-        offsetof(PyBytesObject, ob_sval) + size * 2));
-    PyObject_INIT_VAR(bytes, &PyBytes_Type, size*2);
+    auto* bytes = static_cast<PyBytesObject*>(
+        PyObject_Malloc(offsetof(PyBytesObject, ob_sval) + size * 2));
+    PyObject_INIT_VAR(bytes, &PyBytes_Type, size * 2);
     bytes->ob_shash = -1;
-    auto sz = player.getSamples(reinterpret_cast<int16_t*>(&bytes->ob_sval), static_cast<int>(size));
-    if (sz == 0) {
-        return py::cast(nullptr);
-    }
+    auto sz = player.getSamples(reinterpret_cast<int16_t*>(&bytes->ob_sval),
+                                static_cast<int>(size));
+    if (sz == 0) { return py::cast(nullptr); }
     if (sz < 0) {
         throw musix::player_exception("Could not render samples from song.");
     }
-    return py::reinterpret_steal<py::object>(reinterpret_cast<PyObject*>(bytes));
+    return py::reinterpret_steal<py::object>(
+        reinterpret_cast<PyObject*>(bytes));
 }
 
 fs::path getModulePath()
@@ -62,18 +63,20 @@ std::shared_ptr<musix::ChipPlayer> load_music(std::string const& name)
     return player;
 }
 
-
 PYBIND11_MODULE(_musix, mod)
 {
     mod.doc() = "";
 
-    py::class_<musix::ChipPlayer, std::shared_ptr<musix::ChipPlayer>>(mod, "Player")
-        .def("render", &get_samples, "count"_a)
-        .def("get_meta", &musix::ChipPlayer::meta, "name"_a)
-        .def("seek", &musix::ChipPlayer::seekTo, "song"_a, "seconds"_a = -1);
+    py::class_<musix::ChipPlayer, std::shared_ptr<musix::ChipPlayer>>(mod,
+                                                                      "Player")
+        .def("render", &get_samples, "count"_a,
+             "Generate `count` number of samples and return `count*2` bytes")
+        .def("get_meta", &musix::ChipPlayer::meta, "name"_a,
+             "Get meta data about the loaded song.")
+        .def("seek", &musix::ChipPlayer::seekTo, "song"_a, "seconds"_a = -1)
+        .def("on_meta", &musix::ChipPlayer::onMeta);
 
     mod.def("init", &init, "Init musix");
     mod.def("load", &load_music, "name"_a, "Load music file");
-
 }
 
