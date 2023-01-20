@@ -117,7 +117,7 @@ public:
                     "startsong",
                     songInfo->subsongs.def - songInfo->subsongs.min, "length",
                     static_cast<uint32_t>(songInfo->duration), "title", modname,
-                    "format", fmt::format("{} (Amiga)", songInfo->playername));
+                    "format", std::string(songInfo->playername) + " (Amiga)");
             valid = true;
         }
         return valid;

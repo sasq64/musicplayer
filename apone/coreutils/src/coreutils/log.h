@@ -3,7 +3,7 @@
 #include <cstring>
 #include <string>
 
-#include <fmt/format.h>
+//  #include <fmt/format.h>
 
 namespace logging {
 
@@ -23,20 +23,20 @@ void log2(const char* fn, int line,  Level level, const std::string& text);
 
 template <class... A> void log(const std::string& fmt, const A&... args)
 {
-    log(fmt::format(fmt, args...));
+    //log(fmt::format(fmt, args...));
 }
 
 template <class... A>
 void log(Level level, const std::string& fmt, const A&... args)
 {
-    log(level, fmt::format(fmt, args...));
+    //log(level, fmt::format(fmt, args...));
 }
 
 template <class... A>
 void log2(const char* fn, int line, Level level, const std::string& fmt,
           const A&... args)
 {
-    log2(fn, line, level, fmt::format(fmt, args...));
+    //log2(fn, line, level, fmt::format(fmt, args...));
 }
 
 void setLevel(Level level);

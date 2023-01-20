@@ -34,16 +34,20 @@ target_link_libraries(_zlib INTERFACE ${ZLIB_LIBRARIES})
 target_include_directories(_zlib INTERFACE ${ZLIB_INCLUDE_DIRS})
 add_library(ZLIB::ZLIB ALIAS _zlib)
 
+if (NOT PYTHON_MODULE)
+
 add_subdirectory(external/fmt)
 add_subdirectory(external/readerwriterqueue)
 add_subdirectory(external/ansi)
-
 add_subdirectory(external/lua)
 add_subdirectory(external/sol3)
 
+add_subdirectory(${APONE}/audioplayer audioplayer)
+
+endif()
+
 add_subdirectory(${APONE}/coreutils coreutils)
 add_subdirectory(${APONE}/crypto crypto)
-add_subdirectory(${APONE}/audioplayer audioplayer)
 add_subdirectory(${APONE}/archive archive)
 
 
@@ -90,7 +94,7 @@ target_link_libraries(_musix PUBLIC ${MUSICPLAYER_PLUGINS}
 install(TARGETS _musix DESTINATION .)
 install(DIRECTORY data DESTINATION .)
 
-if (NOT PYTHON_MODULE)
+if(NOT PYTHON_MODULE)
 
 add_library(musix SHARED src/lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
