@@ -24,7 +24,7 @@
 #define RESID_BRANCH_HINTS 1
 
 // Compiler specifics.
-#define HAVE_BUILTIN_EXPECT 1
+#define HAVE_BUILTIN_EXPECT 0
 
 #ifndef M_PI
 #  define M_PI    3.14159265358979323846

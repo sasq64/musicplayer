@@ -29,7 +29,7 @@
 
 // Compiler specifics.
 #define HAVE_BOOL 1
-#define HAVE_BUILTIN_EXPECT 1
+#define HAVE_BUILTIN_EXPECT 0
 #define HAVE_LOG1P 1
 
 // Define bool, true, and false for C++ compilers that lack these keywords.

@@ -77,7 +77,7 @@ public:
         uade_config_set_option(config, UC_NO_EP_END, nullptr);
         // uade_config_set_option(config, UC_VERBOSE, "true");
         uade_config_set_option(config, UC_BASE_DIR,
-                               fs::absolute(dataDir).c_str());
+                               fs::absolute(dataDir).string().c_str());
         state = uade_new_state(config, 1);
         free(config);
 
@@ -98,7 +98,7 @@ public:
         }
 
         LOGD("UADE FILE {}", currentFileName.string());
-        if (uade_play(currentFileName.c_str(), -1, state) == 1) {
+        if (uade_play(currentFileName.string().c_str(), -1, state) == 1) {
             songInfo = uade_get_song_info(state);
             std::string modname = songInfo->modulename;
             if (modname == "<no songtitle>") { modname = ""; }

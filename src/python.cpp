@@ -42,7 +42,7 @@ void init()
 {
     auto p = getModulePath();
     auto data_dir = (p.parent_path() / "data");
-    musix::ChipPlugin::createPlugins(data_dir);
+    musix::ChipPlugin::createPlugins(data_dir.string());
 }
 
 std::shared_ptr<musix::ChipPlayer> load_music(std::string const& name)

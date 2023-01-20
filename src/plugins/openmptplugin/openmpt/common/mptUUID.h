@@ -22,6 +22,7 @@
 #endif // MODPLUG_TRACKER || !NO_DMO
 #endif // MPT_OS_WINDOWS
 
+#include <stdexcept>
 
 OPENMPT_NAMESPACE_BEGIN
 

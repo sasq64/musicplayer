@@ -30,12 +30,12 @@
 #include "sidendian.h"
 #include "sidmemory.h"
 
-static const uint8_t sidplayer1[] =
+static const uint8_t *sidplayer1 =
 {
 #  include "sidplayer1.bin"
 };
 
-static const uint8_t sidplayer2[] =
+static const uint8_t *sidplayer2 =
 {
 #  include "sidplayer2.bin"
 };
