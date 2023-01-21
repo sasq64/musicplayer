@@ -1,6 +1,6 @@
 [project]
 name = "musix"
-version = "0.1.0"
+version = "0.1.1"
 description = "Music library"
 authors = [
     {name = "Jonas Minnberg", email="sasq64@gmail.com"}

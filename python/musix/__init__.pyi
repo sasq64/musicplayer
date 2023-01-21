@@ -12,9 +12,10 @@ __all__ = [
 
 def init() -> None:
     """
-    Init musix
+    Init musix. Must be called first.
     """
 def load(name: str) -> Player:
     """
-    Load music file
+    Load music file. Throws an exception if the file could not
+    be loaded.
     """
