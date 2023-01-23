@@ -1,6 +1,7 @@
 
 #include "chipplayer.h"
 #include "chipplugin.h"
+#include "songfile_identifier.h"
 
 #include <pybind11/detail/common.h>
 #include <pybind11/pybind11.h>
@@ -63,9 +64,25 @@ std::shared_ptr<musix::ChipPlayer> load_music(std::string const& name)
     return player;
 }
 
+SongInfo identify(std::string file_name)
+{
+    SongInfo info{file_name};
+    identify_song(info);
+    return info;
+}
+
 PYBIND11_MODULE(_musix, mod)
 {
     mod.doc() = "";
+
+    py::class_<SongInfo>(mod, "SongInfo")
+        .def_readwrite("path", &SongInfo::path)
+        .def_readwrite("title", &SongInfo::title)
+        .def_readwrite("composer", &SongInfo::composer)
+        .def_readwrite("format", &SongInfo::format);
+
+
+    mod.def("identify", &identify, "Identify song");
 
     py::class_<musix::ChipPlayer, std::shared_ptr<musix::ChipPlayer>>(mod,
                                                                       "Player")

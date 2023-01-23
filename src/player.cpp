@@ -176,7 +176,7 @@ public:
         infoList.emplace_back("file_size", static_cast<uint32_t>(fsize));
 
         infoList.emplace_back("filename", fs::absolute(songFile).string());
-        player->onMeta([this](auto&& meta_list, auto*) {
+        player->onMeta([this](auto&& meta_list) {
             for (auto&& name : meta_list) {
                 auto&& val = player->meta(name);
                 infoList.emplace_back(name, val);
@@ -243,10 +243,8 @@ public:
             play_next();
         }
     }
-    void seek(int offset_ms) {
 
-
-    }
+    void seek(int /*offset_ms*/) { }
 };
 
 class OutPlayer : public MusicPlayer
@@ -278,7 +276,7 @@ public:
         if (startSong >= 0) { player->seekTo(startSong, -1); }
 
         uint32_t songs = 0;
-        player->onMeta([&](auto&& meta_list, auto*) {
+        player->onMeta([&](auto&& meta_list) {
             for (auto&& name : meta_list) {
                 auto&& val = player->meta(name);
                 infoList.emplace_back(name, val);

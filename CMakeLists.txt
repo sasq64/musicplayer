@@ -88,7 +88,7 @@ add_subdirectory(src/plugins)
 
 add_subdirectory(external/pybind11)
 
-pybind11_add_module(_musix src/python.cpp)
+pybind11_add_module(_musix src/python.cpp src/songfile_identifier.cpp)
 target_link_libraries(_musix PUBLIC ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive Threads::Threads)
 install(TARGETS _musix DESTINATION .)
@@ -104,7 +104,7 @@ add_executable(play src/simple.cpp src/resampler.cpp)
 target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive Threads::Threads)
 
-add_executable(msxp src/main.cpp src/resampler.cpp src/player.cpp src/resampler.cpp)
+add_executable(msxp src/main.cpp src/songfile_identifier.cpp src/resampler.cpp src/player.cpp src/resampler.cpp)
 target_compile_definitions(msxp PUBLIC SOL_USING_CXX_LUA)
 target_link_libraries(msxp PUBLIC ansi fmt::fmt lua sol2::sol2  ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive readerwriterqueue Threads::Threads)

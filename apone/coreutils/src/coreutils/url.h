@@ -2993,7 +2993,7 @@ inline std::string urlencode(const std::string& s, const std::string& chars)
     for (unsigned i = 0; i < s.length(); i++) {
         auto c = s[i];
         if (chars.find(c) != std::string::npos) {
-            sprintf(ptr, "%%%02x", c);
+            snprintf(ptr, 4, "%%%02x", c);
             ptr += 3;
         } else
             *ptr++ = c;

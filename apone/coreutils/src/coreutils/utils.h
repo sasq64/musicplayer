@@ -356,7 +356,7 @@ inline fs::path find_path(const std::string& search_path,
     return "";
 }
 
-inline std::vector<uint8_t> read_file(fs::path const& fileName)
+inline std::vector<uint8_t> read_file(fs::path const& fileName, int64_t max = -1)
 {
     std::ifstream instream(fileName, std::ios::in | std::ios::binary);
     std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),

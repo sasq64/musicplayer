@@ -4,7 +4,7 @@
 
 static inline std::unordered_map<std::string, uint32_t> html_colors =
 {
-    { "aroon", 0x800000 },
+    { "maroon", 0x800000 },
     { "dark_red", 0x8B0000 },
     { "brown", 0xA52A2A },
     { "firebrick", 0xB22222 },
