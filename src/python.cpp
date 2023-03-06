@@ -4,11 +4,10 @@
 #include "songfile_identifier.h"
 
 #include <pybind11/detail/common.h>
-#include <pybind11/pybind11.h>
 #include <pybind11/functional.h>
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <cctype>
 #include <chrono>
 #include <filesystem>
 #include <thread>
@@ -22,7 +21,7 @@ py::object get_samples(musix::ChipPlayer& player, size_t size)
     auto* bytes = static_cast<PyBytesObject*>(
         PyObject_Malloc(offsetof(PyBytesObject, ob_sval) + size * 2));
     PyObject_INIT_VAR(bytes, &PyBytes_Type, size * 2);
-    bytes->ob_shash = -1;
+    //bytes->ob_shash = -1;
     auto sz = player.getSamples(reinterpret_cast<int16_t*>(&bytes->ob_sval),
                                 static_cast<int>(size));
     if (sz == 0) { return py::cast(nullptr); }
@@ -64,7 +63,7 @@ std::shared_ptr<musix::ChipPlayer> load_music(std::string const& name)
     return player;
 }
 
-SongInfo identify(std::string file_name)
+SongInfo identify(std::string const& file_name)
 {
     SongInfo info{file_name};
     identify_song(info);

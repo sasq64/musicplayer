@@ -85,6 +85,7 @@ set(MUSICPLAYER_PLUGINS
 )
 add_subdirectory(src/plugins)
 
+if (PYTHON_MODULE)
 
 add_subdirectory(external/pybind11)
 
@@ -94,7 +95,7 @@ target_link_libraries(_musix PUBLIC ${MUSICPLAYER_PLUGINS}
 install(TARGETS _musix DESTINATION .)
 install(DIRECTORY data DESTINATION .)
 
-if(NOT PYTHON_MODULE)
+else()
 
 add_library(musix SHARED src/lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}

@@ -7,7 +7,6 @@
 
 #include <cstring>
 
-#include <sc68/msg68.h>
 #include <sc68/sc68.h>
 extern "C"
 {
@@ -16,14 +15,13 @@ extern "C"
 }
 #include <set>
 #include <string>
-#include <unordered_map>
 
 static void write_debug(int /*level*/, void* /*cookie*/, const char* fmt,
                         va_list list)
 {
-    static char temp[1024];
-    vsprintf(temp, fmt, list);
-    LOGD(temp);
+    static std::array<char, 1024> temp;
+    vsnprintf(temp.data(), temp.size(), fmt, list);
+    LOGD(temp.data());
 }
 
 namespace musix {
@@ -35,15 +33,14 @@ public:
         : dataDir(dataDir)
     {
 
-        std::string head =
+        auto head =
             std::string(reinterpret_cast<const char*>(data.data()), 0, 4);
         if (head == "ICE!") {
-            int dsize = unice68_get_depacked_size(data.data(), nullptr);
+            auto dsize = unice68_get_depacked_size(data.data(), nullptr);
             LOGD("Unicing {} bytes to {} bytes", data.size(), dsize);
             auto* ptr = new uint8_t[dsize];
-            int res = unice68_depacker(ptr, data.data());
+            auto res = unice68_depacker(ptr, data.data());
             if (res == 0) { valid = load(ptr, dsize); }
-
             delete[] ptr;
 
         } else {

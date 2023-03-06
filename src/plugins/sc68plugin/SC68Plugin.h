@@ -7,14 +7,10 @@ namespace musix {
 
 class SC68Plugin : public ChipPlugin {
 public:
-    virtual std::string name() const override { return "SC68"; }
-    SC68Plugin(const std::string& dataDir) : dataDir(dataDir) {}
-    virtual bool canHandle(const std::string& name) override;
-    virtual ChipPlayer* fromFile(const std::string& fileName) override;
-
-    static bool identifyFile(const std::string& fileName);
-
-    //void setDataDir(const std::string& dataDir) { this->dataDir = dataDir; }
+    std::string name() const override { return "SC68"; }
+    explicit SC68Plugin(const std::string& dataDir) : dataDir(dataDir) {}
+    bool canHandle(const std::string& name) override;
+    ChipPlayer* fromFile(const std::string& fileName) override;
 
 private:
     std::string dataDir;

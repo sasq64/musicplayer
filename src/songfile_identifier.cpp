@@ -1,49 +1,48 @@
-#include "songinfo.h"
-
 #include "songfile_identifier.h"
+
 #include "modutils.h"
 
 #include <archive/archive.h>
 #include <coreutils/log.h>
 #include <coreutils/split.h>
-#include <coreutils/utils.h>
 #include <coreutils/text.h>
 #include <coreutils/utf8.h>
+#include <coreutils/utils.h>
 
 #ifdef WITH_MPG123
 #    include <mpg123.h>
 #endif
 
 #include <algorithm>
-#include <array>
 #include <memory>
 #include <string>
 
 using namespace std::string_literals;
 
-static std::string get_string(uint8_t* ptr, int size)
+static std::string get_string(uint8_t* ptr, int64_t size)
 {
-    auto end = ptr;
-    while (*end && end - ptr < size)
+    auto *end = ptr;
+    while (*end != 0 && end - ptr < size) {
         end++;
-    return std::string((const char*)ptr, end - ptr);
+    }
+    return std::string((const char*)ptr, end - ptr); //NOLINT
 }
 
-template <typename T> T get(const std::vector<uint8_t>&, int) {}
+template <typename T> T get(const std::vector<uint8_t>&, int64_t) {}
 
-template <> uint16_t get(const std::vector<uint8_t>& v, int offset)
+template <> uint16_t get(const std::vector<uint8_t>& v, int64_t offset)
 {
     return static_cast<unsigned>(v[offset] << 8U) | v[offset + 1];
 }
 
-template <> uint32_t get(const std::vector<uint8_t>& v, int offset)
+template <> uint32_t get(const std::vector<uint8_t>& v, int64_t offset)
 {
     return (static_cast<unsigned>(v[offset + 0]) << 24U) |
         static_cast<unsigned>(v[offset + 1] << 16U) |
         static_cast<unsigned>(v[offset + 2] << 8U) | v[offset + 3];
 }
 
-template <> uint64_t get(const std::vector<uint8_t>& v, int offset)
+template <> uint64_t get(const std::vector<uint8_t>& v, int64_t offset)
 {
     return (static_cast<uint64_t>(get<uint32_t>(v, offset)) << 32U) |
         get<uint32_t>(v, offset + 4);
@@ -53,12 +52,12 @@ std::vector<std::string> getLines(std::string const& text)
 {
     std::vector<std::string> lines;
 
-    char tmp[256];
-    char* t = tmp;
+    std::array<char, 256> tmp; // NOLINT
+    char* t = tmp.data();
     const char* ptr = text.c_str();
     bool eol = false;
-    while (*ptr) {
-        if (t - tmp >= 255) break;
+    while (*ptr != 0) {
+        if (t - tmp.data() >= 255) { break; }
 
         while (*ptr == 10 || *ptr == 13) {
             ptr++;
@@ -66,16 +65,16 @@ std::vector<std::string> getLines(std::string const& text)
         }
         if (eol) {
             *t = 0;
-            t = tmp;
-            lines.emplace_back(tmp);
+            t = tmp.data();
+            lines.emplace_back(t);
             eol = false;
         }
         *t++ = *ptr++;
     }
 
     *t = 0;
-    t = tmp;
-    if (strlen(t) > 0) lines.emplace_back(tmp);
+    t = tmp.data();
+    if (strlen(t) > 0) { lines.emplace_back(tmp.data()); }
 
     return lines;
 }
@@ -98,13 +97,14 @@ bool parseSap(SongInfo& info)
     auto header = std::string(data.begin(), end_of_header);
     auto lines = getLines(header);
 
-    if (lines.empty() || lines[0] != "SAP") return false;
+    if (lines.empty() || lines[0] != "SAP") { return false; }
 
     for (const auto& l : lines) {
-        if (utils::startsWith(l, "AUTHOR"))
+        if (utils::startsWith(l, "AUTHOR")) {
             info.composer = utils::lrstrip(l.substr(7), '\"');
-        else if (utils::startsWith(l, "NAME"))
+        } else if (utils::startsWith(l, "NAME")) {
             info.title = utils::lrstrip(l.substr(5), '\"');
+        }
     }
 
     info.format = "Atari 8Bit";
@@ -120,13 +120,12 @@ extern "C"
 
 bool parseSndh(SongInfo& info)
 {
-
     std::unique_ptr<uint8_t[]> unpackPtr;
     LOGD("SNDH >%s", info.path);
     auto data = utils::read_file(info.path);
-    if (data.size() < 32) return false;
-    auto* ptr = &data[0];
-    std::string head = get_string(ptr, 4);
+    if (data.size() < 32) { return false; }
+    auto* ptr = data.data();
+    auto head = get_string(ptr, 4);
     if (head == "ICE!") {
         int dsize = unice68_get_depacked_size(ptr, nullptr);
         LOGD("Unicing %d bytes to %d bytes", data.size(), dsize);
@@ -179,49 +178,34 @@ bool parseSndh(SongInfo& info)
 bool parseSnes(SongInfo& info)
 {
     //static std::vector<uint8_t> buffer(0xd8);
-
     info.format = "Super Nintendo";
 
-    fs::path outDir = utils::get_cache_dir(".rsntemp");
+    auto outDir = utils::get_cache_dir(".rsntemp");
     auto* a = utils::Archive::open(info.path, outDir.string(),
                                    utils::Archive::TYPE_RAR);
-    // LOGD("ARCHIVE %p", a);
     bool done = false;
-    //for (auto const& s : *a) {
     for(int i=0; i<a->totalFiles(); i++) {
+        if (done) { continue; }
         auto s = a->nameFromPosition(i);
         // LOGD("FILE %s", s);
-        if (done) continue;
         if (utils::path_extension(s) == "spc") {
             a->extract(s);
             auto buffer = utils::read_file(outDir / s);
             if (buffer[0x23] == 0x1a) {
-                // auto title = std::string((const char*)&buffer[0x2e], 0x20);
-                auto ptr = (const char*)&buffer[0x4e];
-                auto end = ptr;
-                while (*end)
-                    end++;
                 auto game = get_string(&buffer[0x4e], 0x20);
                 auto composer = get_string(&buffer[0xb1], 0x20);
 
                 int offs = 0x10200;
                 auto id = get_string(&buffer[offs], 4);
-                //f.seek(0x10200);
-                //int rc = f.read(&buffer[0], buffer.size());
-                //if (rc > 12) {
-                    //auto id = std::string((const char*)&buffer[0], 4);
-                    if (id == "xid6") {
-                        // int i = 0;
-                        if (buffer[8 + offs] == 0x2) {
-                            int l = buffer[10 + offs];
-                            game = std::string((const char*)&buffer[12 + offs], l);
-                        } else if (buffer[8 + offs] == 0x3) {
-                            int l = buffer[10 + offs];
-                            composer = std::string((const char*)&buffer[12 + offs], l);
-                        }
+                if (id == "xid6") {
+                    if (buffer[8 + offs] == 0x2) {
+                        int l = buffer[10 + offs];
+                        game = std::string((const char*)&buffer[12 + offs], l);
+                    } else if (buffer[8 + offs] == 0x3) {
+                        int l = buffer[10 + offs];
+                        composer = std::string((const char*)&buffer[12 + offs], l);
                     }
-                //}
-                //f.close();
+                }
 
                 info.composer = composer;
                 info.game = game;
@@ -292,8 +276,9 @@ bool parsePList(SongInfo& info)
             if (parts.size() >= 2) {
                 info.composer = parts[1];
                 info.format = "C64 Demo";
-            } else
+            } else {
                 info.format = "C64 Event";
+            }
         }
     }
     return true;
@@ -302,10 +287,10 @@ bool parsePList(SongInfo& info)
 bool parseNsfe(SongInfo& song)
 {
     auto data = utils::read_file(song.path);
-    size_t i = 0;
+    int64_t i = 0;
     auto id = get_string(&data[i], 4);
     i += 4;
-    if (id != "NSFE") return false;
+    if (id != "NSFE") { return false; }
     while (i < data.size()) {
         auto size = get<uint32_t>(data, i);
         i += 4;
@@ -324,13 +309,14 @@ bool parseNsfe(SongInfo& song)
     return false;
 }
 
+
 static void fixName(std::string& name)
 {
     bool capNext = true;
     for (size_t i = 0; i < name.size(); i++) {
         auto& c = name[i];
         if (capNext) {
-            c = toupper(c);
+            c = static_cast<char>(toupper(c));
             capNext = (c == 'I' && name[i + 1] == 'i');
         }
         if (c == '_') {
@@ -340,42 +326,41 @@ static void fixName(std::string& name)
     }
 }
 
-bool identify_song(SongInfo& info, std::string ext)
+bool parseTed(SongInfo& info)
 {
-
-    if (ext.empty()) ext = getTypeFromName(info.path);
-
-    if (ext == "prg") {
-
-        auto parts = utils::split(info.metadata[SongInfo::INFO], "/");
-        LOGD("PARTS %s", parts);
-        int l = parts.size();
-        auto title = utils::path_basename(parts[l - 1]);
-        fixName(title);
-        std::string composer = "Unknown";
-        if (strcmp(parts[0], "musicians") == 0) {
-            composer = parts[1];
-            std::vector<std::string> cp = utils::split(composer, "_");
-            auto cpl = cp.size();
-            if (cpl > 1 && cp[0] != "the" && cp[0] != "billy" &&
-                cp[0] != "legion") {
-                auto t = cp[0];
-                cp[0] = cp[cpl - 1];
-                cp[cpl - 1] = t;
-            }
-            for (auto& cpp : cp) {
-                cpp[0] = toupper(cpp[0]);
-            }
-
-            composer = utils::join(cp.begin(), cp.end(), " "s);
+    auto parts = utils::split(info.metadata[SongInfo::INFO], "/");
+    LOGD("PARTS %s", parts);
+    auto l = parts.size();
+    auto title = utils::path_basename(parts[l - 1]);
+    fixName(title);
+    std::string composer = "Unknown";
+    if (strcmp(parts[0], "musicians") == 0) {
+        composer = parts[1];
+        std::vector<std::string> cp = utils::split(composer, "_");
+        auto cpl = cp.size();
+        if (cpl > 1 && cp[0] != "the" && cp[0] != "billy" &&
+            cp[0] != "legion") {
+            auto t = cp[0];
+            cp[0] = cp[cpl - 1];
+            cp[cpl - 1] = t;
+        }
+        for (auto& cpp : cp) {
+            cpp[0] = static_cast<char>(toupper(cpp[0]));
         }
 
-        info.format = "TED";
-        info.title = title;
-        info.composer = composer;
-
-        return true;
+        composer = utils::join(cp.begin(), cp.end(), " "s);
     }
+
+    info.format = "TED";
+    info.title = title;
+    info.composer = composer;
+
+    return true;
+}
+
+bool identify_song(SongInfo& info, std::string ext)
+{
+    if (ext.empty()) { ext = getTypeFromName(info.path); }
 
     const std::unordered_map<std::string, bool (*)(SongInfo&)> parsers {
         {"nsfe", &parseNsfe},
@@ -385,6 +370,7 @@ bool identify_song(SongInfo& info, std::string ext)
         {"sndh", &parseSndh},
         {"sap", &parseSap},
         {"mp3", &parseMp3},
+        {"prg", &parseTed},
     };
 
     if(auto it = parsers.find(ext); it != parsers.end()) {

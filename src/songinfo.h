@@ -6,11 +6,14 @@
 
 struct SongInfo
 {
-    SongInfo(const std::string& path = "", const std::string& game = "",
-             const std::string& title = "", const std::string& composer = "",
-             const std::string& format = "", const std::string& info = "")
+    explicit SongInfo(std::string const& path = "",
+                      std::string const& game = "",
+                      std::string const& title = "",
+                      std::string const& composer = "",
+                      std::string const& format = "",
+                      std::string const& info = "")
         : path(path), game(game), title(title), composer(composer),
-          format(format), metadata{ info, "" }
+          format(format), metadata{info, ""}
     {
         auto pos = path.find_last_of(';');
         if (pos != std::string::npos) {
