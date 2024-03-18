@@ -24,6 +24,7 @@ set(SOURCE_FILES
 
 add_library(s98 S98Plugin.cpp ${SOURCE_FILES})
 target_link_libraries(s98 PRIVATE coreutils ${ZLIB_LIBRARIES})
+target_compile_options(s98 PRIVATE -Wno-incompatible-function-pointer-types)
 target_include_directories(s98 PRIVATE m_s98 ${ZLIB_INCLUDE_DIRS})
 #set_source_files_properties(m_s98/device/s_sng.c PROPERTIES COMPILE_FLAGS -Wno-incompatible-pointer-types)
 

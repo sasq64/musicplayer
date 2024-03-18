@@ -19,6 +19,7 @@ add_library(hitech ${SOURCE_FILES})
 ##target_compile_options(hitech PRIVATE -Wno-pointer-sign -Wno-incompatible-pointer-types)
 target_include_directories(hitech PRIVATE .)
 target_compile_definitions(hitech PRIVATE -DEMU_COMPILE -DEMU_LITTLE_ENDIAN -DUSE_M68K -DHAVE_STDINT_H -DLSB_FIRST -DHAVE_MPROTECT)
+target_compile_options(hitech PRIVATE -Wno-incompatible-function-pointer-types)
 target_link_libraries(hitech PRIVATE psf coreutils ${ZLIB_LIBRARIES})
 
 add_library(htplugin OBJECT htplugin_register.cpp)
