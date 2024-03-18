@@ -24,7 +24,7 @@ set(SOURCE_FILES
 
 add_library(s98 S98Plugin.cpp ${SOURCE_FILES})
 target_link_libraries(s98 PRIVATE coreutils ${ZLIB_LIBRARIES})
-if(not WIN32)
+if(NOT WIN32)
     target_compile_options(s98 PRIVATE -Wno-incompatible-function-pointer-types)
 endif()
 target_include_directories(s98 PRIVATE m_s98 ${ZLIB_INCLUDE_DIRS})
