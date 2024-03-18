@@ -14,7 +14,7 @@ repository = "https://github.com/sasq64/musicplayer"
 
 [build-system]
 requires = [
-#    "setuptools>=42",
+    "setuptools>=42",
     "scikit-build>=0.13",
     "wheel",
     "ninja",
