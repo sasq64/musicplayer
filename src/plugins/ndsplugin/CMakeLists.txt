@@ -21,7 +21,9 @@ set(SOURCE_FILES
 add_library(nds ${SOURCE_FILES})
 target_include_directories(nds PRIVATE nds/vio2sf nds/vio2sf/desmume nds)
 target_link_libraries(nds PRIVATE psf coreutils)
-target_compile_options(nds PRIVATE -Wno-incompatible-function-pointer-types)
+if(not WIN32)
+    target_compile_options(nds PRIVATE -Wno-incompatible-function-pointer-types)
+endif()
 target_compile_definitions(nds PRIVATE -DLSB_FIRST -DHAVE_STDINT_H)
 # -D_strnicmp=strncasecmp)
 
