@@ -24,6 +24,7 @@ if(APPLE)
 endif()
 
 
+
 find_package(Threads)
 
 add_subdirectory(external/zlib)
@@ -101,6 +102,10 @@ add_library(musix SHARED src/lib.cpp)
 target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
     coreutils crypto archive Threads::Threads fmt::fmt)
 
+add_library(musix_static STATIC src/lib.cpp)
+target_link_libraries(musix_static PUBLIC ${MUSICPLAYER_PLUGINS}
+        coreutils crypto archive Threads::Threads fmt::fmt)
+
 add_executable(play src/simple.cpp src/resampler.cpp)
 target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive Threads::Threads)
@@ -109,7 +114,5 @@ add_executable(msxp src/main.cpp src/songfile_identifier.cpp src/resampler.cpp s
 target_compile_definitions(msxp PUBLIC SOL_USING_CXX_LUA)
 target_link_libraries(msxp PUBLIC ansi fmt::fmt lua sol2::sol2  ${MUSICPLAYER_PLUGINS}
     apone::coreutils audioplayer apone::crypto archive readerwriterqueue Threads::Threads)
-
-install(TARGETS msxp DESTINATION /usr/local/bin)
 
 endif()
