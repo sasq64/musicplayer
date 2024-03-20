@@ -32,7 +32,7 @@ fn visit_dirs(dir: &Path, target : &mut Vec<PathBuf>) {
 }
 
 fn main() {
-    let dst = Config::new(".").build();
+    let dst = Config::new(".").build_target("musix_static").build();
 
     let mut paths = Vec::<PathBuf>::new();
     visit_dirs(&dst, &mut paths);
