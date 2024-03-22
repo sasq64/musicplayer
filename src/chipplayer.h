@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -53,8 +54,19 @@ public:
             for (const auto& cb : callbacks) {
                 cb(changedMeta);
             }
+            for(auto&& cm : changedMeta) {
+                lastMeta.insert(cm);
+            }
             changedMeta.clear();
         }
+    }
+
+    std::optional<std::string> getChangedMeta()
+    {
+        if (lastMeta.empty()) { return std::nullopt; }
+        auto res = *lastMeta.begin();
+        lastMeta.erase(res);
+        return res;
     }
 
     template <typename T, typename... A,
@@ -117,6 +129,7 @@ protected:
     std::unordered_map<std::string, MetaVar> metaData;
     std::vector<Callback> callbacks;
     std::vector<std::string> changedMeta;
+    std::unordered_set<std::string> lastMeta;
 };
 
 } // namespace musix

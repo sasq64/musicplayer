@@ -63,6 +63,16 @@ extern "C" API const char* musix_player_get_meta(void* player, const char* what)
     return strdup(s.c_str());
 }
 
+extern "C" API const char* musix_get_changed_meta(void* player)
+{
+    auto* chipPlayer = static_cast<ChipPlayer*>(player);
+    if (auto&& meta = chipPlayer->getChangedMeta())
+    {
+       return strdup(meta->c_str());
+    }
+    return nullptr;
+}
+
 extern "C" API void musix_player_seek(void* player, int song, int seconds)
 {
     auto* chipPlayer = static_cast<ChipPlayer*>(player);

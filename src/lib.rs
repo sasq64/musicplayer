@@ -19,6 +19,8 @@ pub mod musix {
         fn musix_player_seek(player: *const c_void, song: i32, seconds: i32);
 
         fn musix_player_destroy(player: *const c_void);
+
+        fn musix_get_changed_meta(player: *const c_void) -> *const c_char;
     }
 
     pub struct ChipPlayer {
@@ -28,10 +30,26 @@ pub mod musix {
     impl ChipPlayer {
         pub fn get_meta(&mut self, what: &str) -> String {
             unsafe {
-                let cptr = musix_player_get_meta(self.player, CString::new(what).unwrap().as_ptr());
+                let cwhat = CString::new(what).unwrap();
+                let cptr = musix_player_get_meta(self.player, cwhat.as_ptr());
                 let meta = CStr::from_ptr(cptr).to_string_lossy().into_owned();
                 free(cptr as *mut c_void);
                 meta
+            }
+        }
+
+        pub fn get_changed_meta(&mut self) -> Option<String>
+        {
+            unsafe {
+                let cptr = musix_get_changed_meta(self.player);
+                if cptr.is_null() {
+                    return None;
+                }
+
+                let meta = CStr::from_ptr(cptr).to_string_lossy().into_owned();
+                let res = Some(meta);
+                free(cptr as *mut c_void);
+                res
             }
         }
 
