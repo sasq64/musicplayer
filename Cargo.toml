@@ -7,7 +7,7 @@ edition = "2021"
 build="build.rs"
 authors = [ "Jonas Minnberg <sasq64@gmail.com>" ]
 homepage = "https://github.com/sasq64/musicplayer"
-exclude = ["/build", "/_skbuild", "/python"]
+exclude = ["/build", "/_skbuild", "/python", "/testmus"]
 
 [build-dependencies]
 cmake = "0.1.50"
