@@ -35,22 +35,24 @@ target_link_libraries(_zlib INTERFACE ${ZLIB_LIBRARIES})
 target_include_directories(_zlib INTERFACE ${ZLIB_INCLUDE_DIRS})
 add_library(ZLIB::ZLIB ALIAS _zlib)
 
+if ((NOT PYTHON_MODULE) AND (NOT RUST_BUILD))
+
+    add_subdirectory(external/readerwriterqueue)
+    add_subdirectory(external/ansi)
+    add_subdirectory(external/lua)
+    add_subdirectory(external/sol3)
+
+    add_subdirectory(${APONE}/audioplayer audioplayer)
+
+endif()
+
 if (NOT PYTHON_MODULE)
-
-add_subdirectory(external/fmt)
-add_subdirectory(external/readerwriterqueue)
-add_subdirectory(external/ansi)
-add_subdirectory(external/lua)
-add_subdirectory(external/sol3)
-
-add_subdirectory(${APONE}/audioplayer audioplayer)
-
+    add_subdirectory(external/fmt)
 endif()
 
 add_subdirectory(${APONE}/coreutils coreutils)
 add_subdirectory(${APONE}/crypto crypto)
 add_subdirectory(${APONE}/archive archive)
-
 
 add_subdirectory(src/psf)
 add_subdirectory(src/stil)
@@ -88,31 +90,35 @@ add_subdirectory(src/plugins)
 
 if (PYTHON_MODULE)
 
-add_subdirectory(external/pybind11)
+  add_subdirectory(external/pybind11)
 
-pybind11_add_module(_musix src/python.cpp src/songfile_identifier.cpp)
-target_link_libraries(_musix PUBLIC ${MUSICPLAYER_PLUGINS}
-    coreutils crypto archive Threads::Threads)
-install(TARGETS _musix DESTINATION .)
-install(DIRECTORY data DESTINATION .)
+  pybind11_add_module(_musix src/python.cpp src/songfile_identifier.cpp)
+  target_link_libraries(_musix PUBLIC ${MUSICPLAYER_PLUGINS}
+      coreutils crypto archive Threads::Threads)
+  install(TARGETS _musix DESTINATION .)
+  install(DIRECTORY data DESTINATION .)
 
 else()
 
-add_library(musix SHARED src/lib.cpp)
-target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
-    coreutils crypto archive Threads::Threads fmt::fmt)
+  add_library(musix SHARED src/lib.cpp)
+  target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
+      coreutils crypto archive Threads::Threads fmt::fmt)
 
-add_library(musix_static STATIC src/lib.cpp)
-target_link_libraries(musix_static PUBLIC ${MUSICPLAYER_PLUGINS}
-        coreutils crypto archive Threads::Threads fmt::fmt)
+  add_library(musix_static STATIC src/lib.cpp)
+  target_link_libraries(musix_static PUBLIC ${MUSICPLAYER_PLUGINS}
+          coreutils crypto archive Threads::Threads fmt::fmt)
 
-add_executable(play src/simple.cpp src/resampler.cpp)
-target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
-    apone::coreutils audioplayer apone::crypto archive Threads::Threads)
+  if (NOT RUST_BUILD)
 
-add_executable(msxp src/main.cpp src/songfile_identifier.cpp src/resampler.cpp src/player.cpp src/resampler.cpp)
-target_compile_definitions(msxp PUBLIC SOL_USING_CXX_LUA)
-target_link_libraries(msxp PUBLIC ansi fmt::fmt lua sol2::sol2  ${MUSICPLAYER_PLUGINS}
-    apone::coreutils audioplayer apone::crypto archive readerwriterqueue Threads::Threads)
+    add_executable(play src/simple.cpp src/resampler.cpp)
+    target_link_libraries(play PUBLIC ${MUSICPLAYER_PLUGINS}
+        apone::coreutils audioplayer apone::crypto archive Threads::Threads)
+
+    add_executable(msxp src/main.cpp src/songfile_identifier.cpp src/resampler.cpp src/player.cpp src/resampler.cpp)
+    target_compile_definitions(msxp PUBLIC SOL_USING_CXX_LUA)
+    target_link_libraries(msxp PUBLIC ansi fmt::fmt lua sol2::sol2 ${MUSICPLAYER_PLUGINS}
+        apone::coreutils audioplayer apone::crypto archive readerwriterqueue Threads::Threads)
+
+  endif()
 
 endif()
