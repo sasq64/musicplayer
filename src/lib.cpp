@@ -21,10 +21,22 @@ using musix::ChipPlugin;
 #    define API
 #endif
 
+static std::string error_message;
+
 extern "C" API int musix_create(const char* dataDir)
 {
-    musix::ChipPlugin::createPlugins(dataDir);
+    try {
+        musix::ChipPlugin::createPlugins(dataDir);
+    } catch (std::exception& e) {
+        error_message = e.what();
+        return -1;
+    }
     return 0;
+}
+
+extern "C" API const char*  musix_get_error()
+{
+    return error_message.c_str();
 }
 
 extern "C" API void* musix_find_plugin(const char* fileName)

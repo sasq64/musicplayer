@@ -7,10 +7,14 @@
 //! <https://github.com/sasq64/musicplayer>
 //!
 //!
+use std::error::Error;
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::ffi::NulError;
+use std::fmt::Display;
 use std::os::raw::c_char;
 use std::os::raw::c_void;
+use std::path::Path;
 
 extern "C" {
     fn free(__ptr: *mut ::std::os::raw::c_void);
@@ -22,12 +26,31 @@ extern "C" {
     fn musix_plugin_create_player(plugin: *mut c_void, music_file: *const c_char) -> *mut c_void;
     fn musix_player_get_meta(player: *const c_void, what: *const c_char) -> *const c_char;
     fn musix_player_get_samples(player: *const c_void, target: *mut i16, size: i32) -> i32;
-
     fn musix_player_seek(player: *const c_void, song: i32, seconds: i32);
-
     fn musix_player_destroy(player: *const c_void);
-
     fn musix_get_changed_meta(player: *const c_void) -> *const c_char;
+    fn musix_get_error() -> *const c_char;
+}
+
+#[derive(Debug)]
+pub struct MusicError {
+    msg: String,
+}
+
+impl Display for MusicError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.msg)
+    }
+}
+
+impl Error for MusicError {}
+
+impl From<NulError> for MusicError {
+    fn from(_value: NulError) -> Self {
+        MusicError {
+            msg: "NULL".to_string(),
+        }
+    }
 }
 
 pub struct ChipPlayer {
@@ -97,19 +120,23 @@ impl Drop for ChipPlayer {
     }
 }
 
-unsafe impl Send for ChipPlayer {}
+//unsafe impl Send for ChipPlayer {}
 
 /// Load a song file
-pub fn load_song(song_file: &str) -> Result<ChipPlayer, &str> {
+pub fn load_song(song_file: &str) -> Result<ChipPlayer, MusicError> {
     let music_file = CString::new(song_file).unwrap();
     unsafe {
         let plugin = musix_find_plugin(music_file.as_ptr());
         if plugin.is_null() {
-            return Err("Could not find a plugin for file.");
+            return Err(MusicError {
+                msg: "Could not find a plugin for file.".to_string(),
+            });
         }
         let player = musix_plugin_create_player(plugin, music_file.as_ptr());
         if plugin.is_null() {
-            return Err("Could not play file using plugin.");
+            return Err(MusicError {
+                msg: "Could not play file using plugin.".to_string(),
+            });
         }
         Ok(ChipPlayer { player })
     }
@@ -117,16 +144,23 @@ pub fn load_song(song_file: &str) -> Result<ChipPlayer, &str> {
 
 /// Initialize musix. Must be given a path to the `data/` folder that contains bioses and
 /// other additional files required for some formats to play correctly.
-pub fn init(path: &str) {
-    let data_dir = CString::new(path).unwrap();
+pub fn init(path: &Path) -> Result<(), MusicError> {
+    let s = path.to_string_lossy();
+    let data_dir = CString::new(s.as_ref())?;
     unsafe {
-        musix_create(data_dir.as_ptr());
+        if musix_create(data_dir.as_ptr()) != 0 {
+            let err = musix_get_error();
+            let cs = CStr::from_ptr(err).to_str().unwrap();
+            return Err(MusicError {
+                msg: cs.to_string(),
+            });
+        }
     }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn it_works() {}
