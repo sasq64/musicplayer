@@ -19,13 +19,10 @@ fn visit_dirs(dir: &Path, target: &mut Vec<PathBuf>) {
                     if name.contains("_static") {
                         println!(
                             "cargo:rustc-link-lib=static:+whole-archive={}",
-                            name[3..len - 2].to_string()
+                            &name[3..len - 2]
                         );
                     } else {
-                        println!(
-                            "cargo:rustc-link-lib=static={}",
-                            name[3..len - 2].to_string()
-                        );
+                        println!("cargo:rustc-link-lib=static={}", &name[3..len - 2]);
                     }
                     //println!("cargo:rustc-link-lib=static={}", name[0..len-4].to_string());
                 }
@@ -37,7 +34,10 @@ fn visit_dirs(dir: &Path, target: &mut Vec<PathBuf>) {
 }
 
 fn main() {
-    let dst = Config::new(".").build_target("musix_static").define("RUST_BUILD", "ON").build();
+    let dst = Config::new(".")
+        .build_target("musix_static")
+        .define("RUST_BUILD", "ON")
+        .build();
 
     let mut paths = Vec::<PathBuf>::new();
     visit_dirs(&dst, &mut paths);

@@ -66,6 +66,10 @@ impl ChipPlayer {
 
     /// Get the value of some meta data, as string
     pub fn get_meta_string(&mut self, what: &str) -> Option<String> {
+        if self.player.is_null() {
+            return None;
+        }
+
         unsafe {
             let cwhat = CString::new(what).unwrap();
             let cptr = musix_player_get_meta(self.player, cwhat.as_ptr());
@@ -80,6 +84,9 @@ impl ChipPlayer {
 
     /// Get the name of any changed meta data.
     pub fn get_changed_meta(&mut self) -> Option<String> {
+        if self.player.is_null() {
+            return None;
+        }
         unsafe {
             let cptr = musix_get_changed_meta(self.player);
             if cptr.is_null() {
@@ -105,10 +112,19 @@ impl ChipPlayer {
         }
     }
     /// Seek to a certain song and/or a certain offset in song (often not supported).
-    pub fn seek(&mut self, song: i32, seconds: i32) {
+    pub fn seek(&self, song: i32, seconds: i32) {
+        if self.player.is_null() {
+            return;
+        }
         unsafe {
             musix_player_seek(self.player, song, seconds);
         }
+    }
+}
+
+impl Default for ChipPlayer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -120,11 +136,10 @@ impl Drop for ChipPlayer {
     }
 }
 
-//unsafe impl Send for ChipPlayer {}
-
 /// Load a song file
-pub fn load_song(song_file: &str) -> Result<ChipPlayer, MusicError> {
-    let music_file = CString::new(song_file).unwrap();
+pub fn load_song(song_file: &Path) -> Result<ChipPlayer, MusicError> {
+    let s = song_file.to_string_lossy();
+    let music_file = CString::new(s.as_ref())?;
     unsafe {
         let plugin = musix_find_plugin(music_file.as_ptr());
         if plugin.is_null() {

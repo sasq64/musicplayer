@@ -75,6 +75,14 @@ extern "C" API const char* musix_player_get_meta(void* player, const char* what)
     return strdup(s.c_str());
 }
 
+extern "C" API const char* musix_player_get_meta_int(void* player, const char* what)
+{
+    auto* chipPlayer = static_cast<ChipPlayer*>(player);
+    auto s = std::visit([](auto&& x) { return fmt::format("{}", x); },
+                        chipPlayer->meta(what));
+    return strdup(s.c_str());
+}
+
 extern "C" API const char* musix_get_changed_meta(void* player)
 {
     auto* chipPlayer = static_cast<ChipPlayer*>(player);
