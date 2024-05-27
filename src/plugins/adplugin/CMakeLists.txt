@@ -72,14 +72,12 @@ set(SOURCE_FILES
         adplug/cmfmcsop.cpp
 )
 
-add_library(adplug STATIC ${SOURCE_FILES})
-target_include_directories(adplug PRIVATE opl libbinio adplug)
-target_compile_definitions(adplug PRIVATE ADPLUG_VERSION="2.3.2-beta")
+add_library(adplugin STATIC ${SOURCE_FILES})
+target_include_directories(adplugin PRIVATE opl libbinio adplug)
+target_compile_definitions(adplugin PRIVATE ADPLUG_VERSION="2.3.2-beta")
 if(NOT WIN32)
-  target_compile_definitions(adplug PRIVATE stricmp=strcasecmp)
-  target_compile_options(adplug PRIVATE -Wno-register)
+  target_compile_definitions(adplugin PRIVATE stricmp=strcasecmp)
+  target_compile_options(adplugin PRIVATE -Wno-register)
 endif()
-target_link_libraries(adplug PRIVATE coreutils)
+target_link_libraries(adplugin PRIVATE coreutils)
 
-add_library(adplugin OBJECT adplugin_register.cpp)
-target_link_libraries(adplugin PRIVATE adplug)

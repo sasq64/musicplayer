@@ -84,3 +84,9 @@ ChipPlayer* S98Plugin::fromFile(const std::string& name)
 };
 
 } // namespace musix
+extern "C" void s98plugin_register()
+{
+    musix::ChipPlugin::addPluginConstructor([](std::string const& config) {
+        return std::make_shared<musix::S98Plugin>();
+    });
+}

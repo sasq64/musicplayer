@@ -51,3 +51,9 @@ ChipPlayer* NDSPlugin::fromFile(const std::string& fileName) {
 };
 
 } // namespace musix
+extern "C" void ndsplugin_register()
+{
+    musix::ChipPlugin::addPluginConstructor([](std::string const& config) {
+        return std::make_shared<musix::NDSPlugin>();
+    });
+}

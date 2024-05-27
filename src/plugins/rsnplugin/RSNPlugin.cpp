@@ -110,3 +110,10 @@ bool RSNPlugin::canHandle(const std::string& name)
 }
 
 } // namespace musix
+
+extern "C" void rsnplugin_register()
+{
+    musix::ChipPlugin::addPluginConstructor([](std::string const& config) {
+        return std::make_shared<musix::RSNPlugin>();
+    });
+}

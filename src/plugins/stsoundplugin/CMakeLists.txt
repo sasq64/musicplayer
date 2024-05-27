@@ -11,9 +11,7 @@ set(SOURCE_FILES
     StSoundLibrary/LZH/LzhLib.cpp
 )
 
-add_library(stsound ${SOURCE_FILES})
-target_link_libraries(stsound PRIVATE coreutils)
+add_library(stsoundplugin ${SOURCE_FILES})
+target_link_libraries(stsoundplugin PRIVATE coreutils)
 
-add_library(stsoundplugin OBJECT stsoundplugin_register.cpp)
-target_link_libraries(stsoundplugin PRIVATE stsound)
 

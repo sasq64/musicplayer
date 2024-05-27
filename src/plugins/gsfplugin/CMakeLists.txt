@@ -29,11 +29,9 @@ endif()
 
 #find_package(ZLIB REQUIRED)
 
-add_library(gsf STATIC ${SOURCE_FILES})
-target_compile_definitions(gsf PRIVATE LINUX C_CORE)
+add_library(gsfplugin STATIC ${SOURCE_FILES})
+target_compile_definitions(gsfplugin PRIVATE LINUX C_CORE)
 #NO_INTERPOLATION)
-target_include_directories(gsf PRIVATE ${ZLIB_INCLUDE_DIRS} playgsf playgsf/libresample-0.1.3/include ..)
-target_link_libraries(gsf PRIVATE psf coreutils ${ZLIB_LIBRARIES})
+target_include_directories(gsfplugin PRIVATE ${ZLIB_INCLUDE_DIRS} playgsf playgsf/libresample-0.1.3/include ..)
+target_link_libraries(gsfplugin PRIVATE psf coreutils ${ZLIB_LIBRARIES})
 
-add_library(gsfplugin OBJECT gsfplugin_register.cpp)
-target_link_libraries(gsfplugin PRIVATE gsf)

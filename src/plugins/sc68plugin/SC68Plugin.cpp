@@ -201,3 +201,9 @@ ChipPlayer* SC68Plugin::fromFile(const std::string& fileName)
 };
 
 } // namespace musix
+extern "C" void sc68plugin_register()
+{
+    musix::ChipPlugin::addPluginConstructor([](std::string const& config) {
+        return std::make_shared<musix::SC68Plugin>(config + "/sc68");
+    });
+}

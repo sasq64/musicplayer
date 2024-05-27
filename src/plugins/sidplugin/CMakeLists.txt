@@ -59,11 +59,11 @@ set(SOURCE_FILES
     libsidplayfp/src/sidplayfp/SidTuneInfo.cpp
 )
 
-add_library(sidplay ${SOURCE_FILES})
-target_link_libraries(sidplay PRIVATE coreutils stil)
-target_compile_definitions(sidplay PRIVATE HAVE_CXX11 PACKAGE_NAME="" PACKAGE_VERSION="" PACKAGE_URL="" VERSION="1.0-pre2")
-target_include_directories(sidplay PRIVATE libsidplayfp/src libsidplayfp/src/builders/residfp-builder/residfp)
+add_library(sidplugin ${SOURCE_FILES})
+target_link_libraries(sidplugin PRIVATE coreutils stil)
+target_compile_definitions(sidplugin PRIVATE HAVE_CXX11 PACKAGE_NAME="" PACKAGE_VERSION="" PACKAGE_URL="" VERSION="1.0-pre2")
+target_include_directories(sidplugin PRIVATE libsidplayfp/src libsidplayfp/src/builders/residfp-builder/residfp)
 
 
-add_library(sidplugin OBJECT sidplugin_register.cpp)
-target_link_libraries(sidplugin PRIVATE stil sidplay)
+#add_library(sidplugin OBJECT sidplugin_register.cpp)
+#target_link_libraries(sidplugin PRIVATE stil sidplay)

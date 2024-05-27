@@ -5,8 +5,6 @@ set(TEDPLAY_FILES tedplay/Audio.cpp tedplay/CbmTune.cpp tedplay/Filter.cpp tedpl
 )
 
 set(SOURCE_FILES TEDPlugin.cpp ${TEDPLAY_FILES})
-add_library(tedplay ${SOURCE_FILES})
-target_link_libraries(tedplay PRIVATE coreutils)
+add_library(tedplugin ${SOURCE_FILES})
+target_link_libraries(tedplugin PRIVATE coreutils)
 
-add_library(tedplugin OBJECT tedplugin_register.cpp)
-target_link_libraries(tedplugin PRIVATE tedplay)

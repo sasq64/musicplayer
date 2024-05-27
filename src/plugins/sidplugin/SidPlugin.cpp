@@ -181,3 +181,10 @@ ChipPlayer* SidPlugin::fromFile(const std::string& name)
 };
 
 } // namespace musix
+
+extern "C" void sidplugin_register()
+{
+    musix::ChipPlugin::addPluginConstructor([](std::string const& config) {
+        return std::make_shared<musix::SidPlugin>(config);
+    });
+}

@@ -60,3 +60,9 @@ ChipPlayer* AyflyPlugin::fromFile(const std::string& name)
 };
 
 } // namespace musix
+extern "C" void ayflyplugin_register()
+{
+    musix::ChipPlugin::addPluginConstructor([](std::string const& config) {
+        return std::make_shared<musix::AyflyPlugin>();
+    });
+}

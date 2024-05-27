@@ -84,3 +84,10 @@ ChipPlayer* USFPlugin::fromFile(const std::string& fileName)
 };
 
 } // namespace musix
+//
+extern "C" void usfplugin_register()
+{
+    musix::ChipPlugin::addPluginConstructor([](std::string const& config) {
+        return std::make_shared<musix::USFPlugin>();
+    });
+}

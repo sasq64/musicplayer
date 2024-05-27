@@ -107,3 +107,10 @@ ChipPlayer* OpenMPTPlugin::fromFile(std::string const& fileName)
 };
 
 } // namespace musix
+//
+extern "C" void openmptplugin_register()
+{
+    musix::ChipPlugin::addPluginConstructor([](std::string const& config) {
+        return std::make_shared<musix::OpenMPTPlugin>();
+    });
+}

@@ -81,3 +81,10 @@ ChipPlayer* V2Plugin::fromFile(const std::string& name)
 };
 
 } // namespace musix
+
+extern "C" void v2plugin_register()
+{
+    musix::ChipPlugin::addPluginConstructor([](std::string const& config) {
+        return std::make_shared<musix::V2Plugin>();
+    });
+}

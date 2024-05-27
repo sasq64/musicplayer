@@ -12,6 +12,8 @@ template <typename T> class Fifo;
 
 #include "chipplayer.h"
 
+extern void register_plugins();
+
 namespace musix {
 
 class ChipPlugin
@@ -49,14 +51,16 @@ public:
     using PluginConstructor =
         std::function<std::shared_ptr<ChipPlugin>(const std::string&)>;
 
-    static void createPlugins(const std::string& configDir)
+    static inline void createPlugins(const std::string& configDir)
     {
-        if (constructors.empty()) {
-            fprintf(stderr, "No plugins registered!\n");
-        }
+        register_plugins();
         auto& plugins = getPlugins();
         for (const auto& f : constructors) {
             plugins.push_back(f(configDir));
+        }
+
+        if (plugins.empty()) {
+            fprintf(stderr, "No plugins registered!\n");
         }
 
         std::sort(plugins.begin(), plugins.end(),
@@ -66,7 +70,7 @@ public:
         constructors.clear();
     }
 
-    static void addPlugin(const std::shared_ptr<ChipPlugin>& plugin, bool first)
+    static inline void addPlugin(const std::shared_ptr<ChipPlugin>& plugin, bool first)
     {
         if (first) {
             getPlugins().insert(getPlugins().begin(), plugin);
@@ -75,7 +79,12 @@ public:
         }
     }
 
-    static std::shared_ptr<ChipPlugin> getPlugin(const std::string& name)
+    template <typename PLUGIN>
+    static inline void addPlugin() {
+        addPlugin(std::make_shared<PLUGIN>());
+    }
+
+    static inline std::shared_ptr<ChipPlugin> getPlugin(const std::string& name)
     {
         for (auto& p : getPlugins()) {
             if (p->name() == name) { return p; }
@@ -83,7 +92,7 @@ public:
         return nullptr;
     }
 
-    static void addPluginConstructor(PluginConstructor const& pc)
+    static inline void addPluginConstructor(PluginConstructor const& pc)
     {
         constructors.push_back(pc);
     }
@@ -94,11 +103,12 @@ public:
     {
         explicit RegisterMe(PluginConstructor const& f)
         {
-            ChipPlugin::addPluginConstructor(f);
+            fprintf(stderr, "DEPRECATED!\n");
+            //ChipPlugin::addPluginConstructor(f);
         };
     };
 
-    static std::vector<std::shared_ptr<ChipPlugin>>& getPlugins()
+    static inline std::vector<std::shared_ptr<ChipPlugin>>& getPlugins()
     {
         static std::vector<std::shared_ptr<ChipPlugin>> plugins;
         return plugins;
