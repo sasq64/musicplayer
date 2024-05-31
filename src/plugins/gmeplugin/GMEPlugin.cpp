@@ -67,7 +67,9 @@ public:
             }
 
             gme_info_t* track = nullptr;
-            gme_track_info(emu.get(), &track, song);
+            if (gme_track_info(emu.get(), &track, song) != nullptr) {
+                return false;
+            }
             setMeta("sub_title", track->song, "length",
                     track->length > 0 ? track->length / 1000 : 0, "song",
                     static_cast<uint32_t>(song));

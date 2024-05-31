@@ -8,16 +8,25 @@
 //!
 //!
 use std::error::Error;
+use std::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::ffi::NulError;
 use std::fmt::Display;
 use std::os::raw::c_char;
-use std::os::raw::c_void;
 use std::path::Path;
 
 extern "C" {
     fn free(__ptr: *mut ::std::os::raw::c_void);
+}
+
+#[repr(C)]
+struct IdResult {
+    pub title: *const c_char,
+    pub game: *const c_char,
+    pub composer: *const c_char,
+    pub format: *const c_char,
+    pub length: i32,
 }
 
 extern "C" {
@@ -30,6 +39,7 @@ extern "C" {
     fn musix_player_destroy(player: *const c_void);
     fn musix_get_changed_meta(player: *const c_void) -> *const c_char;
     fn musix_get_error() -> *const c_char;
+    fn musix_identify_file(music_file: *const c_char, ext: *const c_char) -> *const IdResult;
 }
 
 #[derive(Debug)]
@@ -136,6 +146,41 @@ impl Drop for ChipPlayer {
     }
 }
 
+#[allow(dead_code)]
+pub struct SongInfo<'a> {
+    info: *const IdResult,
+    title: &'a CStr,
+    game: &'a CStr,
+    composer: &'a CStr,
+    format: &'a CStr,
+}
+
+impl<'a> Drop for SongInfo<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            free(self.info as *mut c_void);
+        }
+    }
+}
+
+pub fn identify_song(song_file: &Path) -> Option<SongInfo> {
+    let s = song_file.to_string_lossy();
+    let music_file = CString::new(s.as_ref()).unwrap();
+    unsafe {
+        let ptr = musix_identify_file(music_file.as_ptr(), std::ptr::null());
+        if ptr.is_null() {
+            return None;
+        }
+        //println!("HERE {:?} {:?}", (*ptr).game, (*ptr).composer);
+        Some(SongInfo {
+            info: ptr,
+            title: CStr::from_ptr((*ptr).title),
+            game: CStr::from_ptr((*ptr).game),
+            composer: CStr::from_ptr((*ptr).composer),
+            format: CStr::from_ptr((*ptr).format),
+        })
+    }
+}
 /// Load a song file
 pub fn load_song(song_file: &Path) -> Result<ChipPlayer, MusicError> {
     let s = song_file.to_string_lossy();
@@ -176,7 +221,27 @@ pub fn init(path: &Path) -> Result<(), MusicError> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
+    use crate::*;
 
     #[test]
-    fn it_works() {}
+    fn load_song_works() {
+        init(Path::new("init")).unwrap();
+        let mut song = load_song(Path::new(
+            "music/Martin Galway - Ultima Runes of Virtue II.gbs",
+        ))
+        .unwrap();
+        let mut target = [0; 1024];
+        let count = song.get_samples(&mut target);
+        assert!(count == 1024);
+    }
+
+    #[test]
+    fn identify_file_works() {
+        let info = identify_song(Path::new("music/Castlevania.nsfe")).unwrap();
+        println!("INFO {:?} {:?}", info.game, info.composer);
+        println!("TITLE '{}'", info.game.to_str().unwrap());
+        assert!(info.game.to_str().unwrap() == "Castlevania");
+    }
 }

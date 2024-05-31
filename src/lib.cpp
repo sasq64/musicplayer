@@ -11,6 +11,8 @@
 //#include "plugins/plugins.h"
 #include "chipplayer.h"
 #include "chipplugin.h"
+#include "songfile_identifier.h"
+#include "songinfo.h"
 
 using musix::ChipPlayer;
 using musix::ChipPlugin;
@@ -22,6 +24,55 @@ using musix::ChipPlugin;
 #endif
 
 static std::string error_message;
+
+struct Result {
+    char const* title;
+    char const* game;
+    char const* composer;
+    char const* format;
+    int32_t length;
+};
+
+extern "C" API Result const* musix_identify_file(const char* fileName, const char *ext)
+{
+    SongInfo info;
+    info.path = fileName;
+    if (ext == nullptr) { ext = ""; }
+    if(!identify_song(info, ext)) {
+        printf("FAILED\n");
+        return nullptr;
+    }
+
+    printf("FILE: %s\n", info.path.c_str());
+    printf("GAME: %s\n", info.game.c_str());
+    printf("COMPOSER: %s\n", info.composer.c_str());
+
+    int tl = info.title.length() + 1;
+    int cl = info.composer.length() + 1;
+    int gl = info.game.length() + 1;
+    int fl = info.format.length() + 1;
+
+
+    char* mem = (char*)malloc(tl + cl + gl + fl + sizeof(Result));
+
+    Result* result = (Result*)mem;
+    mem += sizeof(Result);
+
+    result->title = mem;
+    memcpy(mem, info.title.c_str(), tl);
+    mem += tl;
+    result->game = mem;
+    memcpy(mem, info.game.c_str(), gl);
+    mem += gl;
+    result->composer = mem; 
+    memcpy(mem, info.composer.c_str(), cl);
+    mem += cl;
+    result->format = mem;
+    memcpy(mem, info.format.c_str(), fl);
+    mem += fl;
+
+    return result;
+}
 
 extern "C" API int musix_create(const char* dataDir)
 {

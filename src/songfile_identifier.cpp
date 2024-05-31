@@ -30,6 +30,8 @@ static std::string get_string(uint8_t* ptr, int64_t size)
 
 template <typename T> T get(const std::vector<uint8_t>&, int64_t) {}
 
+template <typename T> T get_le(const std::vector<uint8_t>&, int64_t) {}
+
 template <> uint16_t get(const std::vector<uint8_t>& v, int64_t offset)
 {
     return static_cast<unsigned>(v[offset] << 8U) | v[offset + 1];
@@ -40,6 +42,13 @@ template <> uint32_t get(const std::vector<uint8_t>& v, int64_t offset)
     return (static_cast<unsigned>(v[offset + 0]) << 24U) |
         static_cast<unsigned>(v[offset + 1] << 16U) |
         static_cast<unsigned>(v[offset + 2] << 8U) | v[offset + 3];
+}
+
+template <> uint32_t get_le(const std::vector<uint8_t>& v, int64_t offset)
+{
+    return (static_cast<unsigned>(v[offset + 3]) << 24U) |
+        static_cast<unsigned>(v[offset + 2] << 16U) |
+        static_cast<unsigned>(v[offset + 1] << 8U) | v[offset + 0];
 }
 
 template <> uint64_t get(const std::vector<uint8_t>& v, int64_t offset)
@@ -292,16 +301,17 @@ bool parseNsfe(SongInfo& song)
     i += 4;
     if (id != "NSFE") { return false; }
     while (i < data.size()) {
-        auto size = get<uint32_t>(data, i);
+        auto size = get_le<uint32_t>(data, i);
         i += 4;
         auto tag = get_string(&data[i], 4);
         i += 4;
-
         auto next = i + size;
 
         if (tag == "auth") {
             song.game = get_string(&data[i], 32);
+            i += (song.game.size()+1);
             song.composer = get_string(&data[i], 32);
+            i += (song.composer.size()+1);
             return true;
         }
         i = next;
@@ -362,6 +372,7 @@ bool identify_song(SongInfo& info, std::string ext)
 {
     if (ext.empty()) { ext = getTypeFromName(info.path); }
 
+    //printf("EXT %s\n", ext.c_str());
     const std::unordered_map<std::string, bool (*)(SongInfo&)> parsers {
         {"nsfe", &parseNsfe},
         {"plist", &parsePList},

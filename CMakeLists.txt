@@ -100,11 +100,11 @@ if (PYTHON_MODULE)
 
 else()
 
-  add_library(musix SHARED src/lib.cpp src/reg.cpp)
+  add_library(musix SHARED src/lib.cpp src/reg.cpp src/songfile_identifier.cpp)
   target_link_libraries(musix PUBLIC ${MUSICPLAYER_PLUGINS}
       coreutils crypto archive Threads::Threads fmt::fmt)
 
-  add_library(musix_static STATIC src/lib.cpp src/reg.cpp)
+  add_library(musix_static STATIC src/lib.cpp src/reg.cpp src/songfile_identifier.cpp)
   target_link_libraries(musix_static PUBLIC ${MUSICPLAYER_PLUGINS}
           coreutils crypto archive Threads::Threads fmt::fmt)
 
