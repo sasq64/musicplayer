@@ -69,6 +69,9 @@ pub struct ChipPlayer {
     player: *mut c_void,
 }
 
+unsafe impl Send for ChipPlayer {}
+unsafe impl Sync for ChipPlayer {}
+
 /// Interface to a loaded song.
 impl ChipPlayer {
     /// Get the value of some meta data, as string
