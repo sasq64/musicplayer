@@ -42,6 +42,7 @@ extern "C" {
     fn musix_identify_file(music_file: *const c_char, ext: *const c_char) -> *const IdResult;
 }
 
+/// Represents a musix error
 #[derive(Debug)]
 pub struct MusicError {
     msg: String,
@@ -63,17 +64,13 @@ impl From<NulError> for MusicError {
     }
 }
 
+/// A loaded song.
 pub struct ChipPlayer {
     player: *mut c_void,
 }
 
+/// Interface to a loaded song.
 impl ChipPlayer {
-    pub fn new() -> ChipPlayer {
-        ChipPlayer {
-            player: std::ptr::null_mut(),
-        }
-    }
-
     /// Get the value of some meta data, as string
     pub fn get_meta_string(&mut self, what: &str) -> Option<String> {
         if self.player.is_null() {
@@ -92,7 +89,7 @@ impl ChipPlayer {
         }
     }
 
-    /// Get the name of any changed meta data.
+    /// Get the name of next changed meta data, if any.
     pub fn get_changed_meta(&mut self) -> Option<String> {
         if self.player.is_null() {
             return None;
@@ -111,6 +108,7 @@ impl ChipPlayer {
     }
 
     /// Get samples for the current song. Returns number of samples actually rendered.
+    /// Format is always interleaved stereo @ 44100 Hz
     pub fn get_samples(&mut self, target: &mut [i16]) -> usize {
         unsafe {
             if self.player.is_null() {
@@ -132,12 +130,6 @@ impl ChipPlayer {
     }
 }
 
-impl Default for ChipPlayer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Drop for ChipPlayer {
     fn drop(&mut self) {
         if !self.player.is_null() {
@@ -146,13 +138,14 @@ impl Drop for ChipPlayer {
     }
 }
 
+/// Information about a song file
 #[allow(dead_code)]
 pub struct SongInfo<'a> {
     info: *const IdResult,
-    title: &'a CStr,
-    game: &'a CStr,
-    composer: &'a CStr,
-    format: &'a CStr,
+    pub title: &'a CStr,
+    pub game: &'a CStr,
+    pub composer: &'a CStr,
+    pub format: &'a CStr,
 }
 
 impl<'a> Drop for SongInfo<'a> {
@@ -163,6 +156,7 @@ impl<'a> Drop for SongInfo<'a> {
     }
 }
 
+/// Try to identify a song file, returning meta data if successful.
 pub fn identify_song(song_file: &Path) -> Option<SongInfo> {
     let s = song_file.to_string_lossy();
     let music_file = CString::new(s.as_ref()).unwrap();

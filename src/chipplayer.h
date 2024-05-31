@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
-#include <stdexcept>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
