@@ -45,7 +45,7 @@ extern "C" {
 /// Represents a musix error
 #[derive(Debug)]
 pub struct MusicError {
-    msg: String,
+    pub msg: String,
 }
 
 impl Display for MusicError {
@@ -118,7 +118,12 @@ impl ChipPlayer {
                 0
             } else {
                 let size = target.len() as i32;
-                musix_player_get_samples(self.player, target.as_mut_ptr(), size) as usize
+                let rc = musix_player_get_samples(self.player, target.as_mut_ptr(), size);
+                if rc < 0 {
+                    0
+                } else {
+                    rc as usize
+                }
             }
         }
     }
