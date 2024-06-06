@@ -54,6 +54,12 @@ impl Display for MusicError {
     }
 }
 
+impl Into<String> for MusicError {
+    fn into(self) -> String {
+        self.msg
+    }
+}
+
 impl Error for MusicError {}
 
 impl From<NulError> for MusicError {
@@ -104,9 +110,8 @@ impl ChipPlayer {
             }
 
             let meta = CStr::from_ptr(cptr).to_string_lossy().into_owned();
-            let res = Some(meta);
             free(cptr as *mut c_void);
-            res
+            Some(meta)
         }
     }
 

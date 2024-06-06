@@ -79,6 +79,7 @@ set(MUSICPLAYER_PLUGINS
     rsnplugin
     s98plugin
     sidplugin
+    minimp3plugin
     # MSVC incompatible
     # mp3plugin
     # Obsolete

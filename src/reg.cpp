@@ -28,6 +28,7 @@ PLUGIN(usfplugin)
 PLUGIN(rsnplugin)
 PLUGIN(s98plugin)
 PLUGIN(sidplugin)
+PLUGIN(minimp3plugin)
 
 
 void register_plugins() {
@@ -51,5 +52,6 @@ void register_plugins() {
     PLUGIN2(rsnplugin)
     PLUGIN2(s98plugin)
     PLUGIN2(sidplugin)
+    PLUGIN2(minimp3plugin)
 }
 

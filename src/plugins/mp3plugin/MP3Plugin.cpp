@@ -327,3 +327,10 @@ ChipPlayer* MP3Plugin::fromStream(std::shared_ptr<utils::Fifo<uint8_t>> fifo)
 }
 
 } // namespace musix
+//
+extern "C" void mp3plugin_register()
+{
+    musix::ChipPlugin::addPluginConstructor([](std::string const& config) {
+        return std::make_shared<musix::MP3Plugin>();
+    });
+}
