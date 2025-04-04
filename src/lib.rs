@@ -86,8 +86,8 @@ impl ChipPlayer {
             return None;
         }
 
+        let cwhat = CString::new(what).unwrap();
         unsafe {
-            let cwhat = CString::new(what).unwrap();
             let cptr = musix_player_get_meta(self.player, cwhat.as_ptr());
             if cptr.is_null() {
                 return None;
@@ -118,17 +118,15 @@ impl ChipPlayer {
     /// Get samples for the current song. Returns number of samples actually rendered.
     /// Format is always interleaved stereo @ 44100 Hz
     pub fn get_samples(&mut self, target: &mut [i16]) -> usize {
-        unsafe {
-            if self.player.is_null() {
+        if self.player.is_null() {
+            0
+        } else {
+            let size = target.len() as i32;
+            let rc = unsafe { musix_player_get_samples(self.player, target.as_mut_ptr(), size) };
+            if rc < 0 {
                 0
             } else {
-                let size = target.len() as i32;
-                let rc = musix_player_get_samples(self.player, target.as_mut_ptr(), size);
-                if rc < 0 {
-                    0
-                } else {
-                    rc as usize
-                }
+                rc as usize
             }
         }
     }

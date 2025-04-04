@@ -39,13 +39,13 @@ extern "C" API Result const* musix_identify_file(const char* fileName, const cha
     info.path = fileName;
     if (ext == nullptr) { ext = ""; }
     if(!identify_song(info, ext)) {
-        printf("FAILED\n");
+        //printf("FAILED\n");
         return nullptr;
     }
 
-    printf("FILE: %s\n", info.path.c_str());
-    printf("GAME: %s\n", info.game.c_str());
-    printf("COMPOSER: %s\n", info.composer.c_str());
+    //printf("FILE: %s\n", info.path.c_str());
+    //printf("GAME: %s\n", info.game.c_str());
+    //printf("COMPOSER: %s\n", info.composer.c_str());
 
     int tl = info.title.length() + 1;
     int cl = info.composer.length() + 1;
