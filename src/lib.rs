@@ -54,9 +54,9 @@ impl Display for MusicError {
     }
 }
 
-impl Into<String> for MusicError {
-    fn into(self) -> String {
-        self.msg
+impl From<MusicError> for String {
+    fn from(val: MusicError) -> Self {
+        val.msg
     }
 }
 
@@ -149,22 +149,11 @@ impl Drop for ChipPlayer {
     }
 }
 
-/// Information about a song file
-#[allow(dead_code)]
-pub struct SongInfo<'a> {
-    info: *const IdResult,
-    pub title: &'a CStr,
-    pub game: &'a CStr,
-    pub composer: &'a CStr,
-    pub format: &'a CStr,
-}
-
-impl<'a> Drop for SongInfo<'a> {
-    fn drop(&mut self) {
-        unsafe {
-            free(self.info as *mut c_void);
-        }
-    }
+pub struct SongInfo {
+    pub title: String,
+    pub game: String,
+    pub composer: String,
+    pub format: String,
 }
 
 /// Try to identify a song file, returning meta data if successful.
@@ -176,14 +165,14 @@ pub fn identify_song(song_file: &Path) -> Option<SongInfo> {
         if ptr.is_null() {
             return None;
         }
-        //println!("HERE {:?} {:?}", (*ptr).game, (*ptr).composer);
-        Some(SongInfo {
-            info: ptr,
-            title: CStr::from_ptr((*ptr).title),
-            game: CStr::from_ptr((*ptr).game),
-            composer: CStr::from_ptr((*ptr).composer),
-            format: CStr::from_ptr((*ptr).format),
-        })
+        let info = SongInfo {
+            title: CStr::from_ptr((*ptr).title).to_string_lossy().into(),
+            game: CStr::from_ptr((*ptr).game).to_string_lossy().into(),
+            composer: CStr::from_ptr((*ptr).composer).to_string_lossy().into(),
+            format: CStr::from_ptr((*ptr).format).to_string_lossy().into(),
+        };
+        free(ptr as *mut c_void);
+        Some(info)
     }
 }
 /// Load a song file

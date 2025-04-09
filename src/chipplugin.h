@@ -51,8 +51,11 @@ public:
     using PluginConstructor =
         std::function<std::shared_ptr<ChipPlugin>(const std::string&)>;
 
+    static inline bool was_registered = false;
     static inline void createPlugins(const std::string& configDir)
     {
+        if (was_registered) { return; }
+        was_registered = true;
         register_plugins();
         auto& plugins = getPlugins();
         for (const auto& f : constructors) {
