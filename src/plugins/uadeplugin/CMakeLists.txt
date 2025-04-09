@@ -77,7 +77,7 @@ endif()
 
 add_library(uadeplugin STATIC UADEPlugin.cpp ${UADE_SOURCES} ${CPU_PATH}/cpuemu.c ${CPU_PATH}/cpudefs.c ${CPU_PATH}/cpustbl.c)
 target_compile_definitions(uadeplugin PRIVATE -DPART_1 -DPART_2 -DPART_3 -DPART_4 -DPART_5 -DPART_6 -DPART_7 -DPART_8)
-
+target_compile_options(uadeplugin PRIVATE -Wno-implicit-function-declaration)
 target_include_directories(uadeplugin PRIVATE
     bencode/include
     uade/

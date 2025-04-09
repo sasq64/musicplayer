@@ -20,7 +20,7 @@ add_library(htplugin ${SOURCE_FILES})
 target_include_directories(htplugin PRIVATE .)
 target_compile_definitions(htplugin PRIVATE -DEMU_COMPILE -DEMU_LITTLE_ENDIAN -DUSE_M68K -DHAVE_STDINT_H -DLSB_FIRST -DHAVE_MPROTECT)
 if(NOT WIN32)
-    target_compile_options(htplugin PRIVATE -Wno-incompatible-function-pointer-types)
+    target_compile_options(htplugin PRIVATE -Wno-incompatible-pointer-types)
 endif()
 target_link_libraries(htplugin PRIVATE psf coreutils ${ZLIB_LIBRARIES})
 

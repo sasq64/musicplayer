@@ -17,9 +17,7 @@ set(SOURCE_FILES
     he/psf2fs.c
 )
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-pointer-sign -Wno-implicit-function-declaration -Wno-incompatible-pointer-types")
-endif()
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-pointer-sign -Wno-implicit-function-declaration -Wno-incompatible-pointer-types")
 
 #find_package(ZLIB REQUIRED)
 

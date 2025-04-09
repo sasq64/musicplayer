@@ -1,4 +1,3 @@
-workspace = { members = ["src/plugins/sidplugin"] }
 [package]
 name = "musix"
 version = "0.2.1"
