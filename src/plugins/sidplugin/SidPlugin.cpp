@@ -30,9 +30,10 @@ namespace musix {
 class SidPlayer : public ChipPlayer
 {
 public:
-    explicit SidPlayer(std::string const& fileName, STIL* stil)
+    explicit SidPlayer(std::string const& fileName, SidPlugin* plugin)
     {
-        engine.setRoms(nullptr, nullptr, nullptr);
+        auto stil = plugin->stil.get();
+        engine.setRoms(plugin->kernal.data(), plugin->chargen.data(), plugin->basic.data());
 
         rs = std::make_unique<ReSIDfpBuilder>("musix");
         // Get the number of SIDs supported by the engine
@@ -58,7 +59,7 @@ public:
         tune->selectSong(0);
 
         // Configure the engine
-        SidConfig cfg;
+        SidConfig cfg{};
         cfg.frequency = 44100;
         cfg.samplingMethod = SidConfig::INTERPOLATE;
         cfg.fastSampling = false;
@@ -156,9 +157,15 @@ private:
 
 static const std::set<std::string> supported_ext = {"sid", "psid"};
 
-SidPlugin::SidPlugin(std::string const& configDir)
+SidPlugin::SidPlugin(std::string const& configDir) 
 {
-    stil = std::make_unique<STIL>(fs::path(configDir));
+    fs::path configPath(configDir);
+
+    kernal = utils::read_file(configPath / "c64" / "kernal");
+    chargen = utils::read_file(configPath / "c64" / "chargen");
+    basic = utils::read_file(configPath / "c64" / "basic");
+
+    stil = std::make_unique<STIL>(configPath);
     initThread = std::thread([=] {
         stil->readLengths();
         stil->readSTIL();
@@ -177,7 +184,7 @@ bool SidPlugin::canHandle(const std::string& name)
 ChipPlayer* SidPlugin::fromFile(const std::string& name)
 {
     if (initThread.joinable()) { initThread.join(); }
-    return new SidPlayer{name, stil.get()};
+    return new SidPlayer{name, this};
 };
 
 } // namespace musix
