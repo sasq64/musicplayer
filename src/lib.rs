@@ -149,6 +149,7 @@ impl Drop for ChipPlayer {
     }
 }
 
+#[derive(Default, Debug, Clone)]
 pub struct SongInfo {
     pub title: String,
     pub game: String,

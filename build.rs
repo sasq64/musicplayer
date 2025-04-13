@@ -33,7 +33,7 @@ fn main() {
         .define("RUST_BUILD", "ON")
         .build();
 
-    let mut paths = Vec::<PathBuf>::new();
+    let mut paths = Vec::new();
     visit_dirs(&dst, &mut paths);
 
     //println!("cargo:rustc-link-search=native={}", dst.display());
