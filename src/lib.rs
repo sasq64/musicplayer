@@ -43,7 +43,7 @@ extern "C" {
 }
 
 /// Represents a musix error
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MusicError {
     pub msg: String,
 }
@@ -71,6 +71,7 @@ impl From<NulError> for MusicError {
 }
 
 /// A loaded song.
+#[derive(Debug)]
 pub struct ChipPlayer {
     player: *mut c_void,
 }

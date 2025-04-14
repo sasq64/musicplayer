@@ -38,8 +38,8 @@ template <> uint64_t get(const std::vector<uint8_t>& v, int offset)
 
 STIL::STIL(fs::path const& data_dir) : dataDir(data_dir)
 {
-    readSTIL();
-    readLengths();
+    //readSTIL();
+    //readLengths();
 }
 
 STIL::~STIL()

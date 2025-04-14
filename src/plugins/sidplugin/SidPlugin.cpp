@@ -167,8 +167,8 @@ SidPlugin::SidPlugin(std::string const& configDir)
 
     stil = std::make_unique<STIL>(configPath);
     initThread = std::thread([=] {
-        stil->readLengths();
         stil->readSTIL();
+        stil->readLengths();
     });
 }
 SidPlugin::~SidPlugin()
