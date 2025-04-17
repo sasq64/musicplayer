@@ -35,7 +35,7 @@ public:
         if (psf.valid()) {
             auto& tags = psf.tags();
 
-            int seconds = psf.songLength();
+            double seconds = psf.songLength();
 
             setMeta("composer", tags["artist"], "sub_title", tags["title"],
                     "game", tags["game"], "format", "Nintendo 64", "length",

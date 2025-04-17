@@ -67,13 +67,20 @@ public:
 
     bool valid() { return !tagData.empty(); }
 
-    int songLength()
+    double songLength()
     {
-        auto slen = _tags["length"];
+        auto it = _tags.find("length");
+
+        if (it == _tags.end()) {
+            return -1;
+        }
+        auto slen = it->second;
         std::vector<std::string> p = utils::split(slen, ":");
-        int seconds = -1;
+        double seconds = -1;
         if (p.size() == 2) {
-            seconds = stol(p[0]) * 60 + stol(p[1]);
+            seconds = stod(p[0]) * 60.0 + stod(p[1]);
+        } else {
+            seconds = stod(slen);
         }
         return seconds;
     }
