@@ -37,6 +37,7 @@ extern "C" {
     fn musix_player_get_samples(player: *const c_void, target: *mut i16, size: i32) -> i32;
     fn musix_player_seek(player: *const c_void, song: i32, seconds: i32);
     fn musix_player_destroy(player: *const c_void);
+    fn musix_player_get_hz(player: *const c_void) -> i32;
     fn musix_get_changed_meta(player: *const c_void) -> *const c_char;
     fn musix_get_error() -> *const c_char;
     fn musix_identify_file(music_file: *const c_char, ext: *const c_char) -> *const IdResult;
@@ -97,6 +98,10 @@ impl ChipPlayer {
             free(cptr as *mut c_void);
             Some(meta)
         }
+    }
+
+    pub fn get_frequency(&self) -> i32 {
+        unsafe { musix_player_get_hz(self.player) }
     }
 
     /// Get the name of next changed meta data, if any.
@@ -189,9 +194,11 @@ pub fn load_song(song_file: &Path) -> Result<ChipPlayer, MusicError> {
             });
         }
         let player = musix_plugin_create_player(plugin, music_file.as_ptr());
-        if plugin.is_null() {
+        if player.is_null() {
+            let err = musix_get_error();
+            let cs = CStr::from_ptr(err).to_str().unwrap();
             return Err(MusicError {
-                msg: "Could not play file using plugin.".to_string(),
+                msg: format!("Could not play file:{}", cs)
             });
         }
         Ok(ChipPlayer { player })

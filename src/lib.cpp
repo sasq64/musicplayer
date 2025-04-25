@@ -102,8 +102,14 @@ extern "C" API void* musix_find_plugin(const char* fileName)
 extern "C" API void* musix_plugin_create_player(void* plugin,
                                                 const char* fileName)
 {
-    auto* chipPlugin = static_cast<ChipPlugin*>(plugin);
-    return chipPlugin->fromFile(fileName);
+    error_message = "";
+    try {
+        auto* chipPlugin = static_cast<ChipPlugin*>(plugin);
+        return chipPlugin->fromFile(fileName);
+    } catch (std::exception& e) {
+        error_message = e.what();
+    }
+    return nullptr;
 }
 
 extern "C" API void musix_player_destroy(void* player)
@@ -116,6 +122,12 @@ extern "C" API int musix_player_get_samples(void* player, int16_t* target,
 {
     auto* chipPlayer = static_cast<ChipPlayer*>(player);
     return chipPlayer->getSamples(target, size);
+}
+
+extern "C" API int musix_player_get_hz(void *player)
+{
+    auto* chipPlayer = static_cast<ChipPlayer*>(player);
+    return chipPlayer->getHZ();
 }
 
 extern "C" API const char* musix_player_get_meta(void* player, const char* what)
