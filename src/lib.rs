@@ -182,6 +182,15 @@ pub fn identify_song(song_file: &Path) -> Option<SongInfo> {
         Some(info)
     }
 }
+
+/// Check if song can be loaded
+pub fn can_handle(song_file: &Path) -> Result<bool, MusicError> {
+    let s = song_file.to_string_lossy();
+    let music_file = CString::new(s.as_ref())?;
+    let plugin = unsafe { musix_find_plugin(music_file.as_ptr()) };
+    Ok(!plugin.is_null())
+}
+
 /// Load a song file
 pub fn load_song(song_file: &Path) -> Result<ChipPlayer, MusicError> {
     let s = song_file.to_string_lossy();

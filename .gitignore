@@ -13,3 +13,4 @@ tidy.log
 cmake-build-*/
 build/
 /target
+Cargo.lock
