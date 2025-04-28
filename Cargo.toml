@@ -1,6 +1,6 @@
 [package]
 name = "musix"
-version = "0.2.4"
+version = "0.2.5"
 license = "MIT"
 description = "Music player library for esoteric audio formats (music from C64,Amiga etc)"
 edition = "2021"

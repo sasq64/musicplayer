@@ -134,14 +134,17 @@ public:
 
     int getSamples(int16_t* target, int noSamples) override
     {
-        if (stil != nullptr && stil->ready) {
-            stilInfo = stil->getInfo(song_data);
-            stil = nullptr;
-            lengths = stilInfo.lengths;
-            auto length = lengths.empty() ? 0 : lengths[current_song];
-            setMeta("length", length);
-            if (!stilInfo.comment.empty()) { setMeta("comment", stilInfo.comment); }
-            updateSongMeta(current_song);
+        if (delay > 0 && stil != nullptr && stil->ready) {
+            delay--;
+            if (delay == 1) {
+                stilInfo = stil->getInfo(song_data);
+            } else if (delay == 0) {
+                lengths = stilInfo.lengths;
+                auto length = lengths.empty() ? 0 : lengths[current_song];
+                setMeta("length", length);
+                if (!stilInfo.comment.empty()) { setMeta("comment", stilInfo.comment); }
+                updateSongMeta(current_song);
+            }
         }
         std::array<int16_t, 8192> temp_data;
 
@@ -167,6 +170,7 @@ public:
 
 private:
     STIL* stil;
+    int delay = 10;
     int current_song;
     std::vector<uint8_t> song_data;
     std::vector<uint16_t> lengths;
@@ -194,7 +198,7 @@ ChipPlayer* SidPlugin::fromFile(const std::string& name)
 
     if (stil == nullptr) {
         p = p.parent_path();
-        while (fs::exists(p)) {
+        while (p.has_relative_path() && fs::exists(p)) {
             auto stilPath = p / "DOCUMENTS";
             if (fs::exists(stilPath / "STIL.txt")) {
                 stil = std::make_unique<STIL>(stilPath);

@@ -91,6 +91,9 @@ public:
         LOGD("GSF:{}", fileName.c_str());
 
         int r = GSFRun(fileName.c_str());
+        if (r == 0) {
+            throw player_exception("GSFPlugin error: Could not load gsf");
+        }
     }
 
     ~GSFPlayer() override { GSFClose(); }
@@ -98,9 +101,12 @@ public:
     int getSamples(int16_t* target, int noSamples) override
     {
         int lastTL = TrackLength;
-        while (fifo.filled() < noSamples * 2) {
+        int count = 100;
+        while (fifo.filled() < noSamples * 2 && count > 0) {
             EmulationLoop();
+            count--;
         }
+        if (count == 0) { return -1; }
 
         if (decode_pos_ms > TrackLength && (playforever == 0)) { return -1; }
 

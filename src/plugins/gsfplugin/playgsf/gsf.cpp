@@ -150,6 +150,8 @@ int GSFRun(const char *filename)
     //CPUInit((char *)(LPCTSTR)theApp.biosFileName, theApp.useBiosFile ? true : false);
 	CPUInit((char *)NULL, false);				//don't use bios file
     CPUReset();
+  } else {
+    return false;
   }
  
   emulating = true;

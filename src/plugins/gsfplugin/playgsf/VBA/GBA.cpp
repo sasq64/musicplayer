@@ -950,7 +950,7 @@ void CPUCleanUp()
   }
 #endif
   
-   printf("CLEANUP %p\n", rom);
+  // printf("CLEANUP %p\n", rom);
 
   if(rom != NULL) {
     //free(rom);
@@ -1061,7 +1061,7 @@ int CPULoadRom(const char *szFile)
   else
   {
 	  rom = utilLoad(szFile,utilIsGBAImage,whereToLoad,size);
-    printf("ROM %p (%p)\n", rom, whereToLoad);
+    //printf("ROM %p (%p)\n", rom, whereToLoad);
 	  i = rom;
   }
 
