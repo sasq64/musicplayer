@@ -66,6 +66,7 @@ public:
     ~STIL();
 
     std::vector<uint16_t> getLengths(LengthEntry const& entry);
+    std::atomic<bool> ready{false};
 
 private:
     std::unordered_map<std::string, STILSong> stilSongs;
