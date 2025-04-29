@@ -100,8 +100,8 @@ impl ChipPlayer {
         }
     }
 
-    pub fn get_frequency(&self) -> i32 {
-        unsafe { musix_player_get_hz(self.player) }
+    pub fn get_frequency(&self) -> u32 {
+        unsafe { musix_player_get_hz(self.player) as u32 }
     }
 
     /// Get the name of next changed meta data, if any.
@@ -207,7 +207,7 @@ pub fn load_song(song_file: &Path) -> Result<ChipPlayer, MusicError> {
             let err = musix_get_error();
             let cs = CStr::from_ptr(err).to_str().unwrap();
             return Err(MusicError {
-                msg: format!("Could not play file:{}", cs)
+                msg: format!("Could not play file:{}", cs),
             });
         }
         Ok(ChipPlayer { player })
