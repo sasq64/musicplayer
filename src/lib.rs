@@ -15,6 +15,7 @@ use std::ffi::NulError;
 use std::fmt::Display;
 use std::os::raw::c_char;
 use std::path::Path;
+use std::ptr::null;
 
 extern "C" {
     fn free(__ptr: *mut ::std::os::raw::c_void);
@@ -31,7 +32,7 @@ struct IdResult {
 
 extern "C" {
     fn musix_create(data_dir: *const c_char) -> i32;
-    fn musix_find_plugin(music_file: *const c_char) -> *mut c_void;
+    fn musix_find_plugin(music_file: *const c_char, after_plugin: *const c_void) -> *mut c_void;
     fn musix_plugin_create_player(plugin: *mut c_void, music_file: *const c_char) -> *mut c_void;
     fn musix_player_get_meta(player: *const c_void, what: *const c_char) -> *const c_char;
     fn musix_player_get_samples(player: *const c_void, target: *mut i16, size: i32) -> i32;
@@ -187,7 +188,7 @@ pub fn identify_song(song_file: &Path) -> Option<SongInfo> {
 pub fn can_handle(song_file: &Path) -> Result<bool, MusicError> {
     let s = song_file.to_string_lossy();
     let music_file = CString::new(s.as_ref())?;
-    let plugin = unsafe { musix_find_plugin(music_file.as_ptr()) };
+    let plugin = unsafe { musix_find_plugin(music_file.as_ptr(), std::ptr::null()) };
     Ok(!plugin.is_null())
 }
 
@@ -196,21 +197,25 @@ pub fn load_song(song_file: &Path) -> Result<ChipPlayer, MusicError> {
     let s = song_file.to_string_lossy();
     let music_file = CString::new(s.as_ref())?;
     unsafe {
-        let plugin = musix_find_plugin(music_file.as_ptr());
-        if plugin.is_null() {
-            return Err(MusicError {
-                msg: "Could not find a plugin for file.".to_string(),
-            });
+        let mut plugin : *mut c_void = std::ptr::null_mut();
+        loop {
+            plugin = musix_find_plugin(music_file.as_ptr(), plugin);
+            if plugin.is_null() {
+                return Err(MusicError {
+                    msg: "Could not find a plugin for file.".to_string(),
+                });
+            }
+            let player = musix_plugin_create_player(plugin, music_file.as_ptr());
+            if player.is_null() {
+                continue;
+                //let err = musix_get_error();
+                //let cs = CStr::from_ptr(err).to_str().unwrap();
+                //return Err(MusicError {
+                //    msg: format!("Could not play file:{}", cs),
+                //});
+            }
+            return Ok(ChipPlayer { player });
         }
-        let player = musix_plugin_create_player(plugin, music_file.as_ptr());
-        if player.is_null() {
-            let err = musix_get_error();
-            let cs = CStr::from_ptr(err).to_str().unwrap();
-            return Err(MusicError {
-                msg: format!("Could not play file:{}", cs),
-            });
-        }
-        Ok(ChipPlayer { player })
     }
 }
 

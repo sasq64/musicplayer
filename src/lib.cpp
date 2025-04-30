@@ -90,11 +90,16 @@ extern "C" API const char*  musix_get_error()
     return error_message.c_str();
 }
 
-extern "C" API void* musix_find_plugin(const char* fileName)
+extern "C" API void* musix_find_plugin(const char* fileName, const void* afterPlugin)
 {
 
     for (const auto& plugin : ChipPlugin::getPlugins()) {
-        if (plugin->canHandle(fileName)) { return plugin.get(); }
+        if (afterPlugin == nullptr) {
+            if (plugin->canHandle(fileName)) { return plugin.get(); }
+        }
+        if (afterPlugin == plugin.get()) {
+            afterPlugin = nullptr;
+        }
     }
     return nullptr;
 }
