@@ -7,15 +7,13 @@
 //! <https://github.com/sasq64/musicplayer>
 //!
 //!
-use std::error::Error;
-use std::ffi::c_void;
-use std::ffi::CStr;
-use std::ffi::CString;
-use std::ffi::NulError;
-use std::fmt::Display;
-use std::os::raw::c_char;
-use std::path::Path;
-use std::ptr::null;
+use std::{
+    error::Error,
+    ffi::{c_void, CStr, CString, NulError},
+    fmt::Display,
+    os::raw::c_char,
+    path::Path,
+};
 
 extern "C" {
     fn free(__ptr: *mut ::std::os::raw::c_void);
@@ -197,7 +195,7 @@ pub fn load_song(song_file: &Path) -> Result<ChipPlayer, MusicError> {
     let s = song_file.to_string_lossy();
     let music_file = CString::new(s.as_ref())?;
     unsafe {
-        let mut plugin : *mut c_void = std::ptr::null_mut();
+        let mut plugin: *mut c_void = std::ptr::null_mut();
         loop {
             plugin = musix_find_plugin(music_file.as_ptr(), plugin);
             if plugin.is_null() {
