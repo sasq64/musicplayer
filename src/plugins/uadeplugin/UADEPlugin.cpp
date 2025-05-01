@@ -176,7 +176,7 @@ private:
 };
 
 static const std::set<std::string> supported_ext{
-    "smod",      "lion",         "okta",        "sid",          "ymst",
+    "smod",      "lion",         "okta",        "sid",          /*"ymst",*/
     "sps",       "spm",          "jb",          "ast",          "ahx",
     "thx",       "adpcm",        "amc",         "nt",           "abk",
     "aam",       "alp",          "aon",         "aon4",         "aon8",
@@ -229,7 +229,7 @@ static const std::set<std::string> supported_ext{
     "st30",      "star",         "stpk",        "tp",           "tp1",
     "tp2",       "tp3",          "un2",         "unic",         "unic2",
     "wn",        "xan",          "xann",        "zen",          "puma",
-    "rjp",       "sng",          "riff",        "rh",           "rho",
+    "rjp",       /*"sng",*/          "riff",        "rh",           "rho",
     "sa-p",      "scumm",        "s-c",         "scn",          "scr",
     "sid1",      "smn",          "sid2",        "mok",          "sa",
     "sonic",     "sa_old",       "smus",        "snx",          "tiny",
