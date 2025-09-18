@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.modplugin)
 
 file(GLOB SOURCE_FILES modplug/*.cpp)

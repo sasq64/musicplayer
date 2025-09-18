@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.minimp3plugin)
 
 add_library(minimp3plugin MP3Plugin.cpp)

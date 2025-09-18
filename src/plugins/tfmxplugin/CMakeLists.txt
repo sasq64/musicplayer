@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.12)
 project(cpp-mods.musicplayer.tfmxplugin)
 
 set(SOURCE_FILES TFMXPlugin.cpp tfmxplay.c player.c audio.c)

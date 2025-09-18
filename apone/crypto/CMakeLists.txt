@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.12)
 project(apone-cpp.crypto)
 
 set(SOURCE_FILES src/crypto/sha256.cpp src/crypto/md5.cpp src/crypto/solar-md5.c)
