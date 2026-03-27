@@ -42,6 +42,10 @@ public:
 
     void close() { mz_zip_reader_end(&zipArchive); }
 
+    std::optional<fs::path> extractNext() override {
+      return std::nullopt;
+    }
+
     fs::path extract(const string& name) override
     {
 
@@ -101,6 +105,20 @@ public:
         // fprintf(stderr, "DESTR");
         // fflush(stderr);
         RARCloseArchive(rarFile);
+    }
+
+    std::optional<fs::path> extractNext() override {
+        RARHeaderDataEx fileInfo;
+          RHCode = RARReadHeaderEx(rarFile, &fileInfo);
+          if (RHCode == ERAR_END_ARCHIVE) {
+              return std::nullopt;
+          }
+          // LOGI("Extracting %s", fileInfo.FileName);
+          int PFCode = RARProcessFile(rarFile, RAR_EXTRACT,
+                                      (char*)workDir.c_str(), NULL);
+
+          fs::path f{workDir + "/" + fileInfo.FileName};
+          return f;
     }
 
     void extractAll(const string& targetDir) override

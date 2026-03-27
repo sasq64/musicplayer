@@ -1,6 +1,7 @@
 #ifndef ARCHIVE_H
 #define ARCHIVE_H
 
+#include <optional>
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -32,6 +33,10 @@ public:
     virtual fs::path extract(const std::string &name) = 0;
     virtual std::string nameFromPosition(int pos) const = 0;
     virtual int totalFiles() const = 0;
+
+    virtual std::optional<fs::path> extractNext() {
+      return std::nullopt;
+    }
 
     virtual void extractAll(const std::string &targetDir) = 0;
 

@@ -192,14 +192,19 @@ bool parseSnes(SongInfo& info)
     auto outDir = utils::get_cache_dir(".rsntemp");
     auto* a = utils::Archive::open(info.path, outDir.string(),
                                    utils::Archive::TYPE_RAR);
+    if (a == nullptr) { return false; }
     bool done = false;
-    for(int i=0; i<a->totalFiles(); i++) {
-        if (done) { continue; }
-        auto s = a->nameFromPosition(i);
-        // LOGD("FILE %s", s);
-        if (utils::path_extension(s) == "spc") {
-            a->extract(s);
-            auto buffer = utils::read_file(outDir / s);
+    for(int i=0; i<100; i++) {
+        auto some_p = a->extractNext();
+        if (!some_p) {
+          break;
+        }
+        auto p = *some_p;
+        if (p.extension() == ".spc") {
+            auto buffer = utils::read_file(p); //outDir / s);
+            if (buffer.empty()) {
+              break;
+            }
             if (buffer[0x23] == 0x1a) {
                 auto game = get_string(&buffer[0x4e], 0x20);
                 auto composer = get_string(&buffer[0xb1], 0x20);
@@ -220,6 +225,7 @@ bool parseSnes(SongInfo& info)
                 info.game = game;
                 info.title = "";
                 done = true;
+                break;
             }
         }
     }
