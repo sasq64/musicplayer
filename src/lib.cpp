@@ -161,6 +161,17 @@ extern "C" API const char* musix_get_changed_meta(void* player)
     return nullptr;
 }
 
+extern "C" API const char* musix_plugin_get_secondary_file(void* plugin, const char* song_file)
+{
+    auto* chipPlugin = static_cast<ChipPlugin*>(plugin);
+    auto secondary = chipPlugin->getSecondaryFiles(song_file);
+    if (!secondary.empty()) {
+       return strdup(secondary[0].c_str());
+    }
+    return nullptr;
+}
+
+
 extern "C" API void musix_player_seek(void* player, int song, int seconds)
 {
     auto* chipPlayer = static_cast<ChipPlayer*>(player);

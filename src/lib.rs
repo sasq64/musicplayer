@@ -13,6 +13,7 @@ use std::{
     fmt::Display,
     os::raw::c_char,
     path::Path,
+    path::PathBuf,
 };
 
 extern "C" {
@@ -40,6 +41,10 @@ extern "C" {
     fn musix_get_changed_meta(player: *const c_void) -> *const c_char;
     fn musix_get_error() -> *const c_char;
     fn musix_identify_file(music_file: *const c_char, ext: *const c_char) -> *const IdResult;
+    fn musix_plugin_get_secondary_file(
+        player: *const c_void,
+        song_file: *const c_char,
+    ) -> *const c_char;
 }
 
 /// Represents a musix error
@@ -74,6 +79,7 @@ impl From<NulError> for MusicError {
 #[derive(Debug)]
 pub struct ChipPlayer {
     player: *mut c_void,
+    files: Vec<PathBuf>,
 }
 
 unsafe impl Send for ChipPlayer {}
@@ -81,6 +87,10 @@ unsafe impl Sync for ChipPlayer {}
 
 /// Interface to a loaded song.
 impl ChipPlayer {
+    pub fn get_song_files(&self) -> &Vec<PathBuf> {
+        &self.files
+    }
+
     /// Get the value of some meta data, as string
     pub fn get_meta_string(&mut self, what: &str) -> Option<String> {
         if self.player.is_null() {
@@ -215,7 +225,21 @@ pub fn load_song(song_file: &Path) -> Result<ChipPlayer, MusicError> {
                 //    msg: format!("Could not play file:{}", cs),
                 //});
             }
-            return Ok(ChipPlayer { player });
+
+            let mut files = vec![song_file.to_owned()];
+
+            let cptr = musix_plugin_get_secondary_file(plugin, music_file.as_ptr());
+            if !cptr.is_null() {
+                let name = CStr::from_ptr(cptr).to_string_lossy().into_owned();
+                free(cptr as *mut c_void);
+                if let Some(parent) = song_file.parent() {
+                    files.push(parent.join(PathBuf::from(name)));
+                } else {
+                    files.push(PathBuf::from(name).to_owned());
+                }
+            }
+
+            return Ok(ChipPlayer { player, files });
         }
     }
 }

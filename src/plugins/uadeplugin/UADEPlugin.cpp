@@ -102,16 +102,16 @@ public:
             songInfo = uade_get_song_info(state);
             std::string modname = songInfo->modulename;
             if (modname == "<no songtitle>") { modname = ""; }
-            if (modname.empty()) {
-                fs::path p = currentFileName;
-                auto stem = p.stem().string();
-                auto file_name = p.filename().string();
-                if (utils::startsWith(file_name, "mdat")) {
-                    modname = file_name.substr(5);
-                } else {
-                    modname = stem;
-                }
-            }
+            // if (modname.empty()) {
+            //     fs::path p = currentFileName;
+            //     auto stem = p.stem().string();
+            //     auto file_name = p.filename().string();
+            //     if (utils::startsWith(file_name, "mdat")) {
+            //         modname = file_name.substr(5);
+            //     } else {
+            //         modname = stem;
+            //     }
+            // }
             setMeta("songs",
                     songInfo->subsongs.max - songInfo->subsongs.min + 1,
                     "startsong",
