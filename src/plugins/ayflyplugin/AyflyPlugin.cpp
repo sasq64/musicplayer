@@ -4,6 +4,8 @@
 
 #include "ayfly.h"
 
+#include <algorithm>
+#include <array>
 #include <set>
 
 namespace musix {
@@ -30,15 +32,40 @@ public:
 
     int getSamples(int16_t* target, int noSamples) override
     {
-        int rc = ay_rendersongbuffer(
-            aysong, reinterpret_cast<unsigned char*>(target), noSamples);
-        return rc / 2;
+        // ay_rendersongbuffer() takes a byte count, and renders stereo pairs
+        int rc = ay_rendersongbuffer(aysong,
+                                     reinterpret_cast<unsigned char*>(target),
+                                     (noSamples & ~1) * 2);
+        int written = rc / 2;
+        // The AY DAC is unipolar; ayfly only low-pass filters so the result
+        // keeps a large positive DC offset. Remove it per channel.
+        for (int i = 0; i < written; i++) {
+            dcBlock(target[i], dc[i & 1]);
+        }
+        return written;
     }
 
     bool seekTo(int /*song*/, int /*seconds*/) override { return false; }
 
 private:
+    struct DCState
+    {
+        float x{0};
+        float y{0};
+    };
+
+    // One-pole DC blocker, ~5Hz corner at 44100Hz
+    static void dcBlock(int16_t& sample, DCState& s)
+    {
+        auto x = static_cast<float>(sample);
+        s.y = x - s.x + 0.9993F * s.y;
+        s.x = x;
+        auto v = static_cast<int32_t>(s.y);
+        sample = static_cast<int16_t>(std::clamp(v, -32768, 32767));
+    }
+
     void* aysong{nullptr};
+    std::array<DCState, 2> dc{};
     bool started{false};
     bool ended{false};
 };
