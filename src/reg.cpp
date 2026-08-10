@@ -1,57 +1,17 @@
+// Registers every plugin that was built into this library.
+//
+// The list is not written out here: it comes from `plugin_list.h`, which CMake
+// generates from MUSICPLAYER_PLUGINS. Naming a plugin that CMake did not build
+// would leave `<plugin>_register` undefined, which a shared library happily
+// links anyway and only fails once something links it statically.
 
+#define X(p) extern "C" void p##_register();
+#include "plugin_list.h"
+#undef X
 
-
-#define PLUGIN(x) \
-extern "C" void x ## _register(); \
-
-#define PLUGIN2(x) \
-    x ## _register(); \
-
-
-PLUGIN(adplugin)
-PLUGIN(aoplugin)
-PLUGIN(ayflyplugin)
-PLUGIN(gmeplugin)
-PLUGIN(gsfplugin)
-PLUGIN(heplugin)
-PLUGIN(hivelyplugin)
-PLUGIN(htplugin)
-PLUGIN(mdxplugin)
-PLUGIN(ndsplugin)
-PLUGIN(openmptplugin)
-PLUGIN(sc68plugin)
-PLUGIN(stsoundplugin)
-PLUGIN(tedplugin)
-PLUGIN(uadeplugin)
-PLUGIN(v2plugin)
-PLUGIN(usfplugin)
-PLUGIN(rsnplugin)
-PLUGIN(s98plugin)
-PLUGIN(sidplugin)
-PLUGIN(minimp3plugin)
-
-
-void register_plugins() {
-    PLUGIN2(adplugin)
-    PLUGIN2(aoplugin)
-    PLUGIN2(ayflyplugin)
-    PLUGIN2(gmeplugin)
-    PLUGIN2(gsfplugin)
-    PLUGIN2(heplugin)
-    PLUGIN2(hivelyplugin)
-    PLUGIN2(htplugin)
-    PLUGIN2(mdxplugin)
-    PLUGIN2(ndsplugin)
-    PLUGIN2(openmptplugin)
-    PLUGIN2(sc68plugin)
-    PLUGIN2(stsoundplugin)
-    PLUGIN2(tedplugin)
-    PLUGIN2(uadeplugin)
-    PLUGIN2(v2plugin)
-    PLUGIN2(usfplugin)
-    PLUGIN2(rsnplugin)
-    PLUGIN2(s98plugin)
-    PLUGIN2(sidplugin)
-    PLUGIN2(minimp3plugin)
+void register_plugins()
+{
+#define X(p) p##_register();
+#include "plugin_list.h"
+#undef X
 }
-
