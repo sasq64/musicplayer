@@ -8,7 +8,7 @@
 #include <coreutils/log.h>
 #include <coreutils/utils.h>
 
-//#include "plugins/plugins.h"
+// #include "plugins/plugins.h"
 #include "chipplayer.h"
 #include "chipplugin.h"
 #include "songfile_identifier.h"
@@ -25,7 +25,8 @@ using musix::ChipPlugin;
 
 static std::string error_message;
 
-struct Result {
+struct Result
+{
     char const* title;
     char const* game;
     char const* composer;
@@ -33,25 +34,25 @@ struct Result {
     int32_t length;
 };
 
-extern "C" API Result const* musix_identify_file(const char* fileName, const char *ext)
+extern "C" API Result const* musix_identify_file(const char* fileName,
+                                                 const char* ext)
 {
     SongInfo info;
     info.path = fileName;
     if (ext == nullptr) { ext = ""; }
-    if(!identify_song(info, ext)) {
-        //printf("FAILED\n");
+    if (!identify_song(info, ext)) {
+        // printf("FAILED\n");
         return nullptr;
     }
 
-    //printf("FILE: %s\n", info.path.c_str());
-    //printf("GAME: %s\n", info.game.c_str());
-    //printf("COMPOSER: %s\n", info.composer.c_str());
+    // printf("FILE: %s\n", info.path.c_str());
+    // printf("GAME: %s\n", info.game.c_str());
+    // printf("COMPOSER: %s\n", info.composer.c_str());
 
     int tl = info.title.length() + 1;
     int cl = info.composer.length() + 1;
     int gl = info.game.length() + 1;
     int fl = info.format.length() + 1;
-
 
     char* mem = (char*)malloc(tl + cl + gl + fl + sizeof(Result));
 
@@ -64,7 +65,7 @@ extern "C" API Result const* musix_identify_file(const char* fileName, const cha
     result->game = mem;
     memcpy(mem, info.game.c_str(), gl);
     mem += gl;
-    result->composer = mem; 
+    result->composer = mem;
     memcpy(mem, info.composer.c_str(), cl);
     mem += cl;
     result->format = mem;
@@ -85,21 +86,19 @@ extern "C" API int musix_create(const char* dataDir)
     return 0;
 }
 
-extern "C" API const char*  musix_get_error()
-{
-    return error_message.c_str();
-}
+extern "C" API const char* musix_get_error()
+{ return error_message.c_str(); }
 
-extern "C" API void* musix_find_plugin(const char* fileName, const void* afterPlugin)
+extern "C" API void* musix_find_plugin(const char* fileName,
+                                       const void* afterPlugin)
 {
 
+    auto file_name = utils::toLower(fileName);
     for (const auto& plugin : ChipPlugin::getPlugins()) {
         if (afterPlugin == nullptr) {
-            if (plugin->canHandle(fileName)) { return plugin.get(); }
+            if (plugin->canHandle(file_name)) { return plugin.get(); }
         }
-        if (afterPlugin == plugin.get()) {
-            afterPlugin = nullptr;
-        }
+        if (afterPlugin == plugin.get()) { afterPlugin = nullptr; }
     }
     return nullptr;
 }
@@ -118,9 +117,7 @@ extern "C" API void* musix_plugin_create_player(void* plugin,
 }
 
 extern "C" API void musix_player_destroy(void* player)
-{
-    delete static_cast<ChipPlayer*>(player);
-}
+{ delete static_cast<ChipPlayer*>(player); }
 
 extern "C" API int musix_player_get_samples(void* player, int16_t* target,
                                             int size)
@@ -129,7 +126,7 @@ extern "C" API int musix_player_get_samples(void* player, int16_t* target,
     return chipPlayer->getSamples(target, size);
 }
 
-extern "C" API int musix_player_get_hz(void *player)
+extern "C" API int musix_player_get_hz(void* player)
 {
     auto* chipPlayer = static_cast<ChipPlayer*>(player);
     return chipPlayer->getHZ();
@@ -143,7 +140,8 @@ extern "C" API const char* musix_player_get_meta(void* player, const char* what)
     return strdup(s.c_str());
 }
 
-extern "C" API const char* musix_player_get_meta_int(void* player, const char* what)
+extern "C" API const char* musix_player_get_meta_int(void* player,
+                                                     const char* what)
 {
     auto* chipPlayer = static_cast<ChipPlayer*>(player);
     auto s = std::visit([](auto&& x) { return fmt::format("{}", x); },
@@ -154,23 +152,20 @@ extern "C" API const char* musix_player_get_meta_int(void* player, const char* w
 extern "C" API const char* musix_get_changed_meta(void* player)
 {
     auto* chipPlayer = static_cast<ChipPlayer*>(player);
-    if (auto&& meta = chipPlayer->getChangedMeta())
-    {
-       return strdup(meta->c_str());
+    if (auto&& meta = chipPlayer->getChangedMeta()) {
+        return strdup(meta->c_str());
     }
     return nullptr;
 }
 
-extern "C" API const char* musix_plugin_get_secondary_file(void* plugin, const char* song_file)
+extern "C" API const char*
+musix_plugin_get_secondary_file(void* plugin, const char* song_file)
 {
     auto* chipPlugin = static_cast<ChipPlugin*>(plugin);
     auto secondary = chipPlugin->getSecondaryFiles(song_file);
-    if (!secondary.empty()) {
-       return strdup(secondary[0].c_str());
-    }
+    if (!secondary.empty()) { return strdup(secondary[0].c_str()); }
     return nullptr;
 }
-
 
 extern "C" API void musix_player_seek(void* player, int song, int seconds)
 {
