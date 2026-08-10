@@ -13,7 +13,12 @@ extern "C"
 #ifdef _WIN32
 #    include <windows.h>
 #endif
-#include "unrar/dll.hpp"
+// Built without the bundled unrar when ARCHIVE_NO_UNRAR is set, so an
+// application that links its own copy does not get duplicate symbols. RAR
+// archives are then simply not supported; see this directory's CMakeLists.txt.
+#ifndef ARCHIVE_NO_UNRAR
+#    include "unrar/dll.hpp"
+#endif
 
 using namespace std;
 
@@ -79,6 +84,7 @@ private:
     string workDir;
 };
 
+#ifndef ARCHIVE_NO_UNRAR
 class RarFile : public Archive
 {
 public:
@@ -192,14 +198,17 @@ private:
     mutable int RHCode;
     string workDir;
 };
+#endif
 
 Archive* Archive::open(const std::string& fileName,
                        const std::string& targetDir, int type)
 {
     if (type == TYPE_ZIP || utils::endsWith(fileName, ".zip"))
         return new ZipFile(fileName, targetDir);
+#ifndef ARCHIVE_NO_UNRAR
     else if (type == TYPE_RAR || utils::endsWith(fileName, ".rar"))
         return new RarFile(fileName, targetDir);
+#endif
     return nullptr;
 }
 
