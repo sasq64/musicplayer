@@ -34,8 +34,9 @@
 
 #ifdef _WIN32
 #include <uade/dirent_win32.h>
+/* The UCRT declares POSIX-named stat()/fstat() taking `struct stat`, so
+   remapping stat to _stat here would only mismatch fstat's parameter type. */
 #include <sys/stat.h>
-#define	stat _stat
 #endif
 
 

@@ -77,6 +77,10 @@ target_include_directories(adplugin PRIVATE opl libbinio adplug)
 target_compile_definitions(adplugin PRIVATE ADPLUG_VERSION="2.3.2-beta")
 if(NOT WIN32)
   target_compile_definitions(adplugin PRIVATE stricmp=strcasecmp)
+endif()
+# AdPlug still uses the `register` keyword, which is an error under C++17 for
+# every clang frontend, including clang-cl when cross compiling for Windows.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(adplugin PRIVATE -Wno-register)
 endif()
 target_link_libraries(adplugin PRIVATE coreutils)

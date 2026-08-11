@@ -6,7 +6,8 @@
 #include <assert.h>
 
 #ifdef _WIN32
-#include <Winsock2.h>
+/* Lower case: the SDK headers are case sensitive when cross compiling. */
+#include <winsock2.h>
 #define UREAD(fd, target, len) recv(fd, target, len, 0)
 #define UWRITE(fd, target, len) send(fd, target, len, 0)
 #define UCLOSE(fd) closesocket(fd)

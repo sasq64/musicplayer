@@ -24,7 +24,7 @@ set(SOURCE_FILES
 
 add_library(s98plugin S98Plugin.cpp ${SOURCE_FILES})
 target_link_libraries(s98plugin PRIVATE coreutils ${ZLIB_LIBRARIES})
-if(NOT WIN32)
+if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(s98plugin PRIVATE -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types)
 endif()
 target_include_directories(s98plugin PRIVATE m_s98 ${ZLIB_INCLUDE_DIRS})

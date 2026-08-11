@@ -34,7 +34,7 @@ set(SOURCE_FILES
 add_library(aoplugin AOPlugin.cpp ${SOURCE_FILES})
 target_include_directories(aoplugin PRIVATE aosdk/eng_ssf aosdk ${ZLIB_INCLUDE_DIRS})
 target_link_libraries(aoplugin PRIVATE coreutils ${ZLIB_LIBRARIES})
-if(NOT WIN32)
+if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(aoplugin PRIVATE -Wno-implicit-function-declaration)
 endif()
 

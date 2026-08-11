@@ -27,6 +27,12 @@ endif()
 
 find_package(Threads)
 
+# Only the static library is used here; the shared build also declares its own
+# ZLIB::ZLIB alias, and its test targets resolve $<TARGET_FILE_DIR:ZLIB::ZLIB>
+# against the interface target below, which breaks generation on Windows.
+set(ZLIB_BUILD_SHARED OFF)
+set(ZLIB_BUILD_TESTING OFF)
+set(ZLIB_INSTALL OFF)
 add_subdirectory(external/zlib)
 set(ZLIB_LIBRARIES zlibstatic)
 set(ZLIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/zlib ${CMAKE_BINARY_DIR}/external/zlib)

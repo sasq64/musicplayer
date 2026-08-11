@@ -21,7 +21,7 @@ set(SOURCE_FILES
 add_library(ndsplugin ${SOURCE_FILES})
 target_include_directories(ndsplugin PRIVATE nds/vio2sf nds/vio2sf/desmume nds)
 target_link_libraries(ndsplugin PRIVATE psf coreutils)
-if(NOT WIN32)
+if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(ndsplugin PRIVATE -Wno-incompatible-pointer-types)
 endif()
 target_compile_definitions(ndsplugin PRIVATE -DLSB_FIRST -DHAVE_STDINT_H)
