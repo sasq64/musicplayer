@@ -26,6 +26,28 @@ static void write_debug(int /*level*/, void* /*cookie*/, const char* fmt,
 
 namespace musix {
 
+/* libsc68 is initialized once per process, not once per song.
+ *
+ * sc68_init() sets a library-wide flag and fails with "already initialized"
+ * if it is called again while that flag is set, and sc68_shutdown() clears it
+ * for everyone. Doing that pair per player meant a second song loaded while
+ * the first was still alive could not init at all (so the file looked
+ * unplayable), and tearing one player down pulled the library out from under
+ * any other player still using it. The library is happy with any number of
+ * sc68_t instances from a single init -- which is what sc68_create() gives us
+ * -- so init once and leave it up for the life of the process.
+ */
+static bool init_library()
+{
+    static const bool initialized = [] {
+        sc68_init_t init68;
+        memset(&init68, 0, sizeof(init68));
+        init68.msg_handler = reinterpret_cast<sc68_msg_t>(write_debug);
+        return sc68_init(&init68) == 0;
+    }();
+    return initialized;
+}
+
 class SC68Player : public ChipPlayer
 {
 public:
@@ -51,12 +73,7 @@ public:
 
     bool load(uint8_t const* ptr, int size)
     {
-
-        sc68_init_t init68;
-        memset(&init68, 0, sizeof(init68));
-        init68.msg_handler = reinterpret_cast<sc68_msg_t>(write_debug);
-
-        if (sc68_init(&init68) != 0) {
+        if (!init_library()) {
             LOGW("Init failed");
             return false;
         }
@@ -68,7 +85,6 @@ public:
             LOGW("Verify mem failed");
             sc68_destroy(sc68);
             sc68 = nullptr;
-            sc68_shutdown();
             return false;
         }
 
@@ -76,7 +92,6 @@ public:
             LOGW("Load mem failed");
             sc68_destroy(sc68);
             sc68 = nullptr;
-            sc68_shutdown();
             return false;
         }
 
@@ -93,7 +108,6 @@ public:
             LOGW("Process failed");
             sc68_destroy(sc68);
             sc68 = nullptr;
-            sc68_shutdown();
             return false;
         }
 
@@ -114,7 +128,7 @@ public:
     {
         if (sc68 != nullptr) { sc68_destroy(sc68); }
         sc68 = nullptr;
-        if (valid) { sc68_shutdown(); }
+        // No sc68_shutdown() here -- see init_library().
     }
 
     int getSamples(int16_t* target, int noSamples) override
